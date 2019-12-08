@@ -1,8 +1,76 @@
 package revenue
 
 import (
+	"errors"
+
+	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
+
+// maxQueryEvents is the number of events to query the forward log for at
+// a time.
+const maxQueryEvents uint32 = 500
+
+// errUnknownChannelID is returned when we cannot map a short channel ID to
+// a channel outpoint string.
+var errUnknownChannelID = errors.New("cannot find channel outpoint")
+
+// eventsQuery is a function which returns paginated queries for forwarding
+// events.
+type eventsQuery func(
+	offset, maxEvents uint32) ([]*lnrpc.ForwardingEvent, uint32, error)
+
+// getEvents gets calls the paginated query function until it has all the
+// forwarding events for the period provided. It takes a map of shortChannelIDs
+// to outpoints which is used to convert forwarding events short ids to
+// outpoint strings.
+func getEvents(channelIDs map[lnwire.ShortChannelID]string,
+	query eventsQuery) ([]revenueEvent, error) {
+
+	var (
+		offset uint32
+		events []revenueEvent
+	)
+
+	for {
+		fwdEvents, newOffset, err := query(offset, maxQueryEvents)
+		if err != nil {
+			return nil, err
+		}
+
+		// Get the event's channel outpoints from out known list of maps and
+		// create a revenue event. Return an error if the short channel id's
+		// outpoint cannot be found, because we expect all known short channel
+		// ids to be provided.
+		for _, fwd := range fwdEvents {
+			incoming, ok := channelIDs[lnwire.NewShortChanIDFromInt(fwd.ChanIdIn)]
+			if !ok {
+				return nil, errUnknownChannelID
+			}
+
+			outgoing, ok := channelIDs[lnwire.NewShortChanIDFromInt(fwd.ChanIdOut)]
+			if !ok {
+				return nil, errUnknownChannelID
+			}
+
+			events = append(events, revenueEvent{
+				incomingChannel: incoming,
+				outgoingChannel: outgoing,
+				incomingAmt:     lnwire.MilliSatoshi(fwd.AmtInMsat),
+				outgoingAmt:     lnwire.MilliSatoshi(fwd.AmtOutMsat),
+			})
+		}
+
+		// If we have less than the maximum number of events, we do not
+		// need to  query further for more events.
+		if uint32(len(fwdEvents)) < maxQueryEvents {
+			return events, nil
+		}
+
+		// Update the offset for the next query.
+		offset = newOffset
+	}
+}
 
 // Report provides a pairwise report on channel revenue. It maps a
 // target channel to a map of channels that it has forwarded HTLCs with to

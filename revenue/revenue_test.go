@@ -1,12 +1,137 @@
 package revenue
 
 import (
+	"errors"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
+
+// TestGetRevenueReport tests querying for a revenue report.
+func TestGetRevenueReport(t *testing.T) {
+	var (
+		// testErr is an error returned by the mock to simulate rpc failures.
+		testErr = errors.New("error thrown by mock")
+
+		chan1 = &lnrpc.Channel{
+			ChannelPoint: "a:1",
+			ChanId:       123,
+		}
+
+		chan2 = &lnrpc.Channel{
+			ChannelPoint: "a:2",
+			ChanId:       321,
+		}
+	)
+
+	tests := []struct {
+		name           string
+		listChanErr    error
+		closedChanErr  error
+		forwardHistErr error
+		openChannels   []*lnrpc.Channel
+		closedChannels []*lnrpc.ChannelCloseSummary
+		fwdHistory     []*lnrpc.ForwardingEvent
+		expectedReport *Report
+		expectErr      error
+	}{
+		{
+			name:        "open channels fails",
+			listChanErr: testErr,
+			expectErr:   testErr,
+		},
+		{
+			name:          "closed channels fails",
+			closedChanErr: testErr,
+			expectErr:     testErr,
+		},
+		{
+			name:           "forward history fails",
+			forwardHistErr: testErr,
+			expectErr:      testErr,
+		},
+		{
+			name: "cannot find channel",
+			fwdHistory: []*lnrpc.ForwardingEvent{
+				{
+					ChanIdIn: 123,
+				},
+			},
+			expectErr: errUnknownChannelID,
+		},
+		{
+			name:         "open and closed channel",
+			openChannels: []*lnrpc.Channel{chan1},
+			closedChannels: []*lnrpc.ChannelCloseSummary{{
+				ChannelPoint: chan2.ChannelPoint,
+				ChanId:       chan2.ChanId,
+			}},
+			fwdHistory: []*lnrpc.ForwardingEvent{
+				{
+					ChanIdIn:   chan1.ChanId,
+					ChanIdOut:  chan2.ChanId,
+					AmtOutMsat: 100,
+					AmtInMsat:  150,
+				},
+			},
+			expectedReport: &Report{
+				ChannelPairs: map[string]map[string]Revenue{
+					chan1.ChannelPoint: {
+						chan2.ChannelPoint: Revenue{
+							AmountIncoming: 150,
+							AmountOutgoing: 0,
+							FeesIncoming:   50,
+							FeesOutgoing:   0,
+						}},
+					chan2.ChannelPoint: {
+						chan1.ChannelPoint: Revenue{
+							AmountIncoming: 0,
+							AmountOutgoing: 100,
+							FeesIncoming:   0,
+							FeesOutgoing:   50,
+						}},
+				}},
+			expectErr: nil,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			// Create a config which returns the tests's specified responses
+			// and errors.
+			cfg := &Config{
+				ListChannels: func() ([]*lnrpc.Channel, error) {
+					return test.openChannels, test.listChanErr
+				},
+				ClosedChannels: func() ([]*lnrpc.ChannelCloseSummary, error) {
+					return test.closedChannels, test.closedChanErr
+				},
+				ForwardingHistory: func(startTime, endTime time.Time, offset,
+					max uint32) ([]*lnrpc.ForwardingEvent, uint32, error) {
+
+					return test.fwdHistory, offset, test.forwardHistErr
+				},
+			}
+
+			report, err := GetRevenueReport(
+				cfg, time.Now(), time.Now(),
+			)
+			if test.expectErr != err {
+				t.Fatalf("expected: %v, got: %v", test.expectErr, err)
+			}
+
+			if !reflect.DeepEqual(test.expectedReport, report) {
+				t.Fatalf("expected: \n%+v, got: \n%+v", test.expectedReport, report)
+			}
+
+		})
+	}
+}
 
 // TestGetEvents tests the repeated querying of an events function to obtain
 // all results from a paginated database query. It mocks the rpc call by setting

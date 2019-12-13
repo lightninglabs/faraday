@@ -2,6 +2,7 @@ package revenue
 
 import (
 	"errors"
+	"time"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
@@ -19,6 +20,66 @@ var errUnknownChannelID = errors.New("cannot find channel outpoint")
 // events.
 type eventsQuery func(
 	offset, maxEvents uint32) ([]*lnrpc.ForwardingEvent, uint32, error)
+
+// Config contains all the functions required to calculate revenue.
+type Config struct {
+	// ListChannels returns all open, public channels.
+	ListChannels func() ([]*lnrpc.Channel, error)
+
+	// ClosedChannels returns all closed channels.
+	ClosedChannels func() ([]*lnrpc.ChannelCloseSummary, error)
+
+	// ForwardingHistory returns paginated forwarding history results
+	// over a given time range.
+	ForwardingHistory func(startTime, endTime time.Time, offset,
+		maxEvents uint32) ([]*lnrpc.ForwardingEvent, uint32, error)
+}
+
+// GetRevenueReport produces a revenue report over the period specified.
+func GetRevenueReport(cfg *Config, startTime,
+	endTime time.Time) (*Report, error) {
+
+	// To provide the user with a revenue report by outpoint, we need to map
+	// short channel ids in the forwarding log to outpoints. Lookup all open and
+	// closed channels to produce a map of short channel id to outpoint.
+	channels, err := cfg.ListChannels()
+	if err != nil {
+		return nil, err
+	}
+
+	closedChannels, err := cfg.ClosedChannels()
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the channels looked up to a map of short channel id to outpoint
+	// string.
+	channelIDs := make(map[lnwire.ShortChannelID]string)
+	for _, channel := range channels {
+		channelIDs[lnwire.NewShortChanIDFromInt(channel.ChanId)] =
+			channel.ChannelPoint
+	}
+
+	for _, closedChannel := range closedChannels {
+		channelIDs[lnwire.NewShortChanIDFromInt(closedChannel.ChanId)] =
+			closedChannel.ChannelPoint
+	}
+
+	// Obtain paginated forwarder events by querying the forwarder log in the
+	// period provided.
+	query := func(offset,
+		maxEvents uint32) ([]*lnrpc.ForwardingEvent, uint32, error) {
+
+		return cfg.ForwardingHistory(startTime, endTime, offset, maxEvents)
+	}
+
+	events, err := getEvents(channelIDs, query)
+	if err != nil {
+		return nil, err
+	}
+
+	return getReport(events), nil
+}
 
 // getEvents gets calls the paginated query function until it has all the
 // forwarding events for the period provided. It takes a map of shortChannelIDs

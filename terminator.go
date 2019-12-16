@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightninglabs/terminator/recommend"
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
@@ -32,13 +33,44 @@ func Main() error {
 		return fmt.Errorf("cannot connect to lightning client: %v", err)
 	}
 
-	channels, err := client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
+	// Get channel close recommendations for the current set of open public
+	// channels.
+	report, err := recommend.CloseRecommendations(
+		&recommend.CloseRecommendationConfig{
+			// OpenChannels provides all of the open, public channels for the
+			// node.
+			OpenChannels: func() (channels []*lnrpc.Channel, e error) {
+				resp, err := client.ListChannels(ctx,
+					&lnrpc.ListChannelsRequest{
+						PublicOnly: true,
+					})
+				if err != nil {
+					return nil, err
+				}
+
+				return resp.Channels, nil
+			},
+
+			// For the first iteration of the terminator, do not allow users
+			// to configure recommendations to penalize weak outliers.
+			StrongOutlier: true,
+
+			// Set the minimum monitor time to the value provided in our config.
+			MinimumMonitored: config.MinimumMonitored,
+		})
 	if err != nil {
-		return fmt.Errorf("error calling list channels: %v", err)
+		return fmt.Errorf("could not get close recommendations: %v", err)
 	}
 
-	log.Infof("Found %v channels, that's all for now. I will be back.",
-		len(channels.Channels))
+	log.Infof("Considering: %v channels for closure from a "+
+		"total of: %v. Produced %v recommendations.", report.ConsideredChannels,
+		report.TotalChannels, len(report.Recommendations))
+
+	for channel, rec := range report.Recommendations {
+		log.Infof("%v: %v", channel, rec)
+	}
+
+	log.Info("That's all for now. I will be back.")
 
 	return nil
 }

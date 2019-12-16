@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jessevdk/go-flags"
+	"github.com/lightningnetwork/lnd/build"
 )
 
 const (
@@ -13,6 +14,7 @@ const (
 	defaultMacaroon       = "admin.macaroon"
 	defaultNetwork        = "mainnet"
 	defaultMinimumMonitor = time.Hour * 24 * 7 * 4 // four weeks in hours
+	defaultDebugLevel     = "info"
 )
 
 type config struct {
@@ -42,6 +44,10 @@ type config struct {
 
 	// network is a string containing the network we're running on.
 	network string
+
+	// DebugLevel is a string defining the log level for the service either
+	// for all subsystems the same or individual level by subsystem.
+	DebugLevel string `long:"debuglevel" description:"Debug level for termaintor and its subsystems."`
 }
 
 // loadConfig starts with a skeleton default config, and reads in user provided
@@ -55,6 +61,7 @@ func loadConfig() (*config, error) {
 		network:          defaultNetwork,
 		MacaroonFile:     defaultMacaroon,
 		MinimumMonitored: defaultMinimumMonitor,
+		DebugLevel:       defaultDebugLevel,
 	}
 
 	// Parse command line options to obtain user specified values.
@@ -78,6 +85,10 @@ func loadConfig() (*config, error) {
 
 	if netCount > 1 {
 		return nil, fmt.Errorf("do not specify more than one network flag")
+	}
+
+	if err := build.ParseAndSetDebugLevels(config.DebugLevel, logWriter); err != nil {
+		return nil, err
 	}
 
 	return config, nil

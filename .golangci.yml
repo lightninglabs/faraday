@@ -22,3 +22,6 @@ linters:
 
     # Global variables are used by loggers.
     - gochecknoglobals
+
+    # Test functions tend to be longer.
+    - funlen

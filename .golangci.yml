@@ -25,3 +25,7 @@ linters:
 
     # Test functions tend to be longer.
     - funlen
+
+    # Comments for config variables need long comments.
+    - lll
+

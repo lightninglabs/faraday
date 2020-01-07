@@ -2,15 +2,19 @@ package terminator
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/jessevdk/go-flags"
+	"github.com/lightningnetwork/lnd/build"
 )
 
 const (
-	defaultRPCPort     = "10009"
-	defaultRPCHostPort = "localhost:" + defaultRPCPort
-	defaultMacaroon    = "admin.macaroon"
-	defaultNetwork     = "mainnet"
+	defaultRPCPort        = "10009"
+	defaultRPCHostPort    = "localhost:" + defaultRPCPort
+	defaultMacaroon       = "admin.macaroon"
+	defaultNetwork        = "mainnet"
+	defaultMinimumMonitor = time.Hour * 24 * 7 * 4 // four weeks in hours
+	defaultDebugLevel     = "info"
 )
 
 type config struct {
@@ -35,8 +39,15 @@ type config struct {
 	// Simnet is set to true when using bitcoind's regtest.
 	Regtest bool `long:"regtest" description:"Use regtest"`
 
+	// MinimumMonitored is the minimum amount of time that a channel must be monitored for before we consider it for termination.
+	MinimumMonitored time.Duration `long:"min_monitored" description:"The minimum amount of time that a channel must be monitored for before recommending termination. Valid time units are {s, m, h}."`
+
 	// network is a string containing the network we're running on.
 	network string
+
+	// DebugLevel is a string defining the log level for the service either
+	// for all subsystems the same or individual level by subsystem.
+	DebugLevel string `long:"debuglevel" description:"Debug level for termaintor and its subsystems."`
 }
 
 // loadConfig starts with a skeleton default config, and reads in user provided
@@ -46,9 +57,11 @@ type config struct {
 func loadConfig() (*config, error) {
 	// Start with a default config.
 	config := &config{
-		RPCServer:    defaultRPCHostPort,
-		network:      defaultNetwork,
-		MacaroonFile: defaultMacaroon,
+		RPCServer:        defaultRPCHostPort,
+		network:          defaultNetwork,
+		MacaroonFile:     defaultMacaroon,
+		MinimumMonitored: defaultMinimumMonitor,
+		DebugLevel:       defaultDebugLevel,
 	}
 
 	// Parse command line options to obtain user specified values.
@@ -72,6 +85,10 @@ func loadConfig() (*config, error) {
 
 	if netCount > 1 {
 		return nil, fmt.Errorf("do not specify more than one network flag")
+	}
+
+	if err := build.ParseAndSetDebugLevels(config.DebugLevel, logWriter); err != nil {
+		return nil, err
 	}
 
 	return config, nil

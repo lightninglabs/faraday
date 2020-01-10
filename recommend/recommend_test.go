@@ -1,12 +1,11 @@
 package recommend
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/lightninglabs/terminator/dataset"
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightninglabs/terminator/insights"
 )
 
 // TestCloseRecommendations tests CloseRecommendations for error cases where
@@ -15,55 +14,39 @@ import (
 // the minimum acceptable number of channels. It does not test the report
 // provided, because that will be covered by further tests.
 func TestCloseRecommendations(t *testing.T) {
-	var openChanErr = errors.New("intentional test err")
-
 	tests := []struct {
 		name         string
-		OpenChannels func() ([]*lnrpc.Channel, error)
+		OpenChannels []*insights.Channel
 		MinMonitored time.Duration
 		expectedErr  error
 	}{
 		{
-			name: "no channels",
-			OpenChannels: func() ([]*lnrpc.Channel, error) {
-				return nil, nil
-			},
+			name:         "no channels",
+			OpenChannels: []*insights.Channel{},
 			MinMonitored: time.Hour,
 			expectedErr:  dataset.ErrTooFewValues,
 		},
 		{
-			name: "open channels fails",
-			OpenChannels: func() ([]*lnrpc.Channel, error) {
-				return nil, openChanErr
-			},
-			MinMonitored: time.Hour,
-			expectedErr:  openChanErr,
-		},
-		{
-			name: "zero min monitored",
-			OpenChannels: func() ([]*lnrpc.Channel, error) {
-				return nil, nil
-			},
+			name:         "zero min monitored",
+			OpenChannels: []*insights.Channel{},
 			MinMonitored: 0,
 			expectedErr:  errZeroMinMonitored,
 		},
 		{
 			name: "enough channels",
-			OpenChannels: func() ([]*lnrpc.Channel, error) {
-				return []*lnrpc.Channel{
-					{
-						ChannelPoint: "a:1",
-						Lifetime:     int64(time.Hour.Seconds()),
-					},
-					{
-						ChannelPoint: "b:2",
-						Lifetime:     int64(time.Hour.Seconds()),
-					},
-					{
-						ChannelPoint: "c:3",
-						Lifetime:     int64(time.Hour.Seconds()),
-					},
-				}, nil
+			OpenChannels: []*insights.Channel{
+				{
+					ChannelPoint: "a:1",
+					MonitoredFor: time.Hour,
+				},
+				{
+					ChannelPoint: "b:2",
+					MonitoredFor: time.Hour,
+				},
+				{
+					ChannelPoint: "c:3",
+					MonitoredFor: time.Hour,
+				},
 			},
 			MinMonitored: time.Hour,
 			expectedErr:  nil,
@@ -76,13 +59,15 @@ func TestCloseRecommendations(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := CloseRecommendations(&CloseRecommendationConfig{
-				OpenChannels:     test.OpenChannels,
-				StrongOutlier:    true,
-				MinimumMonitored: test.MinMonitored,
-			})
+			_, err := CloseRecommendations(
+				&CloseRecommendationConfig{
+					ChannelInsights:  test.OpenChannels,
+					StrongOutlier:    true,
+					MinimumMonitored: test.MinMonitored,
+				})
 			if err != test.expectedErr {
-				t.Fatalf("expected: %v, got: %v", test.expectedErr, err)
+				t.Fatalf("expected: %v, got: %v",
+					test.expectedErr, err)
 			}
 		})
 	}
@@ -162,32 +147,32 @@ func TestGetCloseRecs(t *testing.T) {
 
 // TestFilterChannels tests filtering of channels based on their lifetime.
 func TestFilterChannels(t *testing.T) {
-	openChannels := []*lnrpc.Channel{
+	openChannels := []*insights.Channel{
 		{
-			ChannelPoint: "a:0",
-			Lifetime:     10,
-			Uptime:       1,
+			ChannelPoint:     "a:0",
+			MonitoredFor:     time.Second * 10,
+			UptimePercentage: 1,
 		},
 		{
-			ChannelPoint: "a:1",
-			Lifetime:     100,
-			Uptime:       1,
+			ChannelPoint:     "a:1",
+			MonitoredFor:     time.Second * 100,
+			UptimePercentage: 1,
 		},
 		{
-			ChannelPoint: "a:2",
-			Lifetime:     100,
-			Uptime:       1,
+			ChannelPoint:     "a:2",
+			MonitoredFor:     time.Second * 100,
+			UptimePercentage: 1,
 		},
 		{
-			ChannelPoint: "a:3",
-			Lifetime:     100,
-			Uptime:       1,
+			ChannelPoint:     "a:3",
+			MonitoredFor:     time.Second * 100,
+			UptimePercentage: 1,
 		},
 	}
 
 	tests := []struct {
 		name               string
-		openChannels       []*lnrpc.Channel
+		openChannels       []*insights.Channel
 		minAge             time.Duration
 		expectedChanPoints []string
 	}{
@@ -215,12 +200,14 @@ func TestFilterChannels(t *testing.T) {
 
 			if len(test.expectedChanPoints) != len(filtered) {
 				t.Fatalf("expected: %v channels, got: %v",
-					len(test.expectedChanPoints), len(filtered))
+					len(test.expectedChanPoints),
+					len(filtered))
 			}
 
-			for _, expected := range test.expectedChanPoints {
-				if _, ok := filtered[expected]; !ok {
-					t.Fatalf("expected channel: %v to be present", expected)
+			for i, expected := range test.expectedChanPoints {
+				if expected != filtered[i].ChannelPoint {
+					t.Fatalf("expected: %v, got: %v",
+						expected, filtered[i])
 				}
 			}
 		})

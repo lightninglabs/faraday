@@ -110,19 +110,9 @@ func Main() error {
 	// channels.
 	report, err := recommend.CloseRecommendations(
 		&recommend.CloseRecommendationConfig{
-			// OpenChannels provides all of the open, public channels for the
-			// node.
-			OpenChannels: func() (channels []*lnrpc.Channel, e error) {
-				resp, err := client.ListChannels(ctx,
-					&lnrpc.ListChannelsRequest{
-						PublicOnly: true,
-					})
-				if err != nil {
-					return nil, err
-				}
-
-				return resp.Channels, nil
-			},
+			// ChannelInsights provides all of the node's open
+			// channels with uptime and revenue data.
+			ChannelInsights: channels,
 
 			// For the first iteration of the terminator, do not allow users
 			// to configure recommendations to penalize weak outliers.

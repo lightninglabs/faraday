@@ -14,6 +14,7 @@ const (
 	defaultMacaroon       = "admin.macaroon"
 	defaultNetwork        = "mainnet"
 	defaultMinimumMonitor = time.Hour * 24 * 7 * 4 // four weeks in hours
+	defaultRevenuePeriod  = time.Hour * 24 * 7 * 4 // four weeks in hours
 	defaultDebugLevel     = "info"
 )
 
@@ -48,6 +49,9 @@ type config struct {
 	// DebugLevel is a string defining the log level for the service either
 	// for all subsystems the same or individual level by subsystem.
 	DebugLevel string `long:"debuglevel" description:"Debug level for termaintor and its subsystems."`
+
+	// RevenuePeriod is the amount of time from the present that revenue reports for channels should be calculated.
+	RevenuePeriod time.Duration `long:"revenue_period" description:"The amount of time from the present that revenue reports should be generated from. Valid time units are {s, m, h}."`
 }
 
 // loadConfig starts with a skeleton default config, and reads in user provided
@@ -62,6 +66,7 @@ func loadConfig() (*config, error) {
 		MacaroonFile:     defaultMacaroon,
 		MinimumMonitored: defaultMinimumMonitor,
 		DebugLevel:       defaultDebugLevel,
+		RevenuePeriod:    defaultRevenuePeriod,
 	}
 
 	// Parse command line options to obtain user specified values.

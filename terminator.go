@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightninglabs/terminator/dataset"
 	"github.com/lightninglabs/terminator/insights"
 	"github.com/lightninglabs/terminator/recommend"
 	"github.com/lightninglabs/terminator/revenue"
@@ -118,18 +119,33 @@ func Main() error {
 			// to configure recommendations to penalize weak outliers.
 			StrongOutlier: true,
 
-			// Set the minimum monitor time to the value provided in our config.
+			// Set the minimum monitor time to the value provided
+			// in our config.
 			MinimumMonitored: config.MinimumMonitored,
 		})
-	if err != nil {
-		return fmt.Errorf("could not get close recommendations: %v", err)
+	if err == dataset.ErrTooFewValues {
+		log.Infof("no channels are eligible for close at present")
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not get close "+
+			"recommendations: %v", err)
 	}
 
 	log.Infof("Considering: %v channels for closure from a "+
-		"total of: %v. Produced %v recommendations.", report.ConsideredChannels,
-		report.TotalChannels, len(report.Recommendations))
+		"total of: %v.",
+		report.ConsideredChannels, report.TotalChannels)
 
-	for channel, rec := range report.Recommendations {
+	log.Infof("Uptime Recommendations: %v",
+		len(report.UptimeRecommendations))
+
+	for channel, rec := range report.UptimeRecommendations {
+		log.Infof("%v: %v", channel, rec)
+	}
+
+	log.Infof("Revenue Recommendations: %v",
+		len(report.RevenueRecommendations))
+
+	for channel, rec := range report.RevenueRecommendations {
 		log.Infof("%v: %v", channel, rec)
 	}
 

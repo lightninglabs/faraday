@@ -55,32 +55,52 @@ type Report struct {
 	// for long enough to be considered for close.
 	ConsideredChannels int
 
-	// Recommendations is a map of chanel outpoints to a bool which indicates
-	// whether we should close the channel.
-	Recommendations map[string]bool
+	// UptimeRecommendations is a map of chanel outpoints to a bool which
+	// indicates whether we should close the channel because its uptime
+	// is a statistical outlier.
+	UptimeRecommendations map[string]bool
+
+	// RevenueRecommendations is a map of chanel outpoints to a bool which
+	// indicates whether we should close the channel because its revenue
+	// per block open is a statistical outlier.
+	RevenueRecommendations map[string]bool
 }
 
 // reportTemplate is a template for petty printing revenue reports.
 var reportTemplate = `Total Channels: %v
 Channels Considered: %v
+%v
 %v`
 
 // String returns a string representation of a rReport.
 func (r *Report) String() string {
-	uptimeRecs := fmt.Sprintf("Uptime Based Close "+
-		"Recommendations: %v", len(r.Recommendations))
+	var (
+		uptimeRecs = fmt.Sprintf("Uptime Based Close "+
+			"Recommendations: %v", len(r.UptimeRecommendations))
+
+		revenueRecs = fmt.Sprintf("Revenue Based Close "+
+			"Recommendations: %v", len(r.RevenueRecommendations))
+	)
 
 	// Accumulate any uptime based recommendations.
-	for channel, rec := range r.Recommendations {
+	for channel, rec := range r.UptimeRecommendations {
 		if rec {
 			uptimeRecs = fmt.Sprintf("%v\n%v", uptimeRecs,
 				channel)
 		}
 	}
 
+	// Accumulate any revenue based recommendations.
+	for channel, rec := range r.RevenueRecommendations {
+		if rec {
+			revenueRecs = fmt.Sprintf("%v\n%v", revenueRecs,
+				channel)
+		}
+	}
+
 	// Return report template populated with report details.
 	return fmt.Sprintf(reportTemplate, r.TotalChannels,
-		r.ConsideredChannels, uptimeRecs)
+		r.ConsideredChannels, uptimeRecs, revenueRecs)
 }
 
 // CloseRecommendations returns a report which contains information about the
@@ -98,23 +118,34 @@ func CloseRecommendations(cfg *CloseRecommendationConfig) (*Report, error) {
 
 	// Produce a dataset containing uptime percentage for channels that have
 	// been monitored for longer than the minimum time.
-	uptime := getUptimeDataset(filtered)
+	uptime, revenue := getDatasets(filtered)
 
-	recs, err := getCloseRecs(uptime, cfg.StrongOutlier)
+	uptimeRecs, err := getOutlierRecommendations(
+		uptime, cfg.StrongOutlier,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	revenueRecs, err := getOutlierRecommendations(
+		revenue, cfg.StrongOutlier,
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Report{
-		TotalChannels:      len(cfg.ChannelInsights),
-		ConsideredChannels: len(filtered),
-		Recommendations:    recs,
+		TotalChannels:          len(cfg.ChannelInsights),
+		ConsideredChannels:     len(filtered),
+		UptimeRecommendations:  uptimeRecs,
+		RevenueRecommendations: revenueRecs,
 	}, nil
 }
 
-// getCloseRecs generates map of channel outpoint strings to booleans indicating
-// whether we recommend closing a channel.
-func getCloseRecs(uptime dataset.Dataset,
+// getOutlierRecommendations generates map of channel outpoint strings to
+// booleans indicating whether we recommend closing a channel because it is
+// a statistical lower outlier.
+func getOutlierRecommendations(uptime dataset.Dataset,
 	strongOutlier bool) (map[string]bool, error) {
 
 	outliers, err := uptime.GetOutliers(strongOutlier)
@@ -165,19 +196,25 @@ func filterChannels(openChannels []*insights.Channel,
 	return channels
 }
 
-// getUptimeDataset takes a set of channels that are eligible for close and
-// produces an uptime dataset.
-func getUptimeDataset(eligibleChannels []*insights.Channel) dataset.Dataset {
+// getDatasets takes a set of channels that are eligible for close and
+// produces relevant datasets.
+func getDatasets(eligibleChannels []*insights.Channel) (
+	dataset.Dataset, dataset.Dataset) {
 
-	// Create a map which will hold channel point string label to uptime
-	// percentage.
-	var uptimeData = make(map[string]float64)
+	// Create a maps which will hold channel point string label to uptime
+	// and revenue values.
+	var (
+		uptimeData  = make(map[string]float64)
+		revenueData = make(map[string]float64)
+	)
 
 	for _, channel := range eligibleChannels {
 		uptimeData[channel.ChannelPoint] =
 			channel.UptimePercentage
+		revenueData[channel.ChannelPoint] =
+			float64(channel.RevenuePerBlock)
 	}
 
 	// Create a dataset for the uptime values we have collected.
-	return dataset.New(uptimeData)
+	return dataset.New(uptimeData), dataset.New(revenueData)
 }

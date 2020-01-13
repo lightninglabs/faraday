@@ -28,7 +28,6 @@ func TestGetRevenueReport(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		listChanErr    error
 		closedChanErr  error
 		forwardHistErr error
 		openChannels   []*lnrpc.Channel
@@ -37,11 +36,6 @@ func TestGetRevenueReport(t *testing.T) {
 		expectedReport *Report
 		expectErr      error
 	}{
-		{
-			name:        "open channels fails",
-			listChanErr: testErr,
-			expectErr:   testErr,
-		},
 		{
 			name:          "closed channels fails",
 			closedChanErr: testErr,
@@ -104,9 +98,7 @@ func TestGetRevenueReport(t *testing.T) {
 			// Create a config which returns the tests's specified responses
 			// and errors.
 			cfg := &Config{
-				ListChannels: func() ([]*lnrpc.Channel, error) {
-					return test.openChannels, test.listChanErr
-				},
+				OpenChannels: test.openChannels,
 				ClosedChannels: func() ([]*lnrpc.ChannelCloseSummary, error) {
 					return test.closedChannels, test.closedChanErr
 				},

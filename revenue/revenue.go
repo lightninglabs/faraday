@@ -22,8 +22,9 @@ type eventsQuery func(
 
 // Config contains all the functions required to calculate revenue.
 type Config struct {
-	// ListChannels returns all open, public channels.
-	ListChannels func() ([]*lnrpc.Channel, error)
+	// OpenChannels is a set of all the channels our node currently
+	// has open.
+	OpenChannels []*lnrpc.Channel
 
 	// ClosedChannels returns all closed channels.
 	ClosedChannels func() ([]*lnrpc.ChannelCloseSummary, error)
@@ -39,11 +40,6 @@ func GetRevenueReport(cfg *Config) (*Report, error) {
 	// To provide the user with a revenue report by outpoint, we need to map
 	// short channel ids in the forwarding log to outpoints. Lookup all open and
 	// closed channels to produce a map of short channel id to outpoint.
-	channels, err := cfg.ListChannels()
-	if err != nil {
-		return nil, err
-	}
-
 	closedChannels, err := cfg.ClosedChannels()
 	if err != nil {
 		return nil, err
@@ -52,7 +48,7 @@ func GetRevenueReport(cfg *Config) (*Report, error) {
 	// Add the channels looked up to a map of short channel id to outpoint
 	// string.
 	channelIDs := make(map[lnwire.ShortChannelID]string)
-	for _, channel := range channels {
+	for _, channel := range cfg.OpenChannels {
 		channelIDs[lnwire.NewShortChanIDFromInt(channel.ChanId)] =
 			channel.ChannelPoint
 	}

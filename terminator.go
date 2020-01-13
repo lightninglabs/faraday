@@ -11,7 +11,22 @@ import (
 	"github.com/lightninglabs/terminator/insights"
 	"github.com/lightninglabs/terminator/recommend"
 	"github.com/lightninglabs/terminator/revenue"
+	"github.com/lightninglabs/terminator/utils"
 	"github.com/lightningnetwork/lnd/lnrpc"
+)
+
+var (
+	// revenueFileName is the name of the file that the revenue report is
+	// optionally written to.
+	revenueFileName = "revenue.json"
+
+	// insightsFileName is the name of the file that channel insights are
+	// optionally written to.
+	insightsFileName = "insights.json"
+
+	// recsFileName is the name of the file that close recommendations
+	// are optionally written to.
+	recsFileName = "recommendations.json"
 )
 
 // Main is the real entry point for terminator. It is required to ensure that
@@ -83,7 +98,18 @@ func Main() error {
 	if err != nil {
 		return err
 	}
-	log.Info(revenueReport)
+
+	if config.WritePath != "" {
+		if err := utils.WriteJSONToPath(
+			revenueReport, config.WritePath, revenueFileName,
+		); err != nil {
+			return fmt.Errorf("could not revenue reenue to file: %v",
+				err)
+		}
+	} else {
+		log.Info("Revenue Report:")
+		log.Info(revenueReport)
+	}
 
 	// Gather relevant insights on all channels.
 	channels, err := insights.GetChannels(&insights.Config{
@@ -103,8 +129,20 @@ func Main() error {
 		return err
 	}
 
-	for _, channel := range channels {
-		log.Info(channel)
+	// If a write path is set, write channel insights to file, otherwise
+	// log.
+	if config.WritePath != "" {
+		if err = utils.WriteJSONToPath(
+			channels, config.WritePath, insightsFileName,
+		); err != nil {
+			return fmt.Errorf("could not write insights to "+
+				"file: %v", err)
+		}
+	} else {
+		log.Info("Channel insights:")
+		for _, channel := range channels {
+			log.Info(channel)
+		}
 	}
 
 	// Get channel close recommendations for the current set of open public
@@ -131,22 +169,18 @@ func Main() error {
 			"recommendations: %v", err)
 	}
 
-	log.Infof("Considering: %v channels for closure from a "+
-		"total of: %v.",
-		report.ConsideredChannels, report.TotalChannels)
-
-	log.Infof("Uptime Recommendations: %v",
-		len(report.UptimeRecommendations))
-
-	for channel, rec := range report.UptimeRecommendations {
-		log.Infof("%v: %v", channel, rec)
-	}
-
-	log.Infof("Revenue Recommendations: %v",
-		len(report.RevenueRecommendations))
-
-	for channel, rec := range report.RevenueRecommendations {
-		log.Infof("%v: %v", channel, rec)
+	// If a write path is set, write close recommendations to file,
+	// otherwise log.
+	if config.WritePath != "" {
+		if err = utils.WriteJSONToPath(
+			report, config.WritePath, recsFileName,
+		); err != nil {
+			return fmt.Errorf("could not write insights to "+
+				"file: %v", err)
+		}
+	} else {
+		log.Info("Close recommendations:")
+		log.Info(report)
 	}
 
 	log.Info("That's all for now. I will be back.")

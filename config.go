@@ -2,6 +2,7 @@ package terminator
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/jessevdk/go-flags"
@@ -52,6 +53,9 @@ type config struct {
 
 	// RevenuePeriod is the amount of time from the present that revenue reports for channels should be calculated.
 	RevenuePeriod time.Duration `long:"revenue_period" description:"The amount of time from the present that revenue reports should be generated from. Valid time units are {s, m, h}."`
+
+	// WritePath is an optional path to a location to write revenue report and close recommendation json files.
+	WritePath string `long:"write_dir" description:"Optional dir to write json files with revenue report and close recommendations. If this value is not set, no file will be written."`
 }
 
 // loadConfig starts with a skeleton default config, and reads in user provided
@@ -94,6 +98,14 @@ func loadConfig() (*config, error) {
 
 	if err := build.ParseAndSetDebugLevels(config.DebugLevel, logWriter); err != nil {
 		return nil, err
+	}
+
+	// If write dir was set, check that the directory exists.
+	if config.WritePath != "" {
+		if _, err := os.Stat(config.WritePath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("write directory: %v "+
+				"does not exist", config.WritePath)
+		}
 	}
 
 	return config, nil

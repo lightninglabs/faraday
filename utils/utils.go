@@ -1,7 +1,10 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -31,4 +34,36 @@ func GetOutPointFromString(chanStr string) (*wire.OutPoint, error) {
 		Hash:  *hash,
 		Index: uint32(index),
 	}, nil
+}
+
+// WriteJSONToPath marshals the interface passed in to a json struct and
+// writes it to a new file located in the specified path, overwriting files
+// with the same name and path, should they exist.
+func WriteJSONToPath(output interface{}, path, name string) error {
+	data, err := json.MarshalIndent(output, "", " ")
+	if err != nil {
+		return fmt.Errorf("could not marshal insights: %v",
+			err)
+	}
+
+	filePath := filepath.Join(path, name)
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("could not create output file: %v",
+			err)
+	}
+
+	if _, err := file.Write(data); err != nil {
+		// If we could not write the data, we still need to close the
+		// file. Report on both errors so that neither is silenced.
+		if fileErr := file.Close(); fileErr != nil {
+			return fmt.Errorf("could not write: %v, or close"+
+				" file: %v", err, fileErr)
+		}
+
+		return fmt.Errorf("could not write revenue report: %v",
+			err)
+	}
+
+	return file.Close()
 }

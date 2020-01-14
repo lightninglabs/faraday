@@ -12,6 +12,7 @@ package recommend
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/lightninglabs/terminator/dataset"
@@ -57,6 +58,29 @@ type Report struct {
 	// Recommendations is a map of chanel outpoints to a bool which indicates
 	// whether we should close the channel.
 	Recommendations map[string]bool
+}
+
+// reportTemplate is a template for petty printing revenue reports.
+var reportTemplate = `Total Channels: %v
+Channels Considered: %v
+%v`
+
+// String returns a string representation of a rReport.
+func (r *Report) String() string {
+	uptimeRecs := fmt.Sprintf("Uptime Based Close "+
+		"Recommendations: %v", len(r.Recommendations))
+
+	// Accumulate any uptime based recommendations.
+	for channel, rec := range r.Recommendations {
+		if rec {
+			uptimeRecs = fmt.Sprintf("%v\n%v", uptimeRecs,
+				channel)
+		}
+	}
+
+	// Return report template populated with report details.
+	return fmt.Sprintf(reportTemplate, r.TotalChannels,
+		r.ConsideredChannels, uptimeRecs)
 }
 
 // CloseRecommendations returns a report which contains information about the

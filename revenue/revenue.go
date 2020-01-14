@@ -2,6 +2,7 @@ package revenue
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
@@ -127,6 +128,39 @@ type Report struct {
 	// ChannelPairs contains a map of the string representation of a channel's
 	// outpoint to a map of pair channels with which it has generated revenue.
 	ChannelPairs map[string]map[string]Revenue
+}
+
+// reportTemplate is a template for pretty printing revenue reports.
+var reportTemplate = `  Pair Channel: %v
+    Incoming Volume (msat): %v
+    Outgoing Volume (msat): %v
+    Incoming Fees (msat): %v
+    Outgoing Fees (msat): %v
+`
+
+// String returns a string representation of a revenue report.
+func (r *Report) String() string {
+	var reportString string
+
+	for channel, pairs := range r.ChannelPairs {
+		str := fmt.Sprintf("Channel: %v\n", channel)
+
+		// Populate a report for each pair.
+		for pair, report := range pairs {
+			report := fmt.Sprintf(reportTemplate, pair,
+				report.AmountIncoming, report.AmountOutgoing,
+				report.FeesIncoming, report.FeesOutgoing)
+
+			// Add the report to the channel.
+			str = fmt.Sprintf("%v%v", str, report)
+		}
+
+		// Add the full channel report to the set of channel report
+		// strings.
+		reportString = fmt.Sprintf("%v%v", reportString, str)
+	}
+
+	return reportString
 }
 
 // Revenue describes the volume of forwards that a channel has been a part of

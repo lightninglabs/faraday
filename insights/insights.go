@@ -1,6 +1,7 @@
 package insights
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/lightninglabs/terminator/revenue"
@@ -44,6 +45,26 @@ type Channel struct {
 
 	// Private indicates whether the channel is private.
 	Private bool
+}
+
+// channelTemplate is a template for pretty printing channel insights.
+var channelTemplate = `Channel %v:
+Monitored (hours): %v
+Uptime Percentage: %v
+Incoming Volume (msat): %v
+Outgoing Volume (msat): %v
+Fees Earned (msat): %v
+Revenue per Block: %v
+Blocks Open: %v
+Private: %v
+`
+
+// String returns the string representation of a channel insight.
+func (c *Channel) String() string {
+	return fmt.Sprintf(channelTemplate, c.ChannelPoint,
+		c.MonitoredFor.Hours(), c.UptimePercentage, c.VolumeIncoming,
+		c.VolumeOutgoing, c.FeesEarned, c.RevenuePerBlock,
+		c.BlocksOpen, c.Private)
 }
 
 // Config provides insights with everything it needs to obtain channel

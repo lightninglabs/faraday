@@ -193,7 +193,7 @@ func filterChannels(openChannels []*lnrpc.Channel,
 		channels[channel.ChannelPoint] = channel
 	}
 
-	log.Debugf("considering: % channels for close out of %v",
+	log.Debugf("considering: %v channels for close out of %v",
 		len(channels), len(openChannels))
 
 	return channels

@@ -15,6 +15,7 @@ const (
 	defaultNetwork        = "mainnet"
 	defaultMinimumMonitor = time.Hour * 24 * 7 * 4 // four weeks in hours
 	defaultDebugLevel     = "info"
+	defaultRPCListen      = "localhost:8419"
 )
 
 type config struct {
@@ -48,6 +49,9 @@ type config struct {
 	// DebugLevel is a string defining the log level for the service either
 	// for all subsystems the same or individual level by subsystem.
 	DebugLevel string `long:"debuglevel" description:"Debug level for termaintor and its subsystems."`
+
+	// RPCListen is the listen address for the terminator rpc server.
+	RPCListen string `long:"rpclisten" description:"Address to listen on for gRPC clients"`
 }
 
 // loadConfig starts with a skeleton default config, and reads in user provided
@@ -62,6 +66,7 @@ func loadConfig() (*config, error) {
 		MacaroonFile:     defaultMacaroon,
 		MinimumMonitored: defaultMinimumMonitor,
 		DebugLevel:       defaultDebugLevel,
+		RPCListen:        defaultRPCListen,
 	}
 
 	// Parse command line options to obtain user specified values.

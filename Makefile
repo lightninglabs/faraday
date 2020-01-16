@@ -58,6 +58,7 @@ $(GOACC_BIN):
 build:
 	@$(call print, "Building terminator.")
 	$(GOBUILD) $(PKG)/cmd/terminator
+	$(GOBUILD) $(PKG)/cmd/trmcli
 
 install:
 	@$(call print, "Installing terminator.")
@@ -125,4 +126,5 @@ list:
 clean:
 	@$(call print, "Cleaning source.$(NC)")
 	$(RM) ./terminator
+	$(RM) ./trmcli
 	$(RM) coverage.txt

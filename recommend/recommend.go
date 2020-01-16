@@ -43,6 +43,12 @@ type CloseRecommendationConfig struct {
 	// and 3 for more cautious recommendations.
 	OutlierMultiplier float64
 
+	// UptimeThreshold is the uptime percentage over the channel's observed
+	// lifetime beneath which channels will be recommended for close. This
+	// value is expressed as a percentage in [0,1], and will default to 0 if
+	// it is not set.
+	UptimeThreshold float64
+
 	// MinimumMonitored is the minimum amount of time that a channel must have
 	// been monitored for before it is considered for closing.
 	MinimumMonitored time.Duration
@@ -66,10 +72,15 @@ type Report struct {
 	// for long enough to be considered for close.
 	ConsideredChannels int
 
-	// Recommendations is a map of chanel outpoints to a bool which
+	// OutlierRecommendations is a map of chanel outpoints to a bool which
 	// indicates whether we should close the channel based on whether it is
 	// an outlier.
-	Recommendations map[string]Recommendation
+	OutlierRecommendations map[string]Recommendation
+
+	// ThresholdRecommendations is a map of chanel outpoints to a bool which
+	// indicates whether we should close the channel based on whether it is
+	// below a user provided threshold.
+	ThresholdRecommendations map[string]Recommendation
 }
 
 // CloseRecommendations returns a report which contains information about the
@@ -95,21 +106,53 @@ func CloseRecommendations(cfg *CloseRecommendationConfig) (*Report, error) {
 	// been monitored for longer than the minimum time.
 	uptime := getUptimeDataset(filtered)
 
-	recs, err := getCloseRecs(uptime, cfg.OutlierMultiplier)
+	report := &Report{
+		TotalChannels:      len(channels),
+		ConsideredChannels: len(uptime),
+	}
+
+	// Get close recommendations based on outliers.
+	report.OutlierRecommendations, err = getOutlierRecs(
+		uptime, cfg.OutlierMultiplier,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Report{
-		TotalChannels:      len(channels),
-		ConsideredChannels: len(uptime),
-		Recommendations:    recs,
-	}, nil
+	// Get close recommendations based on threshold.
+	report.ThresholdRecommendations = getThresholdRecs(
+		uptime, cfg.UptimeThreshold,
+	)
+
+	return report, nil
 }
 
-// getCloseRecs generates map of channel outpoint strings to booleans indicating
+// getThresholdRecs returns a map of channel points to values that are below a
+// given threshold.
+func getThresholdRecs(uptime dataset.Dataset,
+	threshold float64) map[string]Recommendation {
+
+	// Get a map of channel labels to a boolean indicating whether
+	// they are beneath the threshold.
+	thresholdValues := uptime.GetThreshold(threshold, true)
+
+	recommendations := make(
+		map[string]Recommendation, len(thresholdValues),
+	)
+
+	for chanPoint, belowThrehsold := range thresholdValues {
+		recommendations[chanPoint] = Recommendation{
+			Value:          uptime.Value(chanPoint),
+			RecommendClose: belowThrehsold,
+		}
+	}
+
+	return recommendations
+}
+
+// getOutlierRecs generates map of channel outpoint strings to booleans indicating
 // whether we recommend closing a channel.
-func getCloseRecs(uptime dataset.Dataset,
+func getOutlierRecs(uptime dataset.Dataset,
 	outlierMultiplier float64) (map[string]Recommendation, error) {
 
 	recommendations := make(map[string]Recommendation)

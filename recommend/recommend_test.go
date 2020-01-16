@@ -191,7 +191,7 @@ func TestGetCloseRecs(t *testing.T) {
 
 			uptimeData := dataset.New(test.channelUptimes)
 
-			recs, err := getCloseRecs(uptimeData, test.outlierMultiplier)
+			recs, err := getOutlierRecs(uptimeData, test.outlierMultiplier)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

@@ -67,7 +67,14 @@ func Main() error {
 		"total of: %v.", report.ConsideredChannels,
 		report.TotalChannels)
 
-	for channel, rec := range report.Recommendations {
+	log.Info("Outlier Recommendations:")
+	for channel, rec := range report.OutlierRecommendations {
+		log.Infof("%v: Value: %v, Recommend Close: %v", channel,
+			rec.Value, rec.RecommendClose)
+	}
+
+	log.Info("Threshold Recommendations:")
+	for channel, rec := range report.ThresholdRecommendations {
 		log.Infof("%v: Value: %v, Recommend Close: %v", channel,
 			rec.Value, rec.RecommendClose)
 	}

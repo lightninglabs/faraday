@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+import "google/api/annotations.proto";
+
+package trmrpc;
+
+service TerminatorServer {
+    rpc CloseRecommendations (CloseRecommendationsRequest) returns (CloseRecommendationsResponse);
+}
+
+message CloseRecommendationsRequest {
+    /*
+    The minimum amount of time in seconds that a channel should have been
+    monitored by lnd to be eligible for close. This value is in place to
+    protect against closing of newer channels.
+    */
+    int64 minimum_monitored = 1;
+
+    /*
+    The number of inter-quartile ranges a value needs to be beneath the lower
+    quartile/ above the upper quartile to be considered a lower/upper outlier.
+    Lower values will be more aggressive in recommending channel closes, and
+    upper values will be more conservative. Recommended values are 1.5 for
+    aggressive recommendations and 3 for conservative recommendations.
+    */
+    float outlier_multiplier = 2;
+
+    /*
+    Threshold contains the threshold value that is used to recommend channels
+    for closure.
+    */
+    oneof threshold{
+        /*
+        The threshold percentage uptime over observed lifetime beneath which
+        channels will be recommended for closure.
+        */
+        float uptime_threshold = 3;
+    }
+  }
+
+message CloseRecommendationsResponse{
+    /*
+    The total number of channels, before filtering out channels that are
+    not eligible for close recommendations.
+    */
+    int32 total_channels = 1;
+
+    /*
+    The number of channels that were considered for close recommendations.
+    */
+    int32 considered_channels = 2;
+
+    /*
+    A map of channels to close recommendations, based out whether they are
+    outliers in the uptime dataset. The absence of a channel in this set
+    implies that it was not considered for close because it did not meet
+    the criteria for close (it is private, or has not been monitored for
+    long enough to make a decision).
+    */
+    repeated Recommendation outlier_recommendations = 3;
+
+    /*
+    A set of channel close recommendations, based out whether they are
+    beneath the threshold provided in the request. The absence of a channel
+    in this set implies that it was not considered for close because it
+    did not meet the criteria for close (it is private, or has not been
+    monitored for long enough to make a decision).
+    */
+    repeated Recommendation threshold_recommendations = 4;
+}
+
+message Recommendation{
+    /*
+    The channel point [funding txid: outpoint] of the channel being considered
+    for close.
+     */
+    string chan_point = 1;
+
+    // The value of the metric that close recommendations were based on.
+    float value = 2;
+
+    // A boolean indicating whether we recommend closing the channel.
+    bool recommend_close = 3;
+}

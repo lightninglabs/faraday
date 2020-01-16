@@ -180,3 +180,29 @@ func (d Dataset) GetOutliers(outlierMultiplier float64) (map[string]*OutlierResu
 
 	return outliers, nil
 }
+
+// GetThreshold returns the set of values in a dataset <= or > a given
+// threshold. The below bool is used to toggle whether we identify values
+// above or below the threshold.
+func (d Dataset) GetThreshold(thresholdValue float64, below bool) map[string]bool {
+	threshold := make(map[string]bool, len(d.rawValues()))
+
+	for label, value := range d {
+		// If we are looking for values below the threshold, check the
+		// current value then move on to the next one.
+		if below {
+			// If the value is below or equal to the threshold, we
+			// set the label's value in the map to true. Otherwise
+			// we set it to false.
+			threshold[label] = value <= thresholdValue
+			continue
+		}
+
+		// We are looking for values above the threshold. Set the
+		// label's value to true if the value is greater than the
+		// threshold.
+		threshold[label] = value > thresholdValue
+	}
+
+	return threshold
+}

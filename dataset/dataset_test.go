@@ -148,13 +148,13 @@ func TestIsOutlier(t *testing.T) {
 		values           map[string]float64
 		expectedError    error
 		expectedOutliers map[string]*OutlierResult
-		strong           bool
+		multiplier       float64
 	}{
 		{
 			name:          "too few values",
 			expectedError: ErrTooFewValues,
 			values:        make(map[string]float64),
-			strong:        true,
+			multiplier:    3,
 		},
 		{
 			name: "lower outlier",
@@ -166,7 +166,7 @@ func TestIsOutlier(t *testing.T) {
 				"e": 8,
 				"f": 10,
 			},
-			strong: true,
+			multiplier: 3,
 			expectedOutliers: map[string]*OutlierResult{
 				"a": {
 					UpperOutlier: false,
@@ -189,7 +189,7 @@ func TestIsOutlier(t *testing.T) {
 				"e": 3,
 				"f": 10,
 			},
-			strong: true,
+			multiplier: 3,
 			expectedOutliers: map[string]*OutlierResult{
 				"a": noOutlier,
 				"b": noOutlier,
@@ -212,7 +212,7 @@ func TestIsOutlier(t *testing.T) {
 
 			dataset := New(test.values)
 
-			outliers, err := dataset.GetOutliers(test.strong)
+			outliers, err := dataset.GetOutliers(test.multiplier)
 			if err != test.expectedError {
 				t.Fatalf("expected: %v, got: %v", test.expectedError, err)
 			}

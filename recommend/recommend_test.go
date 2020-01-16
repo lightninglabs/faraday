@@ -77,9 +77,9 @@ func TestCloseRecommendations(t *testing.T) {
 			t.Parallel()
 
 			_, err := CloseRecommendations(&CloseRecommendationConfig{
-				OpenChannels:     test.OpenChannels,
-				StrongOutlier:    true,
-				MinimumMonitored: test.MinMonitored,
+				OpenChannels:      test.OpenChannels,
+				OutlierMultiplier: 3,
+				MinimumMonitored:  test.MinMonitored,
 			})
 			if err != test.expectedErr {
 				t.Fatalf("expected: %v, got: %v", test.expectedErr, err)
@@ -93,10 +93,10 @@ func TestCloseRecommendations(t *testing.T) {
 func TestGetCloseRecs(t *testing.T) {
 
 	tests := []struct {
-		name           string
-		channelUptimes map[string]float64
-		expectedRecs   map[string]bool
-		strongOutlier  bool
+		name              string
+		channelUptimes    map[string]float64
+		expectedRecs      map[string]bool
+		outlierMultiplier float64
 	}{
 		{
 			name: "similar values, weak outlier no recommendations",
@@ -105,8 +105,8 @@ func TestGetCloseRecs(t *testing.T) {
 				"a:1":  0.6,
 				"a:20": 0.5,
 			},
-			strongOutlier: false,
-			expectedRecs:  map[string]bool{},
+			outlierMultiplier: 1.5,
+			expectedRecs:      map[string]bool{},
 		},
 		{
 			name: "similar values, strong outlier no recommendations",
@@ -115,8 +115,8 @@ func TestGetCloseRecs(t *testing.T) {
 				"a:1": 0.6,
 				"a:2": 0.5,
 			},
-			strongOutlier: true,
-			expectedRecs:  map[string]bool{},
+			outlierMultiplier: 3,
+			expectedRecs:      map[string]bool{},
 		},
 		{
 			name: "lower outlier recommended for close",
@@ -128,7 +128,23 @@ func TestGetCloseRecs(t *testing.T) {
 				"a:4": 0.5,
 				"a:5": 0.1,
 			},
-			strongOutlier: true,
+			outlierMultiplier: 3,
+			expectedRecs: map[string]bool{
+				"a:5": true,
+			},
+		},
+
+		{
+			name: "zero multiplier replaced with default",
+			channelUptimes: map[string]float64{
+				"a:0": 0.6,
+				"a:1": 0.6,
+				"a:2": 0.5,
+				"a:3": 0.5,
+				"a:4": 0.5,
+				"a:5": 0.1,
+			},
+			outlierMultiplier: 0,
 			expectedRecs: map[string]bool{
 				"a:5": true,
 			},
@@ -143,7 +159,7 @@ func TestGetCloseRecs(t *testing.T) {
 
 			uptimeData := dataset.New(test.channelUptimes)
 
-			recs, err := getCloseRecs(uptimeData, test.strongOutlier)
+			recs, err := getCloseRecs(uptimeData, test.outlierMultiplier)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

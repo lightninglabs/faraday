@@ -18,10 +18,17 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
-// errZeroMinMonitored is returned when the minimum ages provided by the config
-// is zero.
-var errZeroMinMonitored = errors.New("must provide a non-zero minimum " +
-	"monitor time for channel exclusion")
+var (
+	// errZeroMinMonitored is returned when the minimum age provided
+	// by the config is zero.
+	errZeroMinMonitored = errors.New("must provide a non-zero minimum " +
+		"monitor time for channel exclusion")
+
+	// DefaultOutlierMultiplier is the default value used in close
+	// recommendations based on outliers when there is no user provided
+	// value.
+	DefaultOutlierMultiplier float64 = 3
+)
 
 // CloseRecommendationConfig provides the functions and parameters required to
 // provide close recommendations.
@@ -30,14 +37,11 @@ type CloseRecommendationConfig struct {
 	// public channels.
 	OpenChannels func() ([]*lnrpc.Channel, error)
 
-	// StrongOutlier is set to true if only extreme outliers should be
-	// recommended for close. A strong outlier is one which is 3 inter-
-	// quartile ranges below the lower quartile (or above the upper quartile)
-	// amd a weak outlier is only 1.5 inter-quartile ranges away. Choosing
-	// to recommend strong outliers is a more cautious approach, because the
-	// recommendations will be more lenient, only recommending extreme outliers
-	// for closure.
-	StrongOutlier bool
+	// OutlierMultiplier is the number of inter quartile ranges a value
+	// should be away from the lower/upper quartile to be considered an
+	// outlier. Recommended values are 1.5 for more aggressive recommendations
+	// and 3 for more cautious recommendations.
+	OutlierMultiplier float64
 
 	// MinimumMonitored is the minimum amount of time that a channel must have
 	// been monitored for before it is considered for closing.
@@ -82,7 +86,7 @@ func CloseRecommendations(cfg *CloseRecommendationConfig) (*Report, error) {
 	// been monitored for longer than the minimum time.
 	uptime := getUptimeDataset(filtered)
 
-	recs, err := getCloseRecs(uptime, cfg.StrongOutlier)
+	recs, err := getCloseRecs(uptime, cfg.OutlierMultiplier)
 	if err != nil {
 		return nil, err
 	}
@@ -97,9 +101,9 @@ func CloseRecommendations(cfg *CloseRecommendationConfig) (*Report, error) {
 // getCloseRecs generates map of channel outpoint strings to booleans indicating
 // whether we recommend closing a channel.
 func getCloseRecs(uptime dataset.Dataset,
-	strongOutlier bool) (map[string]bool, error) {
+	outlierMultiplier float64) (map[string]bool, error) {
 
-	outliers, err := uptime.GetOutliers(strongOutlier)
+	outliers, err := uptime.GetOutliers(outlierMultiplier)
 	if err != nil {
 		return nil, err
 	}

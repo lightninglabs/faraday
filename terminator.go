@@ -51,9 +51,10 @@ func Main() error {
 				return resp.Channels, nil
 			},
 
-			// For the first iteration of the terminator, do not allow users
-			// to configure recommendations to penalize weak outliers.
-			StrongOutlier: true,
+			// For the first iteration of the terminator, we set a
+			// multiplier which will only detect extreme values so
+			// that we conservatively recommend closes.
+			OutlierMultiplier: recommend.DefaultOutlierMultiplier,
 
 			// Set the minimum monitor time to the value provided in our config.
 			MinimumMonitored: config.MinimumMonitored,

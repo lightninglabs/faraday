@@ -98,6 +98,11 @@ func (d Dataset) quartiles() (float64, float64, error) {
 	return lowerQuartile, upperQuartile, nil
 }
 
+// Value returns the value that a label is associated with in a set.
+func (d Dataset) Value(label string) float64 {
+	return d[label]
+}
+
 // OutlierResult returns the results of an outlier check.
 type OutlierResult struct {
 	// UpperOutlier is true if the value is an upper outlier in the dataset.

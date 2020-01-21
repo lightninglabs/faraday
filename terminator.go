@@ -64,11 +64,12 @@ func Main() error {
 	}
 
 	log.Infof("Considering: %v channels for closure from a "+
-		"total of: %v. Produced %v recommendations.", report.ConsideredChannels,
-		report.TotalChannels, len(report.Recommendations))
+		"total of: %v.", report.ConsideredChannels,
+		report.TotalChannels)
 
 	for channel, rec := range report.Recommendations {
-		log.Infof("%v: %v", channel, rec)
+		log.Infof("%v: Value: %v, Recommend Close: %v", channel,
+			rec.Value, rec.RecommendClose)
 	}
 
 	log.Info("That's all for now. I will be back.")

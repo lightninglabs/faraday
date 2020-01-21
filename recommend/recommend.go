@@ -48,6 +48,14 @@ type CloseRecommendationConfig struct {
 	MinimumMonitored time.Duration
 }
 
+// Recommendation provides the value that a close recommendation was
+// based on, and a boolean indicating whether we recommend closing the
+// channel.
+type Recommendation struct {
+	Value          float64
+	RecommendClose bool
+}
+
 // Report contains a set of close recommendations and information about the
 // number of channels considered for close.
 type Report struct {
@@ -58,9 +66,10 @@ type Report struct {
 	// for long enough to be considered for close.
 	ConsideredChannels int
 
-	// Recommendations is a map of chanel outpoints to a bool which indicates
-	// whether we should close the channel.
-	Recommendations map[string]bool
+	// Recommendations is a map of chanel outpoints to a bool which
+	// indicates whether we should close the channel based on whether it is
+	// an outlier.
+	Recommendations map[string]Recommendation
 }
 
 // CloseRecommendations returns a report which contains information about the
@@ -101,19 +110,21 @@ func CloseRecommendations(cfg *CloseRecommendationConfig) (*Report, error) {
 // getCloseRecs generates map of channel outpoint strings to booleans indicating
 // whether we recommend closing a channel.
 func getCloseRecs(uptime dataset.Dataset,
-	outlierMultiplier float64) (map[string]bool, error) {
+	outlierMultiplier float64) (map[string]Recommendation, error) {
+
+	recommendations := make(map[string]Recommendation)
 
 	outliers, err := uptime.GetOutliers(outlierMultiplier)
 	if err != nil {
 		return nil, err
 	}
 
-	recommendations := make(map[string]bool)
-
-	for chanpoint, outlier := range outliers {
-		// If the channel is a lower outlier, recommend it for closure.
-		if outlier.LowerOutlier {
-			recommendations[chanpoint] = true
+	// Add a recommendation for each channel to our set of recommendations.
+	// If the channel is a lower outlier, we recommend it for close.
+	for chanPoint, outlier := range outliers {
+		recommendations[chanPoint] = Recommendation{
+			Value:          uptime.Value(chanPoint),
+			RecommendClose: outlier.LowerOutlier,
 		}
 	}
 

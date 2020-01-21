@@ -91,11 +91,10 @@ func TestCloseRecommendations(t *testing.T) {
 // TestGetCloseRecs tests the generating of close recommendations for a set of
 // channels.
 func TestGetCloseRecs(t *testing.T) {
-
 	tests := []struct {
 		name              string
 		channelUptimes    map[string]float64
-		expectedRecs      map[string]bool
+		expectedRecs      map[string]Recommendation
 		outlierMultiplier float64
 	}{
 		{
@@ -106,7 +105,7 @@ func TestGetCloseRecs(t *testing.T) {
 				"a:20": 0.5,
 			},
 			outlierMultiplier: 1.5,
-			expectedRecs:      map[string]bool{},
+			expectedRecs:      map[string]Recommendation{},
 		},
 		{
 			name: "similar values, strong outlier no recommendations",
@@ -116,7 +115,7 @@ func TestGetCloseRecs(t *testing.T) {
 				"a:2": 0.5,
 			},
 			outlierMultiplier: 3,
-			expectedRecs:      map[string]bool{},
+			expectedRecs:      map[string]Recommendation{},
 		},
 		{
 			name: "lower outlier recommended for close",
@@ -129,8 +128,11 @@ func TestGetCloseRecs(t *testing.T) {
 				"a:5": 0.1,
 			},
 			outlierMultiplier: 3,
-			expectedRecs: map[string]bool{
-				"a:5": true,
+			expectedRecs: map[string]Recommendation{
+				"a:5": {
+					Value:          0.1,
+					RecommendClose: true,
+				},
 			},
 		},
 
@@ -145,8 +147,11 @@ func TestGetCloseRecs(t *testing.T) {
 				"a:5": 0.1,
 			},
 			outlierMultiplier: 0,
-			expectedRecs: map[string]bool{
-				"a:5": true,
+			expectedRecs: map[string]Recommendation{
+				"a:5": {
+					Value:          0.1,
+					RecommendClose: true,
+				},
 			},
 		},
 	}
@@ -163,13 +168,14 @@ func TestGetCloseRecs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			// Run through our expected set of recommendations and check that
-			// they match the set returned in the report.
+			// Run through our expected set of true recommendations
+			// and check that they match the set returned in the report.
 			for channel, expectClose := range test.expectedRecs {
 				recClose := recs[channel]
 				if recClose != expectClose {
-					t.Fatalf("expected close rec: %v for channel: %v,"+
-						" got: %v", expectClose, channel, recClose)
+					t.Fatalf("expected close rec: %v"+
+						" for channel: %v,  got: %v",
+						expectClose, channel, recClose)
 				}
 			}
 		})

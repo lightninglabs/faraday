@@ -72,7 +72,7 @@ func TestQuartiles(t *testing.T) {
 		{
 			name:        "no elements",
 			values:      []float64{},
-			expectedErr: ErrTooFewValues,
+			expectedErr: errTooFewValues,
 		},
 		{
 			name:                  "three elements",
@@ -147,15 +147,21 @@ func TestIsOutlier(t *testing.T) {
 	tests := []struct {
 		name             string
 		values           map[string]float64
-		expectedError    error
 		expectedOutliers map[string]*OutlierResult
 		multiplier       float64
 	}{
 		{
-			name:          "too few values",
-			expectedError: ErrTooFewValues,
-			values:        make(map[string]float64),
-			multiplier:    3,
+			name: "too few values - all false",
+			values: map[string]float64{
+				"a": 1,
+			},
+			multiplier: 3,
+			expectedOutliers: map[string]*OutlierResult{
+				"a": {
+					UpperOutlier: false,
+					LowerOutlier: false,
+				},
+			},
 		},
 		{
 			name: "lower outlier",
@@ -214,13 +220,8 @@ func TestIsOutlier(t *testing.T) {
 			dataset := New(test.values)
 
 			outliers, err := dataset.GetOutliers(test.multiplier)
-			if err != test.expectedError {
-				t.Fatalf("expected: %v, got: %v", test.expectedError, err)
-			}
-
-			// If the error is non-nil, there is no need for further checks.
 			if err != nil {
-				return
+				t.Fatalf("unexpected error: %v", err)
 			}
 
 			for label, outlier := range outliers {

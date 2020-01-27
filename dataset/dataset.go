@@ -13,9 +13,9 @@ var (
 	errNoValues = errors.New("can't calculate median for zero length " +
 		"array")
 
-	// ErrTooFewValues is returned when there are too few values provided to
+	// errTooFewValues is returned when there are too few values provided to
 	// calculate quartiles.
-	ErrTooFewValues = errors.New("can't calculate quartiles for fewer than 3 " +
+	errTooFewValues = errors.New("can't calculate quartiles for fewer than 3 " +
 		"elements")
 )
 
@@ -65,7 +65,7 @@ func (d Dataset) rawValues() []float64 {
 func (d Dataset) quartiles() (float64, float64, error) {
 	valueCount := len(d)
 	if valueCount < 3 {
-		return 0, 0, ErrTooFewValues
+		return 0, 0, errTooFewValues
 	}
 
 	// Get the cutoff points for calculating the lower and upper quartiles.
@@ -141,7 +141,8 @@ func (d Dataset) isIQROutlier(value, lowerQuartile, upperQuartile,
 
 // GetOutliers returns a map of the labels in the dataset to outlier results
 // which indicate whether the associated value is an upper or lower inter-
-// quartile outlier.
+// quartile outlier. If there are too few values to calculate inter-quartile
+// outliers, it will return false values for all data points.
 //
 // An outlier multiplier is provided to determine how strictly we classify
 // outliers; lower values will identify more outliers, thus being more strict,
@@ -169,14 +170,33 @@ func (d Dataset) isIQROutlier(value, lowerQuartile, upperQuartile,
 //   -> 1 and 2 are weak lower outliers
 // Weak upper outlier bound: 6 + (1 *1.5) = 7.5
 //   -> 8 and 11 are weak upper outliers
-func (d Dataset) GetOutliers(outlierMultiplier float64) (map[string]*OutlierResult, error) {
+func (d Dataset) GetOutliers(outlierMultiplier float64) (
+	map[string]*OutlierResult, error) {
+
+	outliers := make(map[string]*OutlierResult, len(d))
+
 	lower, upper, err := d.quartiles()
+	// If we could not calculate quartiles because there are too few values,
+	// we cannot calculate outliers so we return a map with all false
+	// outlier results.
+	if err == errTooFewValues {
+		log.Info(err)
+
+		// Return a map with no outliers.
+		for label := range d {
+			outliers[label] = &OutlierResult{
+				UpperOutlier: false,
+				LowerOutlier: false,
+			}
+		}
+		return outliers, nil
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	outliers := make(map[string]*OutlierResult, len(d))
-
+	// If we could could calculate quartiles for the dataset, we get
+	// outliers and populate a result map.
 	for label, value := range d {
 		outliers[label] = d.isIQROutlier(
 			value, lower, upper, outlierMultiplier,

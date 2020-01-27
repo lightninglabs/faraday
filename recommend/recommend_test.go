@@ -29,7 +29,7 @@ func TestCloseRecommendations(t *testing.T) {
 				return nil, nil
 			},
 			MinMonitored: time.Hour,
-			expectedErr:  dataset.ErrTooFewValues,
+			expectedErr:  nil,
 		},
 		{
 			name: "open channels fails",
@@ -89,7 +89,9 @@ func TestCloseRecommendations(t *testing.T) {
 }
 
 // TestGetCloseRecs tests the generating of close recommendations for a set of
-// channels.
+// channels. It also contains a test case for when there are too few channels
+// to calculate outliers, to test that the error is silenced and no
+// recommendations are provided.
 func TestGetCloseRecs(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -98,6 +100,19 @@ func TestGetCloseRecs(t *testing.T) {
 		outlierMultiplier float64
 	}{
 		{
+			name: "not enough values, all false",
+			channelUptimes: map[string]float64{
+				"a:0": 0.7,
+			},
+			expectedRecs: map[string]Recommendation{
+				"a:0": {
+					Value:          0.7,
+					RecommendClose: false,
+				},
+			},
+			outlierMultiplier: 2,
+		},
+		{
 			name: "similar values, weak outlier no recommendations",
 			channelUptimes: map[string]float64{
 				"a:0":  0.7,
@@ -105,7 +120,11 @@ func TestGetCloseRecs(t *testing.T) {
 				"a:20": 0.5,
 			},
 			outlierMultiplier: 1.5,
-			expectedRecs:      map[string]Recommendation{},
+			expectedRecs: map[string]Recommendation{
+				"a:0":  {Value: 0.7, RecommendClose: false},
+				"a:1":  {Value: 0.6, RecommendClose: false},
+				"a:20": {Value: 0.5, RecommendClose: false},
+			},
 		},
 		{
 			name: "similar values, strong outlier no recommendations",
@@ -115,7 +134,11 @@ func TestGetCloseRecs(t *testing.T) {
 				"a:2": 0.5,
 			},
 			outlierMultiplier: 3,
-			expectedRecs:      map[string]Recommendation{},
+			expectedRecs: map[string]Recommendation{
+				"a:0": {Value: 0.7, RecommendClose: false},
+				"a:1": {Value: 0.6, RecommendClose: false},
+				"a:2": {Value: 0.5, RecommendClose: false},
+			},
 		},
 		{
 			name: "lower outlier recommended for close",
@@ -129,10 +152,12 @@ func TestGetCloseRecs(t *testing.T) {
 			},
 			outlierMultiplier: 3,
 			expectedRecs: map[string]Recommendation{
-				"a:5": {
-					Value:          0.1,
-					RecommendClose: true,
-				},
+				"a:0": {Value: 0.6, RecommendClose: false},
+				"a:1": {Value: 0.6, RecommendClose: false},
+				"a:2": {Value: 0.5, RecommendClose: false},
+				"a:3": {Value: 0.5, RecommendClose: false},
+				"a:4": {Value: 0.5, RecommendClose: false},
+				"a:5": {Value: 0.1, RecommendClose: true},
 			},
 		},
 
@@ -148,10 +173,12 @@ func TestGetCloseRecs(t *testing.T) {
 			},
 			outlierMultiplier: 0,
 			expectedRecs: map[string]Recommendation{
-				"a:5": {
-					Value:          0.1,
-					RecommendClose: true,
-				},
+				"a:0": {Value: 0.6, RecommendClose: false},
+				"a:1": {Value: 0.6, RecommendClose: false},
+				"a:2": {Value: 0.5, RecommendClose: false},
+				"a:3": {Value: 0.5, RecommendClose: false},
+				"a:4": {Value: 0.5, RecommendClose: false},
+				"a:5": {Value: 0.1, RecommendClose: true},
 			},
 		},
 	}
@@ -168,6 +195,12 @@ func TestGetCloseRecs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
+
+			if len(test.expectedRecs) != len(recs) {
+				t.Fatalf("expected: %v recommendations, got: %v",
+					len(test.expectedRecs), len(recs))
+			}
+
 			// Run through our expected set of true recommendations
 			// and check that they match the set returned in the report.
 			for channel, expectClose := range test.expectedRecs {

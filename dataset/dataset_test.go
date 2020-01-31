@@ -2,6 +2,7 @@ package dataset
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -71,7 +72,7 @@ func TestQuartiles(t *testing.T) {
 		{
 			name:        "no elements",
 			values:      []float64{},
-			expectedErr: ErrTooFewValues,
+			expectedErr: errTooFewValues,
 		},
 		{
 			name:                  "three elements",
@@ -146,15 +147,21 @@ func TestIsOutlier(t *testing.T) {
 	tests := []struct {
 		name             string
 		values           map[string]float64
-		expectedError    error
 		expectedOutliers map[string]*OutlierResult
-		strong           bool
+		multiplier       float64
 	}{
 		{
-			name:          "too few values",
-			expectedError: ErrTooFewValues,
-			values:        make(map[string]float64),
-			strong:        true,
+			name: "too few values - all false",
+			values: map[string]float64{
+				"a": 1,
+			},
+			multiplier: 3,
+			expectedOutliers: map[string]*OutlierResult{
+				"a": {
+					UpperOutlier: false,
+					LowerOutlier: false,
+				},
+			},
 		},
 		{
 			name: "lower outlier",
@@ -166,7 +173,7 @@ func TestIsOutlier(t *testing.T) {
 				"e": 8,
 				"f": 10,
 			},
-			strong: true,
+			multiplier: 3,
 			expectedOutliers: map[string]*OutlierResult{
 				"a": {
 					UpperOutlier: false,
@@ -189,7 +196,7 @@ func TestIsOutlier(t *testing.T) {
 				"e": 3,
 				"f": 10,
 			},
-			strong: true,
+			multiplier: 3,
 			expectedOutliers: map[string]*OutlierResult{
 				"a": noOutlier,
 				"b": noOutlier,
@@ -212,14 +219,9 @@ func TestIsOutlier(t *testing.T) {
 
 			dataset := New(test.values)
 
-			outliers, err := dataset.GetOutliers(test.strong)
-			if err != test.expectedError {
-				t.Fatalf("expected: %v, got: %v", test.expectedError, err)
-			}
-
-			// If the error is non-nil, there is no need for further checks.
+			outliers, err := dataset.GetOutliers(test.multiplier)
 			if err != nil {
-				return
+				t.Fatalf("unexpected error: %v", err)
 			}
 
 			for label, outlier := range outliers {
@@ -238,6 +240,72 @@ func TestIsOutlier(t *testing.T) {
 						expectedOutlier.UpperOutlier, outlier.UpperOutlier,
 						label)
 				}
+			}
+		})
+	}
+}
+
+// TestGetThreshold tests getting thresholds for a dataset.
+func TestGetThreshold(t *testing.T) {
+	tests := []struct {
+		name           string
+		dataset        Dataset
+		threshold      float64
+		below          bool
+		expectedValues map[string]bool
+	}{
+		{
+			name:           "no values",
+			dataset:        make(map[string]float64),
+			threshold:      1,
+			below:          false,
+			expectedValues: make(map[string]bool),
+		},
+		{
+			name: "below and equal",
+			dataset: map[string]float64{
+				"a": 1,
+				"b": 2,
+				"c": 3,
+			},
+			threshold: 2,
+			below:     true,
+			expectedValues: map[string]bool{
+				"a": true,
+				"b": true,
+				"c": false,
+			},
+		},
+		{
+			name: "above and equal",
+			dataset: map[string]float64{
+				"a": 1,
+				"b": 2,
+				"c": 3,
+			},
+			threshold: 2,
+			below:     false,
+			expectedValues: map[string]bool{
+				"a": false,
+				"b": false,
+				"c": true,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			values := test.dataset.GetThreshold(
+				test.threshold, test.below,
+			)
+
+			if !reflect.DeepEqual(test.expectedValues, values) {
+				t.Fatalf("expected: %v, got: %v",
+					test.expectedValues, values)
 			}
 		})
 	}

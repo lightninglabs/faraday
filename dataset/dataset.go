@@ -7,30 +7,15 @@ import (
 	"sort"
 )
 
-const (
-	// weakOutlierMultiplier is the multiplier that we apply to the
-	// inter-quartile range to calculate weak outliers. Using this value is
-	// less cautious than using the strong outlier multiplier because it
-	// will flag values that are closer to the lower/upper quartiles as
-	// outliers.
-	weakOutlierMultiplier = 1.5
-
-	// strongOutlierMultiplier is the multiplier that we apply to the
-	// inter-quartile range to calculate strong outliers. Using this value is
-	// more cautious than using the weak outlier multiplier because it will only
-	// flag extreme outliers.
-	strongOutlierMultiplier = 3
-)
-
 var (
 	// errNoValues is returned when an attempt is made to calculate the median of
 	// a zero length array.
 	errNoValues = errors.New("can't calculate median for zero length " +
 		"array")
 
-	// ErrTooFewValues is returned when there are too few values provided to
+	// errTooFewValues is returned when there are too few values provided to
 	// calculate quartiles.
-	ErrTooFewValues = errors.New("can't calculate quartiles for fewer than 3 " +
+	errTooFewValues = errors.New("can't calculate quartiles for fewer than 3 " +
 		"elements")
 )
 
@@ -80,7 +65,7 @@ func (d Dataset) rawValues() []float64 {
 func (d Dataset) quartiles() (float64, float64, error) {
 	valueCount := len(d)
 	if valueCount < 3 {
-		return 0, 0, ErrTooFewValues
+		return 0, 0, errTooFewValues
 	}
 
 	// Get the cutoff points for calculating the lower and upper quartiles.
@@ -113,6 +98,11 @@ func (d Dataset) quartiles() (float64, float64, error) {
 	return lowerQuartile, upperQuartile, nil
 }
 
+// Value returns the value that a label is associated with in a set.
+func (d Dataset) Value(label string) float64 {
+	return d[label]
+}
+
 // OutlierResult returns the results of an outlier check.
 type OutlierResult struct {
 	// UpperOutlier is true if the value is an upper outlier in the dataset.
@@ -126,21 +116,16 @@ type OutlierResult struct {
 // upper or lower outlier (or not an outlier) for the dataset.
 // If a value is an upper or lower outlier, the result is recorded in the
 // corresponding bool in an outlier result.
-func (d Dataset) isIQROutlier(value float64, lowerQuartile,
-	upperQuartile float64, strong bool) *OutlierResult {
+func (d Dataset) isIQROutlier(value, lowerQuartile, upperQuartile,
+	multiplier float64) *OutlierResult {
 
 	interquartileRange := upperQuartile - lowerQuartile
 
 	// quartileDistance is the distance from the upper/lower quartile a value
 	// must be to be considered an outlier. A larger quartile distance more
 	// strictly classifies outliers, because they are required to be further
-	// from the upper/lower quartile. Based on whether we want to find strong or
-	// weak outliers, the inter-quartile range (which is the base unit for this
-	// distance) is multiplier by a strong or weak multiplier.
-	quartileDistance := interquartileRange * weakOutlierMultiplier
-	if strong {
-		quartileDistance = interquartileRange * strongOutlierMultiplier
-	}
+	// from the upper/lower quartile.
+	quartileDistance := interquartileRange * multiplier
 
 	return &OutlierResult{
 		// A value is considered to be a upper outlier if it lies above the
@@ -156,44 +141,93 @@ func (d Dataset) isIQROutlier(value float64, lowerQuartile,
 
 // GetOutliers returns a map of the labels in the dataset to outlier results
 // which indicate whether the associated value is an upper or lower inter-
-// quartile outlier.
+// quartile outlier. If there are too few values to calculate inter-quartile
+// outliers, it will return false values for all data points.
 //
-// Strong is set to adjust whether we check for a strong or weak outlier. Strong
-// outliers are 3 inter-quartile ranges below/above the lower/upper quartile and
-// weak outliers are 1.5 inter-quartile ranges below/above the lower/upper
-// quartile.
+// An outlier multiplier is provided to determine how strictly we classify
+// outliers; lower values will identify more outliers, thus being more strict,
+// and higher values will identify fewer outliers, thus being less strict.
+// Multipliers less than 1.5 are considered to provide "weak outliers", because
+// the values are still relatively close the the rest of the dataset.
+// Multipliers more than 3 are considered to provide "strong outliers" because
+// they identify values that are far from the rest of the dataset.
 //
+// The effect of this value is illustrated in the example below:
 // Given some random set of data, with lower quartile = 5 and upper quartile
 // = 6, the inter-quartile range is 1.
 //
 //         LQ             UQ
 // [ 1  2  5  5  5  6  6  6  8 11 ]
 //
-// For strong outliers, we multiply the inter-quartile range by 3 then check
-// whether a value is below the lower quartile or above the upper quartile by
-// that amount to determine whether it is a lower or upper outlier.
-// Strong lower outlier bound: 5 - (1 * 3) = 2
+// For larger values, eg multiplier=3, we will detect fewer outliers:
+// Lower outlier bound: 5 - (1 * 3) = 2
 //   -> 1 is a strong lower outlier
-// Strong upper outlier bound: 6 + (1 * 3) = 9
+// Upper outlier bound: 6 + (1 * 3) = 9
 //   -> 11 is a strong upper outlier
 //
-// For weak outliers, we perform the same check, but we multiply the inter-
-// quartile range by 1.5 rather than 3.
+// For smaller values, eg multiplier=1.5, we detect more outliers:
 // Weak lower outlier bound: 5 - (1 * 1.5) = 3.5
 //   -> 1 and 2 are weak lower outliers
 // Weak upper outlier bound: 6 + (1 *1.5) = 7.5
 //   -> 8 and 11 are weak upper outliers
-func (d Dataset) GetOutliers(strong bool) (map[string]*OutlierResult, error) {
+func (d Dataset) GetOutliers(outlierMultiplier float64) (
+	map[string]*OutlierResult, error) {
+
+	outliers := make(map[string]*OutlierResult, len(d))
+
 	lower, upper, err := d.quartiles()
+	// If we could not calculate quartiles because there are too few values,
+	// we cannot calculate outliers so we return a map with all false
+	// outlier results.
+	if err == errTooFewValues {
+		log.Info(err)
+
+		// Return a map with no outliers.
+		for label := range d {
+			outliers[label] = &OutlierResult{
+				UpperOutlier: false,
+				LowerOutlier: false,
+			}
+		}
+		return outliers, nil
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	outliers := make(map[string]*OutlierResult, len(d))
-
+	// If we could could calculate quartiles for the dataset, we get
+	// outliers and populate a result map.
 	for label, value := range d {
-		outliers[label] = d.isIQROutlier(value, lower, upper, strong)
+		outliers[label] = d.isIQROutlier(
+			value, lower, upper, outlierMultiplier,
+		)
 	}
 
 	return outliers, nil
+}
+
+// GetThreshold returns the set of values in a dataset <= or > a given
+// threshold. The below bool is used to toggle whether we identify values
+// above or below the threshold.
+func (d Dataset) GetThreshold(thresholdValue float64, below bool) map[string]bool {
+	threshold := make(map[string]bool, len(d.rawValues()))
+
+	for label, value := range d {
+		// If we are looking for values below the threshold, check the
+		// current value then move on to the next one.
+		if below {
+			// If the value is below or equal to the threshold, we
+			// set the label's value in the map to true. Otherwise
+			// we set it to false.
+			threshold[label] = value <= thresholdValue
+			continue
+		}
+
+		// We are looking for values above the threshold. Set the
+		// label's value to true if the value is greater than the
+		// threshold.
+		threshold[label] = value > thresholdValue
+	}
+
+	return threshold
 }

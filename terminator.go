@@ -2,12 +2,11 @@
 package terminator
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/lightninglabs/loop/lndclient"
-	"github.com/lightninglabs/terminator/recommend"
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightninglabs/terminator/trmrpc"
+	"github.com/lightningnetwork/lnd/signal"
 )
 
 // Main is the real entry point for terminator. It is required to ensure that
@@ -18,9 +17,6 @@ func Main() error {
 		return fmt.Errorf("error loading config: %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	// NewBasicClient get a lightning rpc client with
 	client, err := lndclient.NewBasicClient(
 		config.RPCServer,
@@ -30,44 +26,28 @@ func Main() error {
 		lndclient.MacFilename(config.MacaroonFile),
 	)
 	if err != nil {
-		return fmt.Errorf("cannot connect to lightning client: %v", err)
+		return fmt.Errorf("cannot connect to lightning client: %v",
+			err)
 	}
 
-	// Get channel close recommendations for the current set of open public
-	// channels.
-	report, err := recommend.CloseRecommendations(
-		&recommend.CloseRecommendationConfig{
-			// OpenChannels provides all of the open, public channels for the
-			// node.
-			OpenChannels: func() (channels []*lnrpc.Channel, e error) {
-				resp, err := client.ListChannels(ctx,
-					&lnrpc.ListChannelsRequest{
-						PublicOnly: true,
-					})
-				if err != nil {
-					return nil, err
-				}
+	// Instantiate the terminator gRPC server.
+	server := trmrpc.NewRPCServer(
+		&trmrpc.Config{
+			LightningClient: client,
+			RPCListen:       config.RPCListen,
+		},
+	)
 
-				return resp.Channels, nil
-			},
-
-			// For the first iteration of the terminator, do not allow users
-			// to configure recommendations to penalize weak outliers.
-			StrongOutlier: true,
-
-			// Set the minimum monitor time to the value provided in our config.
-			MinimumMonitored: config.MinimumMonitored,
-		})
-	if err != nil {
-		return fmt.Errorf("could not get close recommendations: %v", err)
+	if err := server.Start(); err != nil {
+		return err
 	}
 
-	log.Infof("Considering: %v channels for closure from a "+
-		"total of: %v. Produced %v recommendations.", report.ConsideredChannels,
-		report.TotalChannels, len(report.Recommendations))
+	// Run until the user terminates.
+	<-signal.ShutdownChannel()
+	log.Infof("Received shutdown signal.")
 
-	for channel, rec := range report.Recommendations {
-		log.Infof("%v: %v", channel, rec)
+	if err := server.Stop(); err != nil {
+		return err
 	}
 
 	log.Info("That's all for now. I will be back.")

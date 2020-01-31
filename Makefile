@@ -58,6 +58,7 @@ $(GOACC_BIN):
 build:
 	@$(call print, "Building terminator.")
 	$(GOBUILD) $(PKG)/cmd/terminator
+	$(GOBUILD) $(PKG)/cmd/trmcli
 
 install:
 	@$(call print, "Installing terminator.")
@@ -86,6 +87,10 @@ unit-race:
 goveralls: $(GOVERALLS_BIN)
 	@$(call print, "Sending coverage report.")
 	$(GOVERALLS_BIN) -coverprofile=coverage.txt -service=travis-ci
+
+rpc:
+	@$(call print, "Compiling protos.")
+	cd ./trmrpc; ./gen_protos.sh
 
 travis-race: lint unit-race
 
@@ -121,4 +126,5 @@ list:
 clean:
 	@$(call print, "Cleaning source.$(NC)")
 	$(RM) ./terminator
+	$(RM) ./trmcli
 	$(RM) coverage.txt

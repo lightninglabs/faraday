@@ -18,10 +18,17 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
-// errZeroMinMonitored is returned when the minimum ages provided by the config
-// is zero.
-var errZeroMinMonitored = errors.New("must provide a non-zero minimum " +
-	"monitor time for channel exclusion")
+var (
+	// errZeroMinMonitored is returned when the minimum age provided
+	// by the config is zero.
+	errZeroMinMonitored = errors.New("must provide a non-zero minimum " +
+		"monitor time for channel exclusion")
+
+	// DefaultOutlierMultiplier is the default value used in close
+	// recommendations based on outliers when there is no user provided
+	// value.
+	DefaultOutlierMultiplier float64 = 3
+)
 
 // CloseRecommendationConfig provides the functions and parameters required to
 // provide close recommendations.
@@ -30,18 +37,29 @@ type CloseRecommendationConfig struct {
 	// public channels.
 	OpenChannels func() ([]*lnrpc.Channel, error)
 
-	// StrongOutlier is set to true if only extreme outliers should be
-	// recommended for close. A strong outlier is one which is 3 inter-
-	// quartile ranges below the lower quartile (or above the upper quartile)
-	// amd a weak outlier is only 1.5 inter-quartile ranges away. Choosing
-	// to recommend strong outliers is a more cautious approach, because the
-	// recommendations will be more lenient, only recommending extreme outliers
-	// for closure.
-	StrongOutlier bool
+	// OutlierMultiplier is the number of inter quartile ranges a value
+	// should be away from the lower/upper quartile to be considered an
+	// outlier. Recommended values are 1.5 for more aggressive recommendations
+	// and 3 for more cautious recommendations.
+	OutlierMultiplier float64
+
+	// UptimeThreshold is the uptime percentage over the channel's observed
+	// lifetime beneath which channels will be recommended for close. This
+	// value is expressed as a percentage in [0,1], and will default to 0 if
+	// it is not set.
+	UptimeThreshold float64
 
 	// MinimumMonitored is the minimum amount of time that a channel must have
 	// been monitored for before it is considered for closing.
 	MinimumMonitored time.Duration
+}
+
+// Recommendation provides the value that a close recommendation was
+// based on, and a boolean indicating whether we recommend closing the
+// channel.
+type Recommendation struct {
+	Value          float64
+	RecommendClose bool
 }
 
 // Report contains a set of close recommendations and information about the
@@ -54,9 +72,15 @@ type Report struct {
 	// for long enough to be considered for close.
 	ConsideredChannels int
 
-	// Recommendations is a map of chanel outpoints to a bool which indicates
-	// whether we should close the channel.
-	Recommendations map[string]bool
+	// OutlierRecommendations is a map of chanel outpoints to a bool which
+	// indicates whether we should close the channel based on whether it is
+	// an outlier.
+	OutlierRecommendations map[string]Recommendation
+
+	// ThresholdRecommendations is a map of chanel outpoints to a bool which
+	// indicates whether we should close the channel based on whether it is
+	// below a user provided threshold.
+	ThresholdRecommendations map[string]Recommendation
 }
 
 // CloseRecommendations returns a report which contains information about the
@@ -82,34 +106,68 @@ func CloseRecommendations(cfg *CloseRecommendationConfig) (*Report, error) {
 	// been monitored for longer than the minimum time.
 	uptime := getUptimeDataset(filtered)
 
-	recs, err := getCloseRecs(uptime, cfg.StrongOutlier)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Report{
+	report := &Report{
 		TotalChannels:      len(channels),
 		ConsideredChannels: len(uptime),
-		Recommendations:    recs,
-	}, nil
-}
+	}
 
-// getCloseRecs generates map of channel outpoint strings to booleans indicating
-// whether we recommend closing a channel.
-func getCloseRecs(uptime dataset.Dataset,
-	strongOutlier bool) (map[string]bool, error) {
-
-	outliers, err := uptime.GetOutliers(strongOutlier)
+	// Get close recommendations based on outliers.
+	report.OutlierRecommendations, err = getOutlierRecs(
+		uptime, cfg.OutlierMultiplier,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	recommendations := make(map[string]bool)
+	// Get close recommendations based on threshold.
+	report.ThresholdRecommendations = getThresholdRecs(
+		uptime, cfg.UptimeThreshold,
+	)
 
-	for chanpoint, outlier := range outliers {
-		// If the channel is a lower outlier, recommend it for closure.
-		if outlier.LowerOutlier {
-			recommendations[chanpoint] = true
+	return report, nil
+}
+
+// getThresholdRecs returns a map of channel points to values that are below a
+// given threshold.
+func getThresholdRecs(uptime dataset.Dataset,
+	threshold float64) map[string]Recommendation {
+
+	// Get a map of channel labels to a boolean indicating whether
+	// they are beneath the threshold.
+	thresholdValues := uptime.GetThreshold(threshold, true)
+
+	recommendations := make(
+		map[string]Recommendation, len(thresholdValues),
+	)
+
+	for chanPoint, belowThrehsold := range thresholdValues {
+		recommendations[chanPoint] = Recommendation{
+			Value:          uptime.Value(chanPoint),
+			RecommendClose: belowThrehsold,
+		}
+	}
+
+	return recommendations
+}
+
+// getOutlierRecs generates map of channel outpoint strings to booleans indicating
+// whether we recommend closing a channel.
+func getOutlierRecs(uptime dataset.Dataset,
+	outlierMultiplier float64) (map[string]Recommendation, error) {
+
+	recommendations := make(map[string]Recommendation)
+
+	outliers, err := uptime.GetOutliers(outlierMultiplier)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add a recommendation for each channel to our set of recommendations.
+	// If the channel is a lower outlier, we recommend it for close.
+	for chanPoint, outlier := range outliers {
+		recommendations[chanPoint] = Recommendation{
+			Value:          uptime.Value(chanPoint),
+			RecommendClose: outlier.LowerOutlier,
 		}
 	}
 
@@ -135,7 +193,7 @@ func filterChannels(openChannels []*lnrpc.Channel,
 		channels[channel.ChannelPoint] = channel
 	}
 
-	log.Debugf("considering: % channels for close out of %v",
+	log.Debugf("considering: %v channels for close out of %v",
 		len(channels), len(openChannels))
 
 	return channels

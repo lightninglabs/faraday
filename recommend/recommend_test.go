@@ -29,7 +29,7 @@ func TestCloseRecommendations(t *testing.T) {
 				return nil, nil
 			},
 			MinMonitored: time.Hour,
-			expectedErr:  dataset.ErrTooFewValues,
+			expectedErr:  nil,
 		},
 		{
 			name: "open channels fails",
@@ -77,9 +77,9 @@ func TestCloseRecommendations(t *testing.T) {
 			t.Parallel()
 
 			_, err := CloseRecommendations(&CloseRecommendationConfig{
-				OpenChannels:     test.OpenChannels,
-				StrongOutlier:    true,
-				MinimumMonitored: test.MinMonitored,
+				OpenChannels:      test.OpenChannels,
+				OutlierMultiplier: 3,
+				MinimumMonitored:  test.MinMonitored,
 			})
 			if err != test.expectedErr {
 				t.Fatalf("expected: %v, got: %v", test.expectedErr, err)
@@ -89,15 +89,29 @@ func TestCloseRecommendations(t *testing.T) {
 }
 
 // TestGetCloseRecs tests the generating of close recommendations for a set of
-// channels.
+// channels. It also contains a test case for when there are too few channels
+// to calculate outliers, to test that the error is silenced and no
+// recommendations are provided.
 func TestGetCloseRecs(t *testing.T) {
-
 	tests := []struct {
-		name           string
-		channelUptimes map[string]float64
-		expectedRecs   map[string]bool
-		strongOutlier  bool
+		name              string
+		channelUptimes    map[string]float64
+		expectedRecs      map[string]Recommendation
+		outlierMultiplier float64
 	}{
+		{
+			name: "not enough values, all false",
+			channelUptimes: map[string]float64{
+				"a:0": 0.7,
+			},
+			expectedRecs: map[string]Recommendation{
+				"a:0": {
+					Value:          0.7,
+					RecommendClose: false,
+				},
+			},
+			outlierMultiplier: 2,
+		},
 		{
 			name: "similar values, weak outlier no recommendations",
 			channelUptimes: map[string]float64{
@@ -105,8 +119,12 @@ func TestGetCloseRecs(t *testing.T) {
 				"a:1":  0.6,
 				"a:20": 0.5,
 			},
-			strongOutlier: false,
-			expectedRecs:  map[string]bool{},
+			outlierMultiplier: 1.5,
+			expectedRecs: map[string]Recommendation{
+				"a:0":  {Value: 0.7, RecommendClose: false},
+				"a:1":  {Value: 0.6, RecommendClose: false},
+				"a:20": {Value: 0.5, RecommendClose: false},
+			},
 		},
 		{
 			name: "similar values, strong outlier no recommendations",
@@ -115,8 +133,12 @@ func TestGetCloseRecs(t *testing.T) {
 				"a:1": 0.6,
 				"a:2": 0.5,
 			},
-			strongOutlier: true,
-			expectedRecs:  map[string]bool{},
+			outlierMultiplier: 3,
+			expectedRecs: map[string]Recommendation{
+				"a:0": {Value: 0.7, RecommendClose: false},
+				"a:1": {Value: 0.6, RecommendClose: false},
+				"a:2": {Value: 0.5, RecommendClose: false},
+			},
 		},
 		{
 			name: "lower outlier recommended for close",
@@ -128,9 +150,35 @@ func TestGetCloseRecs(t *testing.T) {
 				"a:4": 0.5,
 				"a:5": 0.1,
 			},
-			strongOutlier: true,
-			expectedRecs: map[string]bool{
-				"a:5": true,
+			outlierMultiplier: 3,
+			expectedRecs: map[string]Recommendation{
+				"a:0": {Value: 0.6, RecommendClose: false},
+				"a:1": {Value: 0.6, RecommendClose: false},
+				"a:2": {Value: 0.5, RecommendClose: false},
+				"a:3": {Value: 0.5, RecommendClose: false},
+				"a:4": {Value: 0.5, RecommendClose: false},
+				"a:5": {Value: 0.1, RecommendClose: true},
+			},
+		},
+
+		{
+			name: "zero multiplier replaced with default",
+			channelUptimes: map[string]float64{
+				"a:0": 0.6,
+				"a:1": 0.6,
+				"a:2": 0.5,
+				"a:3": 0.5,
+				"a:4": 0.5,
+				"a:5": 0.1,
+			},
+			outlierMultiplier: 0,
+			expectedRecs: map[string]Recommendation{
+				"a:0": {Value: 0.6, RecommendClose: false},
+				"a:1": {Value: 0.6, RecommendClose: false},
+				"a:2": {Value: 0.5, RecommendClose: false},
+				"a:3": {Value: 0.5, RecommendClose: false},
+				"a:4": {Value: 0.5, RecommendClose: false},
+				"a:5": {Value: 0.1, RecommendClose: true},
 			},
 		},
 	}
@@ -143,17 +191,24 @@ func TestGetCloseRecs(t *testing.T) {
 
 			uptimeData := dataset.New(test.channelUptimes)
 
-			recs, err := getCloseRecs(uptimeData, test.strongOutlier)
+			recs, err := getOutlierRecs(uptimeData, test.outlierMultiplier)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			// Run through our expected set of recommendations and check that
-			// they match the set returned in the report.
+
+			if len(test.expectedRecs) != len(recs) {
+				t.Fatalf("expected: %v recommendations, got: %v",
+					len(test.expectedRecs), len(recs))
+			}
+
+			// Run through our expected set of true recommendations
+			// and check that they match the set returned in the report.
 			for channel, expectClose := range test.expectedRecs {
 				recClose := recs[channel]
 				if recClose != expectClose {
-					t.Fatalf("expected close rec: %v for channel: %v,"+
-						" got: %v", expectClose, channel, recClose)
+					t.Fatalf("expected close rec: %v"+
+						" for channel: %v,  got: %v",
+						expectClose, channel, recClose)
 				}
 			}
 		})

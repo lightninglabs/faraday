@@ -2,7 +2,9 @@ package terminator
 
 import (
 	"github.com/btcsuite/btclog"
+	"github.com/lightninglabs/terminator/dataset"
 	"github.com/lightninglabs/terminator/recommend"
+	"github.com/lightninglabs/terminator/trmrpc"
 	"github.com/lightningnetwork/lnd/build"
 )
 
@@ -22,6 +24,8 @@ var (
 func init() {
 	setSubLogger(Subsystem, log, nil)
 	addSubLogger(recommend.Subsystem, recommend.UseLogger)
+	addSubLogger(dataset.Subsystem, dataset.UseLogger)
+	addSubLogger(trmrpc.Subsystem, trmrpc.UseLogger)
 }
 
 // UseLogger uses a specified Logger to output package logging info.

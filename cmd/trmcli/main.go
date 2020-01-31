@@ -24,6 +24,7 @@ func main() {
 	}
 	app.Commands = []cli.Command{
 		closeRecommendationCommand,
+		revenueReportCommand,
 	}
 
 	if err := app.Run(os.Args); err != nil {

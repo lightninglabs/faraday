@@ -1,8 +1,6 @@
 package revenue
 
 import (
-	"time"
-
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
@@ -24,15 +22,15 @@ type Config struct {
 	// ClosedChannels returns all closed channels.
 	ClosedChannels func() ([]*lnrpc.ChannelCloseSummary, error)
 
-	// ForwardingHistory returns paginated forwarding history results
-	// over a given time range.
-	ForwardingHistory func(startTime, endTime time.Time, offset,
-		maxEvents uint32) ([]*lnrpc.ForwardingEvent, uint32, error)
+	// ForwardingHistory returns paginated forwarding history results.
+	// The period that these results queried over determines the period
+	// that the report is generated for.
+	ForwardingHistory func(offset, maxEvents uint32) (
+		[]*lnrpc.ForwardingEvent, uint32, error)
 }
 
 // GetRevenueReport produces a revenue report over the period specified.
-func GetRevenueReport(cfg *Config, startTime,
-	endTime time.Time) (*Report, error) {
+func GetRevenueReport(cfg *Config) (*Report, error) {
 
 	// To provide the user with a revenue report by outpoint, we need to map
 	// short channel ids in the forwarding log to outpoints. Lookup all open
@@ -60,17 +58,7 @@ func GetRevenueReport(cfg *Config, startTime,
 			closedChannel.ChannelPoint
 	}
 
-	// Obtain paginated forwarder events by querying the forwarder log in
-	// the period provided.
-	query := func(offset,
-		maxEvents uint32) ([]*lnrpc.ForwardingEvent, uint32, error) {
-
-		return cfg.ForwardingHistory(
-			startTime, endTime, offset, maxEvents,
-		)
-	}
-
-	events, err := getEvents(channelIDs, query)
+	events, err := getEvents(channelIDs, cfg.ForwardingHistory)
 	if err != nil {
 		return nil, err
 	}

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
@@ -115,16 +114,14 @@ func TestGetRevenueReport(t *testing.T) {
 				ClosedChannels: func() ([]*lnrpc.ChannelCloseSummary, error) {
 					return test.closedChannels, test.closedChanErr
 				},
-				ForwardingHistory: func(startTime, endTime time.Time, offset,
+				ForwardingHistory: func(offset,
 					max uint32) ([]*lnrpc.ForwardingEvent, uint32, error) {
 
 					return test.fwdHistory, offset, test.forwardHistErr
 				},
 			}
 
-			report, err := GetRevenueReport(
-				cfg, time.Now(), time.Now(),
-			)
+			report, err := GetRevenueReport(cfg)
 			if test.expectErr != err {
 				t.Fatalf("expected: %v, got: %v",
 					test.expectErr, err)

@@ -39,8 +39,8 @@ type CloseRecommendationConfig struct {
 
 	// OutlierMultiplier is the number of inter quartile ranges a value
 	// should be away from the lower/upper quartile to be considered an
-	// outlier. Recommended values are 1.5 for more aggressive recommendations
-	// and 3 for more cautious recommendations.
+	// outlier. Recommended values are 1.5 for more aggressive
+	// recommendations and 3 for more cautious recommendations.
 	OutlierMultiplier float64
 
 	// UptimeThreshold is the uptime percentage over the channel's observed
@@ -49,8 +49,8 @@ type CloseRecommendationConfig struct {
 	// it is not set.
 	UptimeThreshold float64
 
-	// MinimumMonitored is the minimum amount of time that a channel must have
-	// been monitored for before it is considered for closing.
+	// MinimumMonitored is the minimum amount of time that a channel must
+	// have been monitored for before it is considered for closing.
 	MinimumMonitored time.Duration
 }
 
@@ -150,8 +150,8 @@ func getThresholdRecs(uptime dataset.Dataset,
 	return recommendations
 }
 
-// getOutlierRecs generates map of channel outpoint strings to booleans indicating
-// whether we recommend closing a channel.
+// getOutlierRecs generates map of channel outpoint strings to booleans
+// indicating whether we recommend closing a channel.
 func getOutlierRecs(uptime dataset.Dataset,
 	outlierMultiplier float64) (map[string]Recommendation, error) {
 
@@ -175,18 +175,20 @@ func getOutlierRecs(uptime dataset.Dataset,
 }
 
 // filterChannels filters out channels that are beneath the minimum age and
-// produces a map of channel outpoint strings to rpc channels which contains the
-// channels that are eligible for close recommendation.
+// produces a map of channel outpoint strings to rpc channels which contains
+// the channels that are eligible for close recommendation.
 func filterChannels(openChannels []*lnrpc.Channel,
 	minimumAge time.Duration) map[string]*lnrpc.Channel {
 
-	// Create a map which will hold channel point labels to uptime percentage.
+	// Create a map which will hold channel point labels to uptime
+	// percentage.
 	channels := make(map[string]*lnrpc.Channel)
 
 	for _, channel := range openChannels {
 		if channel.Lifetime < int64(minimumAge.Seconds()) {
-			log.Tracef("Channel: %v has not been monitored for long enough,"+
-				" excluding it from consideration", channel.ChannelPoint)
+			log.Tracef("Channel: %v has not been monitored for "+
+				"long enough, excluding it from consideration",
+				channel.ChannelPoint)
 			continue
 		}
 
@@ -204,17 +206,18 @@ func filterChannels(openChannels []*lnrpc.Channel,
 func getUptimeDataset(
 	eligibleChannels map[string]*lnrpc.Channel) dataset.Dataset {
 
-	// Create a map which will hold channel point string label to uptime percentage.
+	// Create a map which will hold channel point string label to uptime
+	// percentage.
 	var channels = make(map[string]float64)
 
 	for outpoint, channel := range eligibleChannels {
-		// Calculate the uptime percentage for the channel and add it to the
-		// channel -> uptime map.
+		// Calculate the uptime percentage for the channel and add it
+		// to the channel -> uptime map.
 		uptimePercentage := float64(channel.Uptime) / float64(channel.Lifetime)
 		channels[outpoint] = uptimePercentage
 
-		log.Tracef("channel: %v has uptime percentage: %v", outpoint,
-			uptimePercentage)
+		log.Tracef("channel: %v has uptime percentage: %v",
+			outpoint, uptimePercentage)
 	}
 
 	// Create a dataset for the uptime values we have collected.

@@ -35,8 +35,8 @@ func GetRevenueReport(cfg *Config, startTime,
 	endTime time.Time) (*Report, error) {
 
 	// To provide the user with a revenue report by outpoint, we need to map
-	// short channel ids in the forwarding log to outpoints. Lookup all open and
-	// closed channels to produce a map of short channel id to outpoint.
+	// short channel ids in the forwarding log to outpoints. Lookup all open
+	// and closed channels to produce a map of short channel id to outpoint.
 	channels, err := cfg.ListChannels()
 	if err != nil {
 		return nil, err
@@ -60,12 +60,14 @@ func GetRevenueReport(cfg *Config, startTime,
 			closedChannel.ChannelPoint
 	}
 
-	// Obtain paginated forwarder events by querying the forwarder log in the
-	// period provided.
+	// Obtain paginated forwarder events by querying the forwarder log in
+	// the period provided.
 	query := func(offset,
 		maxEvents uint32) ([]*lnrpc.ForwardingEvent, uint32, error) {
 
-		return cfg.ForwardingHistory(startTime, endTime, offset, maxEvents)
+		return cfg.ForwardingHistory(
+			startTime, endTime, offset, maxEvents,
+		)
 	}
 
 	events, err := getEvents(channelIDs, query)
@@ -94,10 +96,10 @@ func getEvents(channelIDs map[lnwire.ShortChannelID]string,
 			return nil, err
 		}
 
-		// Get the event's channel outpoints from out known list of maps and
-		// create a revenue event. Return an error if the short channel id's
-		// outpoint cannot be found, because we expect all known short channel
-		// ids to be provided.
+		// Get the event's channel outpoints from out known list of maps
+		// and create a revenue event. Return an error if the short
+		// channel id's outpoint cannot be found, because we expect all
+		// known short channel ids to be provided.
 		for _, fwd := range fwdEvents {
 			shortChanIn := lnwire.NewShortChanIDFromInt(
 				fwd.ChanIdIn,

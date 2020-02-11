@@ -48,11 +48,13 @@ func TestGetMedian(t *testing.T) {
 
 			median, err := getMedian(test.values)
 			if err != test.expectedErr {
-				t.Fatalf("expected: %v, got: %v", test.expectedErr, err)
+				t.Fatalf("expected: %v, got: %v",
+					test.expectedErr, err)
 			}
 
 			if test.expectedMedian != median {
-				t.Fatalf("expected: %v, got: %v", test.expectedMedian, median)
+				t.Fatalf("expected: %v, got: %v",
+					test.expectedMedian, median)
 			}
 		})
 	}
@@ -93,8 +95,10 @@ func TestQuartiles(t *testing.T) {
 			expectedUpperQuartile: 4.5,
 		},
 		{
-			name:                  "eight elements",
-			values:                []float64{1, 2, 3, 4, 5, 6, 7, 8},
+			name: "eight elements",
+			values: []float64{
+				1, 2, 3, 4, 5, 6, 7, 8,
+			},
 			expectedLowerQuartile: 2.5,
 			expectedUpperQuartile: 6.5,
 		},
@@ -106,8 +110,9 @@ func TestQuartiles(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			// Create a map of dummy outpoints to values to create the dataset
-			// so that each test case does not need to create maps.
+			// Create a map of dummy outpoints to values to create
+			// the dataset so that each test case does not need to
+			// create maps.
 			valueMap := make(map[string]float64)
 			for i, value := range test.values {
 				valueMap[fmt.Sprintf("%v", i)] = value
@@ -117,11 +122,12 @@ func TestQuartiles(t *testing.T) {
 
 			lower, upper, err := dataset.quartiles()
 			if err != test.expectedErr {
-				t.Fatalf("expected: %v, got: %v", test.expectedErr, err)
+				t.Fatalf("expected: %v, got: %v",
+					test.expectedErr, err)
 			}
 
-			// If an error occurred, we do not need to perform any further
-			// checks.
+			// If an error occurred, we do not need to perform any
+			// further checks.
 			if err != nil {
 				return
 			}
@@ -227,18 +233,21 @@ func TestIsOutlier(t *testing.T) {
 			for label, outlier := range outliers {
 				expectedOutlier, ok := test.expectedOutliers[label]
 				if !ok {
-					t.Fatalf("outlier label: %v not expected", label)
+					t.Fatalf("outlier label: %v not "+
+						"expected", label)
 				}
 
 				if outlier.LowerOutlier != expectedOutlier.LowerOutlier {
-					t.Fatalf("expected lower outlier: %v, got: %v for: %v",
-						expectedOutlier.LowerOutlier, outlier.LowerOutlier,
-						label)
+					t.Fatalf("expected lower outlier: %v,"+
+						" got: %v for: %v",
+						expectedOutlier.LowerOutlier,
+						outlier.LowerOutlier, label)
 				}
 				if outlier.UpperOutlier != expectedOutlier.UpperOutlier {
-					t.Fatalf("expected upper outlier: %v, got: %v for: %v",
-						expectedOutlier.UpperOutlier, outlier.UpperOutlier,
-						label)
+					t.Fatalf("expected upper outlier: %v, "+
+						"got: %v for: %v",
+						expectedOutlier.UpperOutlier,
+						outlier.UpperOutlier, label)
 				}
 			}
 		})

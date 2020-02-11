@@ -13,7 +13,8 @@ import (
 // TestGetRevenueReport tests querying for a revenue report.
 func TestGetRevenueReport(t *testing.T) {
 	var (
-		// testErr is an error returned by the mock to simulate rpc failures.
+		// testErr is an error returned by the mock to simulate rpc
+		// failures.
 		testErr = errors.New("error thrown by mock")
 
 		chan1 = &lnrpc.Channel{
@@ -105,8 +106,8 @@ func TestGetRevenueReport(t *testing.T) {
 		test := test
 
 		t.Run(test.name, func(t *testing.T) {
-			// Create a config which returns the tests's specified responses
-			// and errors.
+			// Create a config which returns the tests's specified
+			// responses and errors.
 			cfg := &Config{
 				ListChannels: func() ([]*lnrpc.Channel, error) {
 					return test.openChannels, test.listChanErr
@@ -125,11 +126,13 @@ func TestGetRevenueReport(t *testing.T) {
 				cfg, time.Now(), time.Now(),
 			)
 			if test.expectErr != err {
-				t.Fatalf("expected: %v, got: %v", test.expectErr, err)
+				t.Fatalf("expected: %v, got: %v",
+					test.expectErr, err)
 			}
 
 			if !reflect.DeepEqual(test.expectedReport, report) {
-				t.Fatalf("expected: \n%+v, got: \n%+v", test.expectedReport, report)
+				t.Fatalf("expected: \n%+v, got: \n%+v",
+					test.expectedReport, report)
 			}
 
 		})
@@ -151,18 +154,19 @@ func TestGetEvents(t *testing.T) {
 	tests := []struct {
 		name string
 
-		// queryResponses contains the number of forwarding events the test's
-		// mocked query function should return on each sequential call. The
-		// index of an item in this array represents the call count and the
-		// value is the number of events that should be returned. For example,
-		// queryResponses = [10, 2] means that the query should return 10
-		// events on first call, followed by 2 events on the second call.
-		// Any calls thereafter will panic.
+		// queryResponses contains the number of forwarding events the
+		// test's mocked query function should return on each sequential
+		// call. The index of an item in this array represents the call
+		// count and the value is the number of events that should be
+		// returned. For example, queryResponses = [10, 2] means that
+		// the query should return 10 events on first call, followed by
+		// 2 events on the second call. Any calls thereafter will panic.
 		queryResponses []uint32
 
 		channelMap map[lnwire.ShortChannelID]string
 
-		// expectedEvents is the number of events we expect to be accumulated.
+		// expectedEvents is the number of events we expect to be
+		// accumulated.
 		expectedEvents int
 	}{
 		{
@@ -195,24 +199,28 @@ func TestGetEvents(t *testing.T) {
 		test := test
 
 		t.Run(test.name, func(t *testing.T) {
-			// Track the number of calls we have made to the mocked query function.
+			// Track the number of calls we have made to the mocked
+			// query function.
 			callCount := 0
 
 			query := func(offset,
 				maxEvents uint32) ([]*lnrpc.ForwardingEvent, uint32, error) {
 
-				// Get the number of forward responses the mocked function
-				// should return from the test.
+				// Get the number of forward responses the
+				// mocked function should return from the test.
 				count := test.queryResponses[callCount]
 				callCount++
 
 				var events []*lnrpc.ForwardingEvent
 
 				for i := 0; uint32(i) < count; i++ {
-					events = append(events, &lnrpc.ForwardingEvent{})
+					events = append(
+						events, &lnrpc.ForwardingEvent{},
+					)
 				}
 
-				// Return an array with the correct number of results.
+				// Return an array with the correct number of
+				// results.
 				return events, offset, nil
 			}
 
@@ -221,7 +229,8 @@ func TestGetEvents(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			// Check that we have accumulated the number of events we expect.
+			// Check that we have accumulated the number of events
+			// we expect.
 			if len(events) != test.expectedEvents {
 				t.Fatalf("Expected %v events, got: %v",
 					test.expectedEvents, len(events))
@@ -239,7 +248,8 @@ func TestGetReport(t *testing.T) {
 		channel2 = "a:2"
 	)
 
-	// chan1Incoming is a forwarding event where channel 1 is the incoming channel.
+	// chan1Incoming is a forwarding event where channel 1 is the incoming
+	// channel.
 	chan1Incoming := revenueEvent{
 		incomingChannel: channel1,
 		outgoingChannel: channel2,
@@ -247,7 +257,8 @@ func TestGetReport(t *testing.T) {
 		outgoingAmt:     500,
 	}
 
-	// chan1Outgoing is a forwarding event where channel1 is the outgoing channel.
+	// chan1Outgoing is a forwarding event where channel1 is the outgoing
+	// channel.
 	chan1Outgoing := revenueEvent{
 		incomingChannel: channel2,
 		outgoingChannel: channel1,

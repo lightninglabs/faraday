@@ -15,7 +15,10 @@ import (
 // the minimum acceptable number of channels. It does not test the report
 // provided, because that will be covered by further tests.
 func TestCloseRecommendations(t *testing.T) {
-	var openChanErr = errors.New("intentional test err")
+	var (
+		openChanErr = errors.New("intentional test err")
+		hourSeconds = int64(time.Hour.Seconds())
+	)
 
 	tests := []struct {
 		name         string
@@ -53,15 +56,15 @@ func TestCloseRecommendations(t *testing.T) {
 				return []*lnrpc.Channel{
 					{
 						ChannelPoint: "a:1",
-						Lifetime:     int64(time.Hour.Seconds()),
+						Lifetime:     hourSeconds,
 					},
 					{
 						ChannelPoint: "b:2",
-						Lifetime:     int64(time.Hour.Seconds()),
+						Lifetime:     hourSeconds,
 					},
 					{
 						ChannelPoint: "c:3",
-						Lifetime:     int64(time.Hour.Seconds()),
+						Lifetime:     hourSeconds,
 					},
 				}, nil
 			},
@@ -76,13 +79,16 @@ func TestCloseRecommendations(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := CloseRecommendations(&CloseRecommendationConfig{
-				OpenChannels:      test.OpenChannels,
-				OutlierMultiplier: 3,
-				MinimumMonitored:  test.MinMonitored,
-			})
+			_, err := CloseRecommendations(
+				&CloseRecommendationConfig{
+					OpenChannels:      test.OpenChannels,
+					OutlierMultiplier: 3,
+					MinimumMonitored:  test.MinMonitored,
+				},
+			)
 			if err != test.expectedErr {
-				t.Fatalf("expected: %v, got: %v", test.expectedErr, err)
+				t.Fatalf("expected: %v, got: %v",
+					test.expectedErr, err)
 			}
 		})
 	}
@@ -191,18 +197,22 @@ func TestGetCloseRecs(t *testing.T) {
 
 			uptimeData := dataset.New(test.channelUptimes)
 
-			recs, err := getOutlierRecs(uptimeData, test.outlierMultiplier)
+			recs, err := getOutlierRecs(
+				uptimeData, test.outlierMultiplier,
+			)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
 			if len(test.expectedRecs) != len(recs) {
-				t.Fatalf("expected: %v recommendations, got: %v",
-					len(test.expectedRecs), len(recs))
+				t.Fatalf("expected: %v recommendations, "+
+					"got: %v", len(test.expectedRecs),
+					len(recs))
 			}
 
 			// Run through our expected set of true recommendations
-			// and check that they match the set returned in the report.
+			// and check that they match the set returned in the
+			// report.
 			for channel, expectClose := range test.expectedRecs {
 				recClose := recs[channel]
 				if recClose != expectClose {
@@ -247,7 +257,7 @@ func TestFilterChannels(t *testing.T) {
 		expectedChanPoints []string
 	}{
 		{
-			name:               "one channel not monitored for long enough",
+			name:               "one filtered - monitored time",
 			openChannels:       openChannels,
 			minAge:             time.Second * 15,
 			expectedChanPoints: []string{"a:1", "a:2", "a:3"},
@@ -270,12 +280,14 @@ func TestFilterChannels(t *testing.T) {
 
 			if len(test.expectedChanPoints) != len(filtered) {
 				t.Fatalf("expected: %v channels, got: %v",
-					len(test.expectedChanPoints), len(filtered))
+					len(test.expectedChanPoints),
+					len(filtered))
 			}
 
 			for _, expected := range test.expectedChanPoints {
 				if _, ok := filtered[expected]; !ok {
-					t.Fatalf("expected channel: %v to be present", expected)
+					t.Fatalf("expected channel: %v to "+
+						"be present", expected)
 				}
 			}
 		})

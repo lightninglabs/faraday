@@ -8,15 +8,15 @@ import (
 )
 
 var (
-	// errNoValues is returned when an attempt is made to calculate the median of
-	// a zero length array.
+	// errNoValues is returned when an attempt is made to calculate the
+	// median of a zero length array.
 	errNoValues = errors.New("can't calculate median for zero length " +
 		"array")
 
-	// errTooFewValues is returned when there are too few values provided to
-	// calculate quartiles.
-	errTooFewValues = errors.New("can't calculate quartiles for fewer than 3 " +
-		"elements")
+	// errTooFewValues is returned when there are too few values provided
+	// to calculate quartiles.
+	errTooFewValues = errors.New("can't calculate quartiles for fewer" +
+		" than 3 elements")
 )
 
 // Dataset contains information about a set of float64 data points.
@@ -30,14 +30,14 @@ func getMedian(values []float64) (float64, error) {
 		return 0, errNoValues
 	}
 
-	// If there is an even number of values in the dataset, return the average
-	// of the values in the middle of the dataset as the median.
+	// If there is an even number of values in the dataset, return the
+	// average of the values in the middle of the dataset as the median.
 	if valuesCount%2 == 0 {
 		return (values[(valuesCount-1)/2] + values[valuesCount/2]) / 2, nil
 	}
 
-	// If there is an odd number of values in the dataset, return the middle
-	// element as the median.
+	// If there is an odd number of values in the dataset, return the
+	// middle element as the median.
 	return values[valuesCount/2], nil
 }
 
@@ -59,8 +59,8 @@ func (d Dataset) rawValues() []float64 {
 	return values
 }
 
-// quartiles returns the upper and lower quartiles of a dataset. It will fail if
-// there are fewer than 3 values in the dataset, because we cannot calculate
+// quartiles returns the upper and lower quartiles of a dataset. It will fail
+// if there are fewer than 3 values in the dataset, because we cannot calculate
 // quartiles for fewer than 3 values.
 func (d Dataset) quartiles() (float64, float64, error) {
 	valueCount := len(d)
@@ -180,7 +180,8 @@ func (d Dataset) GetOutliers(outlierMultiplier float64) (
 	// we cannot calculate outliers so we return a map with all false
 	// outlier results.
 	if err == errTooFewValues {
-		log.Info(err)
+		log.Debug("could not calculate quartiles: %v, returning an "+
+			"empty set of outliers", err)
 
 		// Return a map with no outliers.
 		for label := range d {
@@ -194,6 +195,9 @@ func (d Dataset) GetOutliers(outlierMultiplier float64) (
 	if err != nil {
 		return nil, err
 	}
+
+	log.Tracef("quartiles calculated for: %v items: upper quartile: %v, "+
+		"lower quartile: %v", len(d), upper, lower)
 
 	// If we could could calculate quartiles for the dataset, we get
 	// outliers and populate a result map.
@@ -211,6 +215,9 @@ func (d Dataset) GetOutliers(outlierMultiplier float64) (
 // above or below the threshold.
 func (d Dataset) GetThreshold(thresholdValue float64, below bool) map[string]bool {
 	threshold := make(map[string]bool, len(d.rawValues()))
+
+	log.Tracef("examining %v items with threshold: %v, looking "+
+		"for <= threshold: %v", len(d), thresholdValue, below)
 
 	for label, value := range d {
 		// If we are looking for values below the threshold, check the

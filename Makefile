@@ -63,6 +63,7 @@ build:
 install:
 	@$(call print, "Installing terminator.")
 	$(GOINSTALL) $(PKG)/cmd/terminator
+	$(GOINSTALL) $(PKG)/cmd/trmcli
 
 scratch: build
 

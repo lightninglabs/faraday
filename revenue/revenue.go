@@ -1,7 +1,6 @@
 package revenue
 
 import (
-	"errors"
 	"time"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -11,10 +10,6 @@ import (
 // maxQueryEvents is the number of events to query the forward log for at
 // a time.
 const maxQueryEvents uint32 = 500
-
-// errUnknownChannelID is returned when we cannot map a short channel ID to
-// a channel outpoint string.
-var errUnknownChannelID = errors.New("cannot find channel outpoint")
 
 // eventsQuery is a function which returns paginated queries for forwarding
 // events.
@@ -104,14 +99,34 @@ func getEvents(channelIDs map[lnwire.ShortChannelID]string,
 		// outpoint cannot be found, because we expect all known short channel
 		// ids to be provided.
 		for _, fwd := range fwdEvents {
-			incoming, ok := channelIDs[lnwire.NewShortChanIDFromInt(fwd.ChanIdIn)]
+			shortChanIn := lnwire.NewShortChanIDFromInt(
+				fwd.ChanIdIn,
+			)
+			shortChanOut := lnwire.NewShortChanIDFromInt(
+				fwd.ChanIdOut,
+			)
+
+			incoming, ok := channelIDs[shortChanIn]
 			if !ok {
-				return nil, errUnknownChannelID
+				log.Errorf("cannot find channel incoming "+
+					"outpoint for forward: %v(%v msat) "+
+					"-> %v(%v msat)", shortChanIn,
+					fwd.AmtInMsat, shortChanOut,
+					fwd.AmtOutMsat)
+
+				continue
+
 			}
 
-			outgoing, ok := channelIDs[lnwire.NewShortChanIDFromInt(fwd.ChanIdOut)]
+			outgoing, ok := channelIDs[shortChanOut]
 			if !ok {
-				return nil, errUnknownChannelID
+				log.Errorf("cannot find channel outgoing "+
+					"outpoint for forward: %v(%v msat) "+
+					"-> %v(%v msat)", shortChanIn,
+					fwd.AmtInMsat, shortChanOut,
+					fwd.AmtOutMsat)
+
+				continue
 			}
 
 			events = append(events, revenueEvent{

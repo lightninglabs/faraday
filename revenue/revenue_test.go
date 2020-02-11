@@ -60,7 +60,10 @@ func TestGetRevenueReport(t *testing.T) {
 					ChanIdIn: 123,
 				},
 			},
-			expectErr: errUnknownChannelID,
+			expectErr: nil,
+			expectedReport: &Report{
+				ChannelPairs: make(map[string]map[string]Revenue),
+			},
 		},
 		{
 			name:         "open and closed channel",
@@ -161,37 +164,30 @@ func TestGetEvents(t *testing.T) {
 
 		// expectedEvents is the number of events we expect to be accumulated.
 		expectedEvents int
-
-		// expectedError is the error we expect to be returned.
-		expectedError error
 	}{
 		{
 			name:           "no events",
 			queryResponses: []uint32{0},
 			channelMap:     channelIDFound,
 			expectedEvents: 0,
-			expectedError:  nil,
 		},
 		{
 			name:           "single query",
 			queryResponses: []uint32{maxQueryEvents / 2},
 			channelMap:     channelIDFound,
 			expectedEvents: int(maxQueryEvents / 2),
-			expectedError:  nil,
 		},
 		{
 			name:           "paginated queries",
 			queryResponses: []uint32{maxQueryEvents, maxQueryEvents / 2},
 			channelMap:     channelIDFound,
 			expectedEvents: int(maxQueryEvents) + int(maxQueryEvents)/2,
-			expectedError:  nil,
 		},
 		{
-			name:           "can't lookup channel",
+			name:           "can't lookup channel skips event",
 			queryResponses: []uint32{maxQueryEvents / 2},
 			channelMap:     make(map[lnwire.ShortChannelID]string),
 			expectedEvents: 0,
-			expectedError:  errUnknownChannelID,
 		},
 	}
 
@@ -221,9 +217,8 @@ func TestGetEvents(t *testing.T) {
 			}
 
 			events, err := getEvents(test.channelMap, query)
-			if err != test.expectedError {
-				t.Fatalf("Expected error: %v, got: %v", test.expectedError,
-					err)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
 			}
 
 			// Check that we have accumulated the number of events we expect.

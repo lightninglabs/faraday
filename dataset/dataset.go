@@ -180,7 +180,8 @@ func (d Dataset) GetOutliers(outlierMultiplier float64) (
 	// we cannot calculate outliers so we return a map with all false
 	// outlier results.
 	if err == errTooFewValues {
-		log.Info(err)
+		log.Debug("could not calculate quartiles: %v, returning an "+
+			"empty set of outliers", err)
 
 		// Return a map with no outliers.
 		for label := range d {
@@ -194,6 +195,9 @@ func (d Dataset) GetOutliers(outlierMultiplier float64) (
 	if err != nil {
 		return nil, err
 	}
+
+	log.Tracef("quartiles calculated for: %v items: upper quartile: %v, "+
+		"lower quartile: %v", len(d), upper, lower)
 
 	// If we could could calculate quartiles for the dataset, we get
 	// outliers and populate a result map.
@@ -211,6 +215,9 @@ func (d Dataset) GetOutliers(outlierMultiplier float64) (
 // above or below the threshold.
 func (d Dataset) GetThreshold(thresholdValue float64, below bool) map[string]bool {
 	threshold := make(map[string]bool, len(d.rawValues()))
+
+	log.Tracef("examining %v items with threshold: %v, looking "+
+		"for <= threshold: %v", len(d), thresholdValue, below)
 
 	for label, value := range d {
 		// If we are looking for values below the threshold, check the

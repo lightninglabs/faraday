@@ -29,6 +29,7 @@ func fatal(err error) {
 // printRespJSON prints a proto message as json.
 func printRespJSON(resp proto.Message) {
 	jsonMarshaler := &jsonpb.Marshaler{
+		OrigName:     true,
 		EmitDefaults: true,
 		Indent:       "    ",
 	}

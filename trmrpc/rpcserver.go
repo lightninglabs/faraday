@@ -159,3 +159,16 @@ func (s *RPCServer) RevenueReport(ctx context.Context,
 
 	return rpcRevenueResponse(req.GetChanPoints(), report)
 }
+
+// ChannelInsights returns the channel insights for our currently open set
+// of channels.
+func (s *RPCServer) ChannelInsights(ctx context.Context,
+	req *ChannelInsightsRequest) (*ChannelInsightsResponse, error) {
+
+	insights, err := channelInsights(ctx, s.cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return rpcChannelInsightsResponse(insights), nil
+}

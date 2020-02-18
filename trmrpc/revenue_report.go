@@ -23,6 +23,12 @@ func parseRevenueRequest(ctx context.Context, cfg *Config,
 		endTime = uint64(time.Now().Unix())
 	}
 
+	return getRevenueConfig(ctx, cfg, req.StartTime, endTime)
+}
+
+func getRevenueConfig(ctx context.Context, cfg *Config,
+	start, end uint64) *revenue.Config {
+
 	closedChannels := func() ([]*lnrpc.ChannelCloseSummary, error) {
 		resp, err := cfg.LightningClient.ClosedChannels(
 			ctx, &lnrpc.ClosedChannelsRequest{},
@@ -38,8 +44,8 @@ func parseRevenueRequest(ctx context.Context, cfg *Config,
 		maxEvents uint32) ([]*lnrpc.ForwardingEvent, uint32, error) {
 		resp, err := cfg.LightningClient.ForwardingHistory(
 			ctx, &lnrpc.ForwardingHistoryRequest{
-				StartTime:    req.StartTime,
-				EndTime:      endTime,
+				StartTime:    start,
+				EndTime:      end,
 				IndexOffset:  offset,
 				NumMaxEvents: maxEvents,
 			},

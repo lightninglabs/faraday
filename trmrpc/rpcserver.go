@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 
 	"github.com/lightninglabs/terminator/recommend"
+	"github.com/lightninglabs/terminator/revenue"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"google.golang.org/grpc"
 )
@@ -142,4 +143,19 @@ func (s *RPCServer) CloseRecommendations(ctx context.Context,
 	}
 
 	return parseResponse(report), nil
+}
+
+// RevenueReport returns a pairwise revenue report for a channel
+// over the period requested.
+func (s *RPCServer) RevenueReport(ctx context.Context,
+	req *RevenueReportRequest) (*RevenueReportResponse, error) {
+
+	revenueConfig := parseRevenueRequest(ctx, s.cfg, req)
+
+	report, err := revenue.GetRevenueReport(revenueConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return rpcRevenueResponse(req.GetChanPoints(), report)
 }

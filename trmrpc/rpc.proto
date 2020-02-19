@@ -6,6 +6,7 @@ package trmrpc;
 
 service TerminatorServer {
     rpc CloseRecommendations (CloseRecommendationsRequest) returns (CloseRecommendationsResponse);
+    rpc RevenueReport (RevenueReportRequest) returns (RevenueReportResponse);
 }
 
 message CloseRecommendationsRequest {
@@ -81,4 +82,78 @@ message Recommendation{
 
     // A boolean indicating whether we recommend closing the channel.
     bool recommend_close = 3;
+}
+
+message RevenueReportRequest {
+    /*
+    The funding transaction outpoints for the channels to generate a revenue
+    report for. If this is empty, it will be generated for all open and closed
+    channels. Channel funding points should be expressed with the format
+    fundingTxID:outpoint.
+    */
+    repeated string chan_points = 1;
+
+    /*
+    Start time is beginning of the range over which the report will be
+    generated, expressed as unix epoch offset in seconds.
+    */
+    uint64 start_time = 2;
+
+    /*
+    End time is end of the range over which the report will be
+    generated, expressed as unix epoch offset in seconds.
+     */
+    uint64 end_time = 3;
+}
+
+message RevenueReportResponse {
+    /*
+    Reports is a set of pairwise revenue report generated for the channel(s)
+    over the period specified.
+    */
+    repeated RevenueReport reports = 1;
+}
+
+message RevenueReport{
+    /*
+    Target channel is the channel that the report is generated for; incoming
+    fields in the report mean that this channel was the incoming channel,
+    and the pair as the outgoing, outgoing fields mean that this channel was
+    the outgoing channel and the peer was the incoming channel.
+    */
+    string target_channel = 1;
+
+    /*
+    Pair reports maps the channel point of a peer that we generated revenue
+    with to a report detailing the revenue.
+    */
+    map<string, PairReport> pair_reports = 2;
+}
+
+message PairReport {
+    /*
+    Amount outgoing msat is the amount in millisatoshis that arrived
+    on the pair channel to be forwarded onwards by our channel.
+    */
+    int64 amount_outgoing_msat = 1;
+
+    /*
+    Fees outgoing is the amount of fees in millisatoshis that we
+    attribute to the channel for its role as the outgoing channel in
+    forwards.
+    */
+    int64 fees_outgoing_msat = 2;
+
+    /*
+    Amount incoming msat is the amount in millisatoshis that arrived
+    on our channel to be forwarded onwards by the pair channel.
+    */
+    int64 amount_incoming_msat = 3;
+
+    /*
+    Fees incoming is the amount of fees in millisatoshis that we
+    attribute to the channel for its role as the incoming channel in
+    forwards.
+    */
+    int64 fees_incoming_msat = 4;
 }

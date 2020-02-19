@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -41,6 +43,18 @@ func printRespJSON(resp proto.Message) {
 	}
 
 	fmt.Println(jsonStr)
+}
+
+func printJSON(resp interface{}) {
+	b, err := json.Marshal(resp)
+	if err != nil {
+		fatal(err)
+	}
+
+	var out bytes.Buffer
+	_ = json.Indent(&out, b, "", "\t")
+	out.WriteString("\n")
+	_, _ = out.WriteTo(os.Stdout)
 }
 
 // getClient returns a terminator client.

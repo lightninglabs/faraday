@@ -258,41 +258,500 @@ func (m *Recommendation) GetRecommendClose() bool {
 	return false
 }
 
+type RevenueReportRequest struct {
+	//
+	//The funding transaction outpoints for the channels to generate a revenue
+	//report for. If this is empty, it will be generated for all open and closed
+	//channels. Channel funding points should be expressed with the format
+	//fundingTxID:outpoint.
+	ChanPoints []string `protobuf:"bytes,1,rep,name=chan_points,json=chanPoints,proto3" json:"chan_points,omitempty"`
+	//
+	//Start time is beginning of the range over which the report will be
+	//generated, expressed as unix epoch offset in seconds.
+	StartTime uint64 `protobuf:"varint,2,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	//
+	//End time is end of the range over which the report will be
+	//generated, expressed as unix epoch offset in seconds.
+	EndTime              uint64   `protobuf:"varint,3,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *RevenueReportRequest) Reset()         { *m = RevenueReportRequest{} }
+func (m *RevenueReportRequest) String() string { return proto.CompactTextString(m) }
+func (*RevenueReportRequest) ProtoMessage()    {}
+func (*RevenueReportRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{3}
+}
+
+func (m *RevenueReportRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RevenueReportRequest.Unmarshal(m, b)
+}
+func (m *RevenueReportRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RevenueReportRequest.Marshal(b, m, deterministic)
+}
+func (m *RevenueReportRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RevenueReportRequest.Merge(m, src)
+}
+func (m *RevenueReportRequest) XXX_Size() int {
+	return xxx_messageInfo_RevenueReportRequest.Size(m)
+}
+func (m *RevenueReportRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RevenueReportRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RevenueReportRequest proto.InternalMessageInfo
+
+func (m *RevenueReportRequest) GetChanPoints() []string {
+	if m != nil {
+		return m.ChanPoints
+	}
+	return nil
+}
+
+func (m *RevenueReportRequest) GetStartTime() uint64 {
+	if m != nil {
+		return m.StartTime
+	}
+	return 0
+}
+
+func (m *RevenueReportRequest) GetEndTime() uint64 {
+	if m != nil {
+		return m.EndTime
+	}
+	return 0
+}
+
+type RevenueReportResponse struct {
+	//
+	//Reports is a set of pairwise revenue report generated for the channel(s)
+	//over the period specified.
+	Reports              []*RevenueReport `protobuf:"bytes,1,rep,name=reports,proto3" json:"reports,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
+}
+
+func (m *RevenueReportResponse) Reset()         { *m = RevenueReportResponse{} }
+func (m *RevenueReportResponse) String() string { return proto.CompactTextString(m) }
+func (*RevenueReportResponse) ProtoMessage()    {}
+func (*RevenueReportResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{4}
+}
+
+func (m *RevenueReportResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RevenueReportResponse.Unmarshal(m, b)
+}
+func (m *RevenueReportResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RevenueReportResponse.Marshal(b, m, deterministic)
+}
+func (m *RevenueReportResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RevenueReportResponse.Merge(m, src)
+}
+func (m *RevenueReportResponse) XXX_Size() int {
+	return xxx_messageInfo_RevenueReportResponse.Size(m)
+}
+func (m *RevenueReportResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_RevenueReportResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RevenueReportResponse proto.InternalMessageInfo
+
+func (m *RevenueReportResponse) GetReports() []*RevenueReport {
+	if m != nil {
+		return m.Reports
+	}
+	return nil
+}
+
+type RevenueReport struct {
+	//
+	//Target channel is the channel that the report is generated for; incoming
+	//fields in the report mean that this channel was the incoming channel,
+	//and the pair as the outgoing, outgoing fields mean that this channel was
+	//the outgoing channel and the peer was the incoming channel.
+	TargetChannel string `protobuf:"bytes,1,opt,name=target_channel,json=targetChannel,proto3" json:"target_channel,omitempty"`
+	//
+	//Pair reports maps the channel point of a peer that we generated revenue
+	//with to a report detailing the revenue.
+	PairReports          map[string]*PairReport `protobuf:"bytes,2,rep,name=pair_reports,json=pairReports,proto3" json:"pair_reports,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
+}
+
+func (m *RevenueReport) Reset()         { *m = RevenueReport{} }
+func (m *RevenueReport) String() string { return proto.CompactTextString(m) }
+func (*RevenueReport) ProtoMessage()    {}
+func (*RevenueReport) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{5}
+}
+
+func (m *RevenueReport) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RevenueReport.Unmarshal(m, b)
+}
+func (m *RevenueReport) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RevenueReport.Marshal(b, m, deterministic)
+}
+func (m *RevenueReport) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RevenueReport.Merge(m, src)
+}
+func (m *RevenueReport) XXX_Size() int {
+	return xxx_messageInfo_RevenueReport.Size(m)
+}
+func (m *RevenueReport) XXX_DiscardUnknown() {
+	xxx_messageInfo_RevenueReport.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RevenueReport proto.InternalMessageInfo
+
+func (m *RevenueReport) GetTargetChannel() string {
+	if m != nil {
+		return m.TargetChannel
+	}
+	return ""
+}
+
+func (m *RevenueReport) GetPairReports() map[string]*PairReport {
+	if m != nil {
+		return m.PairReports
+	}
+	return nil
+}
+
+type PairReport struct {
+	//
+	//Amount outgoing msat is the amount in millisatoshis that arrived
+	//on the pair channel to be forwarded onwards by our channel.
+	AmountOutgoingMsat int64 `protobuf:"varint,1,opt,name=amount_outgoing_msat,json=amountOutgoingMsat,proto3" json:"amount_outgoing_msat,omitempty"`
+	//
+	//Fees outgoing is the amount of fees in millisatoshis that we
+	//attribute to the channel for its role as the outgoing channel in
+	//forwards.
+	FeesOutgoingMsat int64 `protobuf:"varint,2,opt,name=fees_outgoing_msat,json=feesOutgoingMsat,proto3" json:"fees_outgoing_msat,omitempty"`
+	//
+	//Amount incoming msat is the amount in millisatoshis that arrived
+	//on our channel to be forwarded onwards by the pair channel.
+	AmountIncomingMsat int64 `protobuf:"varint,3,opt,name=amount_incoming_msat,json=amountIncomingMsat,proto3" json:"amount_incoming_msat,omitempty"`
+	//
+	//Fees incoming is the amount of fees in millisatoshis that we
+	//attribute to the channel for its role as the incoming channel in
+	//forwards.
+	FeesIncomingMsat     int64    `protobuf:"varint,4,opt,name=fees_incoming_msat,json=feesIncomingMsat,proto3" json:"fees_incoming_msat,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *PairReport) Reset()         { *m = PairReport{} }
+func (m *PairReport) String() string { return proto.CompactTextString(m) }
+func (*PairReport) ProtoMessage()    {}
+func (*PairReport) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{6}
+}
+
+func (m *PairReport) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PairReport.Unmarshal(m, b)
+}
+func (m *PairReport) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PairReport.Marshal(b, m, deterministic)
+}
+func (m *PairReport) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PairReport.Merge(m, src)
+}
+func (m *PairReport) XXX_Size() int {
+	return xxx_messageInfo_PairReport.Size(m)
+}
+func (m *PairReport) XXX_DiscardUnknown() {
+	xxx_messageInfo_PairReport.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PairReport proto.InternalMessageInfo
+
+func (m *PairReport) GetAmountOutgoingMsat() int64 {
+	if m != nil {
+		return m.AmountOutgoingMsat
+	}
+	return 0
+}
+
+func (m *PairReport) GetFeesOutgoingMsat() int64 {
+	if m != nil {
+		return m.FeesOutgoingMsat
+	}
+	return 0
+}
+
+func (m *PairReport) GetAmountIncomingMsat() int64 {
+	if m != nil {
+		return m.AmountIncomingMsat
+	}
+	return 0
+}
+
+func (m *PairReport) GetFeesIncomingMsat() int64 {
+	if m != nil {
+		return m.FeesIncomingMsat
+	}
+	return 0
+}
+
+type ChannelInsightsRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ChannelInsightsRequest) Reset()         { *m = ChannelInsightsRequest{} }
+func (m *ChannelInsightsRequest) String() string { return proto.CompactTextString(m) }
+func (*ChannelInsightsRequest) ProtoMessage()    {}
+func (*ChannelInsightsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{7}
+}
+
+func (m *ChannelInsightsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ChannelInsightsRequest.Unmarshal(m, b)
+}
+func (m *ChannelInsightsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ChannelInsightsRequest.Marshal(b, m, deterministic)
+}
+func (m *ChannelInsightsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ChannelInsightsRequest.Merge(m, src)
+}
+func (m *ChannelInsightsRequest) XXX_Size() int {
+	return xxx_messageInfo_ChannelInsightsRequest.Size(m)
+}
+func (m *ChannelInsightsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ChannelInsightsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ChannelInsightsRequest proto.InternalMessageInfo
+
+type ChannelInsightsResponse struct {
+	// Insights for the set of currently open channels.
+	ChannelInsights      []*ChannelInsight `protobuf:"bytes,1,rep,name=channel_insights,json=channelInsights,proto3" json:"channel_insights,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
+}
+
+func (m *ChannelInsightsResponse) Reset()         { *m = ChannelInsightsResponse{} }
+func (m *ChannelInsightsResponse) String() string { return proto.CompactTextString(m) }
+func (*ChannelInsightsResponse) ProtoMessage()    {}
+func (*ChannelInsightsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{8}
+}
+
+func (m *ChannelInsightsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ChannelInsightsResponse.Unmarshal(m, b)
+}
+func (m *ChannelInsightsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ChannelInsightsResponse.Marshal(b, m, deterministic)
+}
+func (m *ChannelInsightsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ChannelInsightsResponse.Merge(m, src)
+}
+func (m *ChannelInsightsResponse) XXX_Size() int {
+	return xxx_messageInfo_ChannelInsightsResponse.Size(m)
+}
+func (m *ChannelInsightsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ChannelInsightsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ChannelInsightsResponse proto.InternalMessageInfo
+
+func (m *ChannelInsightsResponse) GetChannelInsights() []*ChannelInsight {
+	if m != nil {
+		return m.ChannelInsights
+	}
+	return nil
+}
+
+type ChannelInsight struct {
+	// The outpoint of the channel's funding transaction.
+	ChanPoint string `protobuf:"bytes,1,opt,name=chan_point,json=chanPoint,proto3" json:"chan_point,omitempty"`
+	//
+	//The amount of time in seconds that we have monitored the channel peer's
+	//uptime for.
+	MonitoredSeconds uint64 `protobuf:"varint,2,opt,name=monitored_seconds,json=monitoredSeconds,proto3" json:"monitored_seconds,omitempty"`
+	//
+	//The amount of time in seconds that the channel peer has been online over
+	//the period it has been monitored for.
+	UptimeSeconds uint64 `protobuf:"varint,3,opt,name=uptime_seconds,json=uptimeSeconds,proto3" json:"uptime_seconds,omitempty"`
+	//
+	//The volume, in millisatoshis, that has been forwarded with this channel as
+	//the incoming channel.
+	VolumeIncomingMsat int64 `protobuf:"varint,4,opt,name=volume_incoming_msat,json=volumeIncomingMsat,proto3" json:"volume_incoming_msat,omitempty"`
+	//
+	//The volume, in millisatoshis, that has been forwarded with this channel as
+	//the outgoing channel.
+	VolumeOutgoingMsat int64 `protobuf:"varint,5,opt,name=volume_outgoing_msat,json=volumeOutgoingMsat,proto3" json:"volume_outgoing_msat,omitempty"`
+	//
+	//The total fees earned by this channel for its participation in forwards,
+	//expressed in millisatoshis. Note that we attribute fees evenly across
+	//incoming and outgoing channels.
+	FeesEarnedMsat int64 `protobuf:"varint,6,opt,name=fees_earned_msat,json=feesEarnedMsat,proto3" json:"fees_earned_msat,omitempty"`
+	// The number of confirmations the funding transaction has.
+	Confirmations uint32 `protobuf:"varint,7,opt,name=confirmations,proto3" json:"confirmations,omitempty"`
+	// True if the channel is private.
+	Private              bool     `protobuf:"varint,8,opt,name=private,proto3" json:"private,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ChannelInsight) Reset()         { *m = ChannelInsight{} }
+func (m *ChannelInsight) String() string { return proto.CompactTextString(m) }
+func (*ChannelInsight) ProtoMessage()    {}
+func (*ChannelInsight) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{9}
+}
+
+func (m *ChannelInsight) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ChannelInsight.Unmarshal(m, b)
+}
+func (m *ChannelInsight) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ChannelInsight.Marshal(b, m, deterministic)
+}
+func (m *ChannelInsight) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ChannelInsight.Merge(m, src)
+}
+func (m *ChannelInsight) XXX_Size() int {
+	return xxx_messageInfo_ChannelInsight.Size(m)
+}
+func (m *ChannelInsight) XXX_DiscardUnknown() {
+	xxx_messageInfo_ChannelInsight.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ChannelInsight proto.InternalMessageInfo
+
+func (m *ChannelInsight) GetChanPoint() string {
+	if m != nil {
+		return m.ChanPoint
+	}
+	return ""
+}
+
+func (m *ChannelInsight) GetMonitoredSeconds() uint64 {
+	if m != nil {
+		return m.MonitoredSeconds
+	}
+	return 0
+}
+
+func (m *ChannelInsight) GetUptimeSeconds() uint64 {
+	if m != nil {
+		return m.UptimeSeconds
+	}
+	return 0
+}
+
+func (m *ChannelInsight) GetVolumeIncomingMsat() int64 {
+	if m != nil {
+		return m.VolumeIncomingMsat
+	}
+	return 0
+}
+
+func (m *ChannelInsight) GetVolumeOutgoingMsat() int64 {
+	if m != nil {
+		return m.VolumeOutgoingMsat
+	}
+	return 0
+}
+
+func (m *ChannelInsight) GetFeesEarnedMsat() int64 {
+	if m != nil {
+		return m.FeesEarnedMsat
+	}
+	return 0
+}
+
+func (m *ChannelInsight) GetConfirmations() uint32 {
+	if m != nil {
+		return m.Confirmations
+	}
+	return 0
+}
+
+func (m *ChannelInsight) GetPrivate() bool {
+	if m != nil {
+		return m.Private
+	}
+	return false
+}
+
 func init() {
 	proto.RegisterType((*CloseRecommendationsRequest)(nil), "trmrpc.CloseRecommendationsRequest")
 	proto.RegisterType((*CloseRecommendationsResponse)(nil), "trmrpc.CloseRecommendationsResponse")
 	proto.RegisterType((*Recommendation)(nil), "trmrpc.Recommendation")
+	proto.RegisterType((*RevenueReportRequest)(nil), "trmrpc.RevenueReportRequest")
+	proto.RegisterType((*RevenueReportResponse)(nil), "trmrpc.RevenueReportResponse")
+	proto.RegisterType((*RevenueReport)(nil), "trmrpc.RevenueReport")
+	proto.RegisterMapType((map[string]*PairReport)(nil), "trmrpc.RevenueReport.PairReportsEntry")
+	proto.RegisterType((*PairReport)(nil), "trmrpc.PairReport")
+	proto.RegisterType((*ChannelInsightsRequest)(nil), "trmrpc.ChannelInsightsRequest")
+	proto.RegisterType((*ChannelInsightsResponse)(nil), "trmrpc.ChannelInsightsResponse")
+	proto.RegisterType((*ChannelInsight)(nil), "trmrpc.ChannelInsight")
 }
 
 func init() { proto.RegisterFile("rpc.proto", fileDescriptor_77a6da22d6a3feb1) }
 
 var fileDescriptor_77a6da22d6a3feb1 = []byte{
-	// 387 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x52, 0xed, 0x6e, 0xd3, 0x40,
-	0x10, 0xc4, 0x36, 0xad, 0xf0, 0x56, 0xa4, 0xe9, 0x51, 0x15, 0x53, 0x8a, 0x14, 0x05, 0x10, 0x91,
-	0x2a, 0x12, 0xa9, 0xbc, 0x01, 0xfd, 0xc3, 0x9f, 0x0a, 0x74, 0xc9, 0x7f, 0xeb, 0xb0, 0x57, 0xc9,
-	0x49, 0x77, 0xb7, 0xc7, 0xdd, 0x39, 0x4f, 0xc3, 0x5b, 0xf0, 0x82, 0xc8, 0x9f, 0x51, 0xd2, 0x28,
-	0xff, 0xec, 0x99, 0xd9, 0xbd, 0xd9, 0x9d, 0x85, 0xd4, 0xd9, 0x62, 0x6e, 0x1d, 0x05, 0x62, 0xe7,
-	0xc1, 0x69, 0x67, 0x8b, 0xdb, 0xbb, 0x35, 0xd1, 0x5a, 0xe1, 0x42, 0x58, 0xb9, 0x10, 0xc6, 0x50,
-	0x10, 0x41, 0x92, 0xf1, 0xad, 0x6a, 0xfa, 0x2f, 0x82, 0xf7, 0x8f, 0x8a, 0x3c, 0x72, 0x2c, 0x48,
-	0x6b, 0x34, 0x65, 0x4b, 0x73, 0xfc, 0x53, 0xa1, 0x0f, 0xec, 0x1e, 0xae, 0xb4, 0x34, 0x52, 0x57,
-	0x3a, 0xd7, 0x64, 0x64, 0x20, 0x87, 0x65, 0x16, 0x4d, 0xa2, 0x59, 0xc2, 0xc7, 0x1d, 0xf1, 0xd4,
-	0xe3, 0xec, 0x2b, 0x30, 0xaa, 0x82, 0x92, 0xe8, 0x72, 0x5d, 0xa9, 0x20, 0x6d, 0xfd, 0x99, 0xc5,
-	0x93, 0x68, 0x16, 0xf3, 0xab, 0x8e, 0x79, 0x1a, 0x08, 0x76, 0x0f, 0xe3, 0xca, 0x06, 0xa9, 0x31,
-	0x0f, 0x1b, 0x87, 0x7e, 0x43, 0xaa, 0xcc, 0x92, 0x5a, 0xfc, 0xe3, 0x05, 0xbf, 0x6c, 0x99, 0x55,
-	0x4f, 0x7c, 0xbf, 0x80, 0x74, 0x50, 0x4d, 0xff, 0xc6, 0x70, 0x77, 0xdc, 0xb5, 0xb7, 0x64, 0x3c,
-	0xb2, 0xcf, 0x30, 0x0a, 0x14, 0x84, 0xca, 0x8b, 0x8d, 0x30, 0x06, 0x95, 0x6f, 0x3c, 0x9f, 0xf1,
-	0xd7, 0x0d, 0xfa, 0xd8, 0x81, 0x6c, 0x01, 0x6f, 0x0a, 0x32, 0x5e, 0x96, 0xe8, 0xb0, 0xdc, 0x69,
-	0xe3, 0x46, 0xcb, 0x76, 0xd4, 0x50, 0xf0, 0x13, 0xde, 0xf6, 0x13, 0xba, 0xfd, 0xa7, 0xb3, 0x64,
-	0x92, 0xcc, 0x2e, 0x1e, 0x6e, 0xe6, 0xed, 0xda, 0xe7, 0xfb, 0xce, 0xf8, 0x4d, 0x57, 0x76, 0x60,
-	0x98, 0x2d, 0xe1, 0xdd, 0x30, 0xd6, 0xb3, 0x96, 0x2f, 0x4f, 0xb6, 0xcc, 0x86, 0xc2, 0x83, 0xa6,
-	0x53, 0x03, 0xa3, 0x7d, 0x88, 0x7d, 0x00, 0xa8, 0xa7, 0xcb, 0x2d, 0x49, 0x13, 0x9a, 0x5d, 0xa4,
-	0x3c, 0xad, 0x91, 0x5f, 0x35, 0xc0, 0xae, 0xe1, 0x6c, 0x2b, 0x54, 0x85, 0x5d, 0x56, 0xed, 0x0f,
-	0xfb, 0x02, 0x97, 0x83, 0xa3, 0xbc, 0xa8, 0xd7, 0xdd, 0xc4, 0xf3, 0x8a, 0x8f, 0x06, 0xb8, 0x09,
-	0xe1, 0xa1, 0x82, 0xf1, 0x0a, 0x9d, 0x96, 0x46, 0x04, 0x72, 0x4b, 0x74, 0x5b, 0x74, 0x4c, 0xc0,
-	0xf5, 0xb1, 0x84, 0xd8, 0xc7, 0x7e, 0x9a, 0x13, 0x57, 0x77, 0xfb, 0xe9, 0xb4, 0xa8, 0x0d, 0xf9,
-	0xf7, 0x79, 0x73, 0xc2, 0xdf, 0xfe, 0x07, 0x00, 0x00, 0xff, 0xff, 0x3f, 0x08, 0x22, 0xe1, 0xf5,
-	0x02, 0x00, 0x00,
+	// 814 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x55, 0xcd, 0x6e, 0xdb, 0x46,
+	0x10, 0xae, 0x28, 0xff, 0x69, 0x54, 0xc9, 0xca, 0x56, 0x71, 0x14, 0xd7, 0x69, 0x0c, 0x36, 0x6d,
+	0x05, 0xa4, 0xb5, 0x03, 0xf7, 0x52, 0xf4, 0xd6, 0x06, 0x01, 0x62, 0xa0, 0x46, 0x82, 0xb5, 0x8f,
+	0x05, 0x88, 0x2d, 0x35, 0x91, 0x17, 0xe5, 0xee, 0x32, 0xbb, 0x4b, 0x01, 0x79, 0x92, 0x5e, 0xfa,
+	0x16, 0x7d, 0x8d, 0x5e, 0x7a, 0xe8, 0xfb, 0x14, 0xfb, 0x43, 0x52, 0x54, 0x64, 0xf7, 0x46, 0x7e,
+	0xdf, 0xb7, 0x33, 0xc3, 0x99, 0x6f, 0x87, 0x30, 0xd0, 0x65, 0x7e, 0x56, 0x6a, 0x65, 0x15, 0xd9,
+	0xb3, 0x5a, 0xe8, 0x32, 0x3f, 0x3e, 0x59, 0x2a, 0xb5, 0x2c, 0xf0, 0x9c, 0x95, 0xfc, 0x9c, 0x49,
+	0xa9, 0x2c, 0xb3, 0x5c, 0x49, 0x13, 0x54, 0xe9, 0x5f, 0x3d, 0xf8, 0xfc, 0x65, 0xa1, 0x0c, 0x52,
+	0xcc, 0x95, 0x10, 0x28, 0x17, 0x81, 0xa6, 0xf8, 0xbe, 0x42, 0x63, 0xc9, 0x73, 0x78, 0x20, 0xb8,
+	0xe4, 0xa2, 0x12, 0x99, 0x50, 0x92, 0x5b, 0xa5, 0x71, 0x31, 0xeb, 0x9d, 0xf6, 0xe6, 0x7d, 0x3a,
+	0x89, 0xc4, 0x55, 0x8d, 0x93, 0xef, 0x80, 0xa8, 0xca, 0x16, 0x1c, 0x75, 0x26, 0xaa, 0xc2, 0xf2,
+	0xd2, 0x3d, 0xce, 0x92, 0xd3, 0xde, 0x3c, 0xa1, 0x0f, 0x22, 0x73, 0xd5, 0x10, 0xe4, 0x39, 0x4c,
+	0xaa, 0xd2, 0x72, 0x81, 0x99, 0xbd, 0xd5, 0x68, 0x6e, 0x55, 0xb1, 0x98, 0xf5, 0x9d, 0xf8, 0xf5,
+	0x27, 0xf4, 0x30, 0x30, 0x37, 0x35, 0xf1, 0xf3, 0x10, 0x06, 0x8d, 0x2a, 0xfd, 0x33, 0x81, 0x93,
+	0xed, 0x55, 0x9b, 0x52, 0x49, 0x83, 0xe4, 0x2b, 0x18, 0x5b, 0x65, 0x59, 0x91, 0xe5, 0xb7, 0x4c,
+	0x4a, 0x2c, 0x8c, 0xaf, 0x79, 0x97, 0x8e, 0x3c, 0xfa, 0x32, 0x82, 0xe4, 0x1c, 0x3e, 0xcb, 0x95,
+	0x34, 0x7c, 0x81, 0x1a, 0x17, 0xad, 0x36, 0xf1, 0x5a, 0xd2, 0x52, 0xcd, 0x81, 0x37, 0xf0, 0xa8,
+	0xfe, 0x42, 0xdd, 0x4d, 0x3d, 0xeb, 0x9f, 0xf6, 0xe7, 0xc3, 0x8b, 0xa3, 0xb3, 0xd0, 0xf6, 0xb3,
+	0x6e, 0x65, 0xf4, 0x28, 0x1e, 0xdb, 0x28, 0x98, 0x5c, 0xc3, 0xe3, 0xe6, 0xb3, 0x3e, 0x0a, 0xb9,
+	0x73, 0x6f, 0xc8, 0x59, 0x73, 0x70, 0x23, 0x68, 0x2a, 0x61, 0xdc, 0x85, 0xc8, 0x13, 0x00, 0xf7,
+	0x75, 0x59, 0xa9, 0xb8, 0xb4, 0xbe, 0x17, 0x03, 0x3a, 0x70, 0xc8, 0x5b, 0x07, 0x90, 0x29, 0xec,
+	0xae, 0x58, 0x51, 0x61, 0x9c, 0x55, 0x78, 0x21, 0xdf, 0xc0, 0x61, 0x53, 0x51, 0x96, 0xbb, 0x76,
+	0xfb, 0xf1, 0x1c, 0xd0, 0x71, 0x03, 0xfb, 0x21, 0xa4, 0xef, 0x61, 0x4a, 0x71, 0x85, 0xb2, 0x42,
+	0x8a, 0xa5, 0xd2, 0xb6, 0x36, 0xcf, 0x53, 0x18, 0xb6, 0x59, 0xdd, 0x08, 0xfa, 0xf3, 0x01, 0x85,
+	0x26, 0xad, 0x71, 0x65, 0x19, 0xcb, 0xb4, 0xcd, 0xdc, 0xac, 0x7d, 0xf2, 0x1d, 0x3a, 0xf0, 0xc8,
+	0x0d, 0x17, 0x48, 0x1e, 0xc3, 0x81, 0x4b, 0xed, 0xc9, 0xbe, 0x27, 0xf7, 0x51, 0x2e, 0x1c, 0x95,
+	0xbe, 0x86, 0x87, 0x1b, 0x29, 0xe3, 0xe4, 0xcf, 0x61, 0x5f, 0x7b, 0x24, 0xe4, 0x1b, 0x5e, 0x3c,
+	0x6c, 0xdb, 0xb7, 0xae, 0xaf, 0x55, 0xe9, 0xbf, 0x3d, 0x18, 0x75, 0x28, 0x6f, 0x1e, 0xa6, 0x97,
+	0x68, 0x6b, 0x47, 0xc4, 0x86, 0x8d, 0x02, 0x1a, 0xcd, 0x40, 0x2e, 0xe1, 0xd3, 0x92, 0x71, 0x67,
+	0x84, 0x90, 0x2e, 0xf1, 0xe9, 0xbe, 0xde, 0x9a, 0xee, 0xec, 0x2d, 0xe3, 0x3a, 0x3c, 0x9a, 0x57,
+	0xd2, 0xea, 0x0f, 0x74, 0x58, 0xb6, 0xc8, 0x31, 0x85, 0xc9, 0xa6, 0x80, 0x4c, 0xa0, 0xff, 0x3b,
+	0x7e, 0x88, 0xa9, 0xdd, 0x23, 0x99, 0xaf, 0x4f, 0x69, 0x78, 0x41, 0xea, 0x4c, 0xed, 0xd1, 0x38,
+	0xb9, 0x1f, 0x93, 0x1f, 0x7a, 0xe9, 0xdf, 0x3d, 0x80, 0x96, 0x21, 0x2f, 0x60, 0xca, 0x84, 0xaa,
+	0xa4, 0xcd, 0x54, 0x65, 0x97, 0x8a, 0xcb, 0x65, 0x26, 0x0c, 0xb3, 0xf1, 0x2e, 0x93, 0xc0, 0xbd,
+	0x89, 0xd4, 0x95, 0x61, 0x96, 0x7c, 0x0b, 0xe4, 0x1d, 0xa2, 0xd9, 0xd0, 0x27, 0xe1, 0xee, 0x3b,
+	0xa6, 0xa3, 0x6e, 0xe3, 0x73, 0x99, 0x2b, 0xd1, 0xe8, 0xfb, 0xeb, 0xf1, 0x2f, 0x23, 0xd5, 0x89,
+	0xdf, 0xd5, 0xef, 0xb4, 0xf1, 0xd7, 0xd5, 0xe9, 0x0c, 0x8e, 0x62, 0xe3, 0x2f, 0xa5, 0xe1, 0xcb,
+	0x5b, 0x5b, 0xaf, 0xa8, 0xf4, 0x57, 0x78, 0xf4, 0x11, 0x13, 0xcd, 0xf0, 0x13, 0x4c, 0xe2, 0x08,
+	0x33, 0x1e, 0xb9, 0xe8, 0x8a, 0xe6, 0x52, 0x75, 0x8f, 0xd2, 0xc3, 0xbc, 0x1b, 0x2a, 0xfd, 0x27,
+	0x81, 0x71, 0x57, 0xf3, 0x7f, 0x97, 0xc9, 0xad, 0xcc, 0x7a, 0x25, 0x66, 0x06, 0x73, 0x25, 0x17,
+	0x26, 0x7a, 0x7b, 0xd2, 0x10, 0xd7, 0x01, 0x77, 0x5e, 0x8b, 0x3b, 0xb0, 0x56, 0x06, 0xa3, 0x8f,
+	0x02, 0x5a, 0xcb, 0x5e, 0xc0, 0x74, 0xa5, 0x8a, 0x4a, 0xe0, 0xd6, 0x6e, 0x91, 0xc0, 0x75, 0xba,
+	0xdb, 0x9e, 0xe8, 0xce, 0x6f, 0x77, 0xfd, 0x44, 0x67, 0x82, 0x73, 0xf0, 0x5d, 0xcf, 0x90, 0x69,
+	0x89, 0x8b, 0xa0, 0xde, 0xf3, 0xea, 0xb1, 0xc3, 0x5f, 0x79, 0xd8, 0x2b, 0x9f, 0xc1, 0x28, 0x57,
+	0xf2, 0x1d, 0xd7, 0x22, 0x2e, 0xaa, 0xfd, 0xd3, 0xde, 0x7c, 0x44, 0xbb, 0x20, 0x99, 0xc1, 0x7e,
+	0xa9, 0xf9, 0x8a, 0x59, 0x9c, 0x1d, 0xf8, 0xb5, 0x51, 0xbf, 0x5e, 0xfc, 0x91, 0xc0, 0xe4, 0x06,
+	0xb5, 0xe0, 0x92, 0x59, 0xa5, 0xaf, 0x51, 0xaf, 0x50, 0x13, 0x06, 0xd3, 0x6d, 0x2b, 0x9d, 0x7c,
+	0xd9, 0x4c, 0xea, 0xee, 0xdf, 0xd4, 0xf1, 0xb3, 0xfb, 0x45, 0xd1, 0x0e, 0xbf, 0x6c, 0xde, 0xf4,
+	0x93, 0xed, 0xbb, 0x21, 0x06, 0x7d, 0x72, 0x07, 0x1b, 0xa3, 0x51, 0x38, 0xdc, 0xf0, 0x1d, 0xf9,
+	0x62, 0xbb, 0xab, 0x9a, 0x32, 0x9f, 0xde, 0xc9, 0x87, 0x98, 0xbf, 0xed, 0xf9, 0xbf, 0xf2, 0xf7,
+	0xff, 0x05, 0x00, 0x00, 0xff, 0xff, 0x9d, 0x67, 0xb7, 0xb2, 0xc8, 0x07, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -308,6 +767,8 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type TerminatorServerClient interface {
 	CloseRecommendations(ctx context.Context, in *CloseRecommendationsRequest, opts ...grpc.CallOption) (*CloseRecommendationsResponse, error)
+	RevenueReport(ctx context.Context, in *RevenueReportRequest, opts ...grpc.CallOption) (*RevenueReportResponse, error)
+	ChannelInsights(ctx context.Context, in *ChannelInsightsRequest, opts ...grpc.CallOption) (*ChannelInsightsResponse, error)
 }
 
 type terminatorServerClient struct {
@@ -327,9 +788,29 @@ func (c *terminatorServerClient) CloseRecommendations(ctx context.Context, in *C
 	return out, nil
 }
 
+func (c *terminatorServerClient) RevenueReport(ctx context.Context, in *RevenueReportRequest, opts ...grpc.CallOption) (*RevenueReportResponse, error) {
+	out := new(RevenueReportResponse)
+	err := c.cc.Invoke(ctx, "/trmrpc.TerminatorServer/RevenueReport", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *terminatorServerClient) ChannelInsights(ctx context.Context, in *ChannelInsightsRequest, opts ...grpc.CallOption) (*ChannelInsightsResponse, error) {
+	out := new(ChannelInsightsResponse)
+	err := c.cc.Invoke(ctx, "/trmrpc.TerminatorServer/ChannelInsights", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TerminatorServerServer is the server API for TerminatorServer service.
 type TerminatorServerServer interface {
 	CloseRecommendations(context.Context, *CloseRecommendationsRequest) (*CloseRecommendationsResponse, error)
+	RevenueReport(context.Context, *RevenueReportRequest) (*RevenueReportResponse, error)
+	ChannelInsights(context.Context, *ChannelInsightsRequest) (*ChannelInsightsResponse, error)
 }
 
 func RegisterTerminatorServerServer(s *grpc.Server, srv TerminatorServerServer) {
@@ -354,6 +835,42 @@ func _TerminatorServer_CloseRecommendations_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TerminatorServer_RevenueReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevenueReportRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TerminatorServerServer).RevenueReport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/trmrpc.TerminatorServer/RevenueReport",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TerminatorServerServer).RevenueReport(ctx, req.(*RevenueReportRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TerminatorServer_ChannelInsights_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChannelInsightsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TerminatorServerServer).ChannelInsights(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/trmrpc.TerminatorServer/ChannelInsights",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TerminatorServerServer).ChannelInsights(ctx, req.(*ChannelInsightsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _TerminatorServer_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "trmrpc.TerminatorServer",
 	HandlerType: (*TerminatorServerServer)(nil),
@@ -361,6 +878,14 @@ var _TerminatorServer_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CloseRecommendations",
 			Handler:    _TerminatorServer_CloseRecommendations_Handler,
+		},
+		{
+			MethodName: "RevenueReport",
+			Handler:    _TerminatorServer_RevenueReport_Handler,
+		},
+		{
+			MethodName: "ChannelInsights",
+			Handler:    _TerminatorServer_ChannelInsights_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

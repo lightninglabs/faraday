@@ -4,7 +4,7 @@
 // time will be considered for closing.
 //
 // Channels will be assessed based on the following data points:
-// - Uptime percentage
+// - Uptime ratio
 //
 // Channels that are outliers within the set of channels that are eligible for
 // close recommendation will be recommended for closure.
@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/terminator/dataset"
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightninglabs/terminator/insights"
 )
 
 var (
@@ -33,9 +33,9 @@ var (
 // CloseRecommendationConfig provides the functions and parameters required to
 // provide close recommendations.
 type CloseRecommendationConfig struct {
-	// OpenChannels is a function which returns all of our currently open,
-	// public channels.
-	OpenChannels func() ([]*lnrpc.Channel, error)
+	// ChannelInsights is a function which returns a set of channel insights
+	// for our current set of channels.
+	ChannelInsights func() ([]*insights.ChannelInfo, error)
 
 	// OutlierMultiplier is the number of inter quartile ranges a value
 	// should be away from the lower/upper quartile to be considered an
@@ -43,9 +43,9 @@ type CloseRecommendationConfig struct {
 	// recommendations and 3 for more cautious recommendations.
 	OutlierMultiplier float64
 
-	// UptimeThreshold is the uptime percentage over the channel's observed
+	// UptimeThreshold is the uptime ratio over the channel's observed
 	// lifetime beneath which channels will be recommended for close. This
-	// value is expressed as a percentage in [0,1], and will default to 0 if
+	// value is expressed as a ratio in [0,1], and will default to 0 if
 	// it is not set.
 	UptimeThreshold float64
 
@@ -85,16 +85,16 @@ type Report struct {
 
 // CloseRecommendations returns a report which contains information about the
 // channels that were considered and a list of close recommendations. Channels
-// are considered for close if their uptime percentage is a lower outlier in
-// uptime percentage dataset.
+// are considered for close if their uptime ratio is a lower outlier in
+// uptime ratio dataset.
 func CloseRecommendations(cfg *CloseRecommendationConfig) (*Report, error) {
 	// Check that the minimum wait time is non-zero.
 	if cfg.MinimumMonitored == 0 {
 		return nil, errZeroMinMonitored
 	}
 
-	// Get the set of currently open channels.
-	channels, err := cfg.OpenChannels()
+	// Get the set of insights for our currently open channels.
+	channels, err := cfg.ChannelInsights()
 	if err != nil {
 		return nil, err
 	}
@@ -102,13 +102,13 @@ func CloseRecommendations(cfg *CloseRecommendationConfig) (*Report, error) {
 	// Filter out channels that are below the minimum required age.
 	filtered := filterChannels(channels, cfg.MinimumMonitored)
 
-	// Produce a dataset containing uptime percentage for channels that have
+	// Produce a dataset containing uptime ratio for channels that have
 	// been monitored for longer than the minimum time.
 	uptime := getUptimeDataset(filtered)
 
 	report := &Report{
 		TotalChannels:      len(channels),
-		ConsideredChannels: len(uptime),
+		ConsideredChannels: len(filtered),
 	}
 
 	// Get close recommendations based on outliers.
@@ -174,50 +174,57 @@ func getOutlierRecs(uptime dataset.Dataset,
 	return recommendations, nil
 }
 
-// filterChannels filters out channels that are beneath the minimum age and
-// produces a map of channel outpoint strings to rpc channels which contains
-// the channels that are eligible for close recommendation.
-func filterChannels(openChannels []*lnrpc.Channel,
-	minimumAge time.Duration) map[string]*lnrpc.Channel {
+// filterChannels filters out channels that are beneath the minimum age, or
+// are private and returns a set of channels that are eligible for close
+// recommendations.
+func filterChannels(channelInsights []*insights.ChannelInfo,
+	minimumAge time.Duration) []*insights.ChannelInfo {
 
-	// Create a map which will hold channel point labels to uptime
-	// percentage.
-	channels := make(map[string]*lnrpc.Channel)
+	filteredChannels := make(
+		[]*insights.ChannelInfo, 0, len(channelInsights),
+	)
 
-	for _, channel := range openChannels {
-		if channel.Lifetime < int64(minimumAge.Seconds()) {
-			log.Tracef("Channel: %v has not been monitored for "+
-				"long enough, excluding it from consideration",
-				channel.ChannelPoint)
+	for _, channel := range channelInsights {
+		if channel.MonitoredFor < minimumAge {
+			log.Tracef("Channel: %v has not been "+
+				"monitored for long enough, excluding it "+
+				"from consideration", channel.ChannelPoint)
+
 			continue
 		}
 
-		channels[channel.ChannelPoint] = channel
+		if channel.Private {
+			log.Tracef("Channel: %v is private, excluding "+
+				"it from consideration", channel.ChannelPoint)
+
+			continue
+		}
+
+		filteredChannels = append(filteredChannels, channel)
 	}
 
 	log.Debugf("considering: %v channels for close out of %v",
-		len(channels), len(openChannels))
+		len(filteredChannels), len(channelInsights))
 
-	return channels
+	return filteredChannels
 }
 
 // getUptimeDataset takes a set of channels that are eligible for close and
 // produces an uptime dataset.
 func getUptimeDataset(
-	eligibleChannels map[string]*lnrpc.Channel) dataset.Dataset {
+	eligibleChannels []*insights.ChannelInfo) dataset.Dataset {
 
 	// Create a map which will hold channel point string label to uptime
-	// percentage.
-	var channels = make(map[string]float64)
+	// ratio.
+	var channels = make(map[string]float64, len(eligibleChannels))
 
-	for outpoint, channel := range eligibleChannels {
-		// Calculate the uptime percentage for the channel and add it
+	for _, channel := range eligibleChannels {
+		// Calculate the uptime ratio for the channel and add it
 		// to the channel -> uptime map.
-		uptimePercentage := float64(channel.Uptime) / float64(channel.Lifetime)
-		channels[outpoint] = uptimePercentage
+		uptimeRatio := float64(channel.Uptime) /
+			float64(channel.MonitoredFor)
 
-		log.Tracef("channel: %v has uptime percentage: %v",
-			outpoint, uptimePercentage)
+		channels[channel.ChannelPoint] = uptimeRatio
 	}
 
 	// Create a dataset for the uptime values we have collected.

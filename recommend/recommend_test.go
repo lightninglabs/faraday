@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/terminator/dataset"
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightninglabs/terminator/insights"
 )
 
 // TestCloseRecommendations tests CloseRecommendations for error cases where
@@ -15,28 +15,25 @@ import (
 // the minimum acceptable number of channels. It does not test the report
 // provided, because that will be covered by further tests.
 func TestCloseRecommendations(t *testing.T) {
-	var (
-		openChanErr = errors.New("intentional test err")
-		hourSeconds = int64(time.Hour.Seconds())
-	)
+	var openChanErr = errors.New("intentional test err")
 
 	tests := []struct {
 		name         string
-		OpenChannels func() ([]*lnrpc.Channel, error)
+		ChanInsights func() ([]*insights.ChannelInfo, error)
 		MinMonitored time.Duration
 		expectedErr  error
 	}{
 		{
 			name: "no channels",
-			OpenChannels: func() ([]*lnrpc.Channel, error) {
+			ChanInsights: func() ([]*insights.ChannelInfo, error) {
 				return nil, nil
 			},
 			MinMonitored: time.Hour,
 			expectedErr:  nil,
 		},
 		{
-			name: "open channels fails",
-			OpenChannels: func() ([]*lnrpc.Channel, error) {
+			name: "channel insights fails",
+			ChanInsights: func() ([]*insights.ChannelInfo, error) {
 				return nil, openChanErr
 			},
 			MinMonitored: time.Hour,
@@ -44,7 +41,7 @@ func TestCloseRecommendations(t *testing.T) {
 		},
 		{
 			name: "zero min monitored",
-			OpenChannels: func() ([]*lnrpc.Channel, error) {
+			ChanInsights: func() ([]*insights.ChannelInfo, error) {
 				return nil, nil
 			},
 			MinMonitored: 0,
@@ -52,19 +49,19 @@ func TestCloseRecommendations(t *testing.T) {
 		},
 		{
 			name: "enough channels",
-			OpenChannels: func() ([]*lnrpc.Channel, error) {
-				return []*lnrpc.Channel{
+			ChanInsights: func() ([]*insights.ChannelInfo, error) {
+				return []*insights.ChannelInfo{
 					{
 						ChannelPoint: "a:1",
-						Lifetime:     hourSeconds,
+						MonitoredFor: time.Hour,
 					},
 					{
 						ChannelPoint: "b:2",
-						Lifetime:     hourSeconds,
+						MonitoredFor: time.Hour,
 					},
 					{
 						ChannelPoint: "c:3",
-						Lifetime:     hourSeconds,
+						MonitoredFor: time.Hour,
 					},
 				}, nil
 			},
@@ -81,11 +78,10 @@ func TestCloseRecommendations(t *testing.T) {
 
 			_, err := CloseRecommendations(
 				&CloseRecommendationConfig{
-					OpenChannels:      test.OpenChannels,
+					ChannelInsights:   test.ChanInsights,
 					OutlierMultiplier: 3,
 					MinimumMonitored:  test.MinMonitored,
-				},
-			)
+				})
 			if err != test.expectedErr {
 				t.Fatalf("expected: %v, got: %v",
 					test.expectedErr, err)
@@ -227,46 +223,55 @@ func TestGetCloseRecs(t *testing.T) {
 
 // TestFilterChannels tests filtering of channels based on their lifetime.
 func TestFilterChannels(t *testing.T) {
-	openChannels := []*lnrpc.Channel{
+	chanInsights := []*insights.ChannelInfo{
 		{
 			ChannelPoint: "a:0",
-			Lifetime:     10,
+			MonitoredFor: 10,
 			Uptime:       1,
 		},
 		{
 			ChannelPoint: "a:1",
-			Lifetime:     100,
+			MonitoredFor: 100,
 			Uptime:       1,
 		},
 		{
 			ChannelPoint: "a:2",
-			Lifetime:     100,
+			MonitoredFor: 100,
 			Uptime:       1,
 		},
 		{
 			ChannelPoint: "a:3",
-			Lifetime:     100,
+			MonitoredFor: 100,
 			Uptime:       1,
 		},
 	}
 
 	tests := []struct {
-		name               string
-		openChannels       []*lnrpc.Channel
-		minAge             time.Duration
-		expectedChanPoints []string
+		name             string
+		chanInsights     []*insights.ChannelInfo
+		minAge           time.Duration
+		expectedChannels map[string]bool
 	}{
 		{
-			name:               "one filtered - monitored time",
-			openChannels:       openChannels,
-			minAge:             time.Second * 15,
-			expectedChanPoints: []string{"a:1", "a:2", "a:3"},
+			name:         "one filtered - monitored time",
+			chanInsights: chanInsights,
+			minAge:       15,
+			expectedChannels: map[string]bool{
+				"a:1": true,
+				"a:2": true,
+				"a:3": true,
+			},
 		},
 		{
-			name:               "all channels included",
-			openChannels:       openChannels,
-			minAge:             time.Second * 5,
-			expectedChanPoints: []string{"a:0", "a:1", "a:2", "a:3"},
+			name:         "all channels included",
+			chanInsights: chanInsights,
+			minAge:       5,
+			expectedChannels: map[string]bool{
+				"a:0": true,
+				"a:1": true,
+				"a:2": true,
+				"a:3": true,
+			},
 		},
 	}
 
@@ -276,18 +281,19 @@ func TestFilterChannels(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			filtered := filterChannels(test.openChannels, test.minAge)
+			filtered := filterChannels(test.chanInsights, test.minAge)
 
-			if len(test.expectedChanPoints) != len(filtered) {
+			if len(test.expectedChannels) != len(filtered) {
 				t.Fatalf("expected: %v channels, got: %v",
-					len(test.expectedChanPoints),
+					len(test.expectedChannels),
 					len(filtered))
 			}
 
-			for _, expected := range test.expectedChanPoints {
-				if _, ok := filtered[expected]; !ok {
-					t.Fatalf("expected channel: %v to "+
-						"be present", expected)
+			for _, filteredChan := range filtered {
+				_, ok := test.expectedChannels[filteredChan.ChannelPoint]
+				if !ok {
+					t.Fatalf("unexpected channel: %v",
+						filteredChan)
 				}
 			}
 		})

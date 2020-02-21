@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/lightninglabs/terminator/insights"
 	"github.com/lightninglabs/terminator/recommend"
 )
 
@@ -15,7 +16,9 @@ func parseRequest(ctx context.Context, cfg *Config,
 	// Create a close recommendations config with the minimum monitored
 	// value provided in the request and the default outlier multiplier.
 	recConfig := &recommend.CloseRecommendationConfig{
-		OpenChannels: cfg.wrapListChannels(ctx, true),
+		ChannelInsights: func() ([]*insights.ChannelInfo, error) {
+			return channelInsights(ctx, cfg)
+		},
 		MinimumMonitored: time.Second *
 			time.Duration(req.MinimumMonitored),
 		OutlierMultiplier: recommend.DefaultOutlierMultiplier,

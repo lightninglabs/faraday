@@ -32,6 +32,15 @@ func parseRecommendationRequest(ctx context.Context, cfg *Config,
 
 	case CloseRecommendationRequest_REVENUE:
 		recCfg.Metric = recommend.RevenueMetric
+
+	case CloseRecommendationRequest_INCOMING_VOLUME:
+		recCfg.Metric = recommend.IncomingVolume
+
+	case CloseRecommendationRequest_OUTGOING_VOLUME:
+		recCfg.Metric = recommend.OutgoingVolume
+
+	case CloseRecommendationRequest_TOTAL_VOLUME:
+		recCfg.Metric = recommend.Volume
 	}
 
 	return recCfg

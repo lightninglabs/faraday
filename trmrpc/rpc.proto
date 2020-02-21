@@ -23,6 +23,9 @@ message CloseRecommendationRequest {
         UNKNOWN = 0;
         UPTIME = 1;
         REVENUE = 2;
+        INCOMING_VOLUME = 3;
+        OUTGOING_VOLUME = 4;
+        TOTAL_VOLUME = 5;
     }
 
     /*
@@ -61,10 +64,26 @@ message ThresholdRecommendationsRequest {
     The threshold that recommendations will be calculated based on.
     For uptime: ratio of uptime to observed lifetime beneath which channels
     will be recommended for closure.
+
     For revenue: revenue per block that capital has been committed to the
     channel beneath which channels will be recommended for closure. This
     value is provided per block so that channels that have been open for
     different periods of time can be compared.
+
+    For incoming volume: The incoming volume per block that capital has
+    been committed to the channel beneath which channels will be recommended
+    for closure. This value is provided per block so that channels that have
+    been open for different periods of time can be compared.
+
+    For outgoing volume: The outgoing volume per block that capital has been
+    committed to the channel beneath which channels will be recommended for
+    closure. This value is provided per block so that channels that have been
+    open for different periods of time can be compared.
+
+    For total volume: The total volume per block that capital has been
+    committed to the channel beneath which channels will be recommended for
+    closure. This value is provided per block so that channels that have been
+    open for different periods of time can be compared.
     */
     float threshold_value = 2;
 }

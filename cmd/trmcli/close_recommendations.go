@@ -24,15 +24,33 @@ var (
 	// Flags required for threshold close recommendations.
 	thresholdFlags = []cli.Flag{
 		cli.Float64Flag{
-			Name: "uptime_threshold",
+			Name: "uptime",
 			Usage: "Ratio of uptime to time monitored, expressed" +
 				"in [0;1].",
 		},
 		cli.Float64Flag{
-			Name: "revenue_threshold",
+			Name: "revenue",
 			Usage: "threshold revenue (in msat) per confirmation " +
 				"beneath which channels will be identified " +
 				"for close.",
+		},
+		cli.Float64Flag{
+			Name: "incoming",
+			Usage: "threshold incoming volume (in msat) per " +
+				"confirmation beneath which channels will be " +
+				"identified for close",
+		},
+		cli.Float64Flag{
+			Name: "outgoing",
+			Usage: "threshold outgoing volume (in msat) per " +
+				"confirmation beneath which channels will be " +
+				"identified for close",
+		},
+		cli.Float64Flag{
+			Name: "volume",
+			Usage: "threshold total volume (in msat) per " +
+				"confirmation beneath which channels will be " +
+				"identified for close",
 		},
 		monitoredFlag,
 	}
@@ -57,6 +75,21 @@ var (
 			Name: "revenue",
 			Usage: "get recommendations based on the " +
 				"channel's revenue per confirmation",
+		},
+		cli.BoolFlag{
+			Name: "incoming_volume",
+			Usage: "get recommendations based on the " +
+				"channel's incoming volume per confirmation",
+		},
+		cli.BoolFlag{
+			Name: "outgoing_volume",
+			Usage: "get recommendations based on the " +
+				"channel's outgoing volume per confirmation",
+		},
+		cli.BoolFlag{
+			Name: "volume",
+			Usage: "get recommendations based on the " +
+				"channel's total volume per confirmation",
 		},
 		monitoredFlag,
 	}
@@ -85,17 +118,28 @@ func queryThresholdRecommendations(ctx *cli.Context) error {
 
 	// Set threshold and metric based on uptime/revenue flags.
 	switch {
-	case ctx.IsSet("uptime_threshold"):
-		req.ThresholdValue = float32(ctx.Float64("uptime_threshold"))
+	case ctx.IsSet("uptime"):
+		req.ThresholdValue = float32(ctx.Float64("uptime"))
 		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_UPTIME
 
-	case ctx.IsSet("revenue_threshold"):
-		req.ThresholdValue = float32(ctx.Float64("revenue_threshold"))
+	case ctx.IsSet("revenue"):
+		req.ThresholdValue = float32(ctx.Float64("revenue"))
 		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_REVENUE
 
+	case ctx.IsSet("incoming"):
+		req.ThresholdValue = float32(ctx.Float64("incoming"))
+		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_INCOMING_VOLUME
+
+	case ctx.IsSet("outgoing"):
+		req.ThresholdValue = float32(ctx.Float64("outgoing"))
+		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_OUTGOING_VOLUME
+
+	case ctx.IsSet("volume"):
+		req.ThresholdValue = float32(ctx.Float64("volume"))
+		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_TOTAL_VOLUME
+
 	default:
-		return fmt.Errorf("uptime_threshold or " +
-			"revenue_threshold required")
+		return fmt.Errorf("threshold required")
 	}
 
 	rpcCtx := context.Background()
@@ -146,8 +190,18 @@ func queryOutlierRecommendations(ctx *cli.Context) error {
 	case ctx.IsSet("revenue"):
 		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_REVENUE
 
+	case ctx.IsSet("incoming_volume"):
+		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_INCOMING_VOLUME
+
+	case ctx.IsSet("outgoing_volume"):
+		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_OUTGOING_VOLUME
+
+	case ctx.IsSet("volume"):
+		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_TOTAL_VOLUME
+
 	default:
-		return fmt.Errorf("uptime or revenue flag required")
+		return fmt.Errorf("uptime, revenue or volume realted flag " +
+			"required")
 	}
 
 	rpcCtx := context.Background()

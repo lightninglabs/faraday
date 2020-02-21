@@ -113,7 +113,7 @@ func CloseRecommendations(cfg *CloseRecommendationConfig) (*Report, error) {
 
 	// Get close recommendations based on outliers.
 	report.OutlierRecommendations, err = getOutlierRecs(
-		uptime, cfg.OutlierMultiplier,
+		uptime, cfg.OutlierMultiplier, false,
 	)
 	if err != nil {
 		return nil, err
@@ -121,29 +121,29 @@ func CloseRecommendations(cfg *CloseRecommendationConfig) (*Report, error) {
 
 	// Get close recommendations based on threshold.
 	report.ThresholdRecommendations = getThresholdRecs(
-		uptime, cfg.UptimeThreshold,
+		uptime, cfg.UptimeThreshold, true,
 	)
 
 	return report, nil
 }
 
-// getThresholdRecs returns a map of channel points to values that are below a
-// given threshold.
-func getThresholdRecs(uptime dataset.Dataset,
-	threshold float64) map[string]Recommendation {
+// getThresholdRecs returns a map of channel points to values that are above
+// or below a given threshold.
+func getThresholdRecs(values dataset.Dataset,
+	threshold float64, belowThreshold bool) map[string]Recommendation {
 
 	// Get a map of channel labels to a boolean indicating whether
 	// they are beneath the threshold.
-	thresholdValues := uptime.GetThreshold(threshold, true)
+	thresholdValues := values.GetThreshold(threshold, belowThreshold)
 
 	recommendations := make(
 		map[string]Recommendation, len(thresholdValues),
 	)
 
-	for chanPoint, belowThrehsold := range thresholdValues {
+	for chanPoint, crossesThreshold := range thresholdValues {
 		recommendations[chanPoint] = Recommendation{
-			Value:          uptime.Value(chanPoint),
-			RecommendClose: belowThrehsold,
+			Value:          values.Value(chanPoint),
+			RecommendClose: crossesThreshold,
 		}
 	}
 
@@ -151,23 +151,43 @@ func getThresholdRecs(uptime dataset.Dataset,
 }
 
 // getOutlierRecs generates map of channel outpoint strings to booleans
-// indicating whether we recommend closing a channel.
-func getOutlierRecs(uptime dataset.Dataset,
-	outlierMultiplier float64) (map[string]Recommendation, error) {
+// indicating whether we recommend closing a channel. It takes a outlier
+// multiplier which scales the degree to which we want to calculate outliers,
+// and an upper outlier boolean which determines whether we want to identify
+// upper or lower outliers.
+func getOutlierRecs(values dataset.Dataset,
+	outlierMultiplier float64,
+	upperOutlier bool) (map[string]Recommendation, error) {
 
 	recommendations := make(map[string]Recommendation)
 
-	outliers, err := uptime.GetOutliers(outlierMultiplier)
+	outliers, err := values.GetOutliers(outlierMultiplier)
 	if err != nil {
 		return nil, err
 	}
 
 	// Add a recommendation for each channel to our set of recommendations.
-	// If the channel is a lower outlier, we recommend it for close.
+	// RecommendClose in the recommendation will be set to true if the
+	// channel matches the outlier type we are looking for (upper or
+	// lower).
 	for chanPoint, outlier := range outliers {
+		var recommendClose bool
+
+		// If we want to detect upper outliers, and the channel is a
+		// upper outlier, set recommend close to true.
+		if upperOutlier && outlier.UpperOutlier {
+			recommendClose = true
+		}
+
+		// If we want to detect lower outliers, and the channel is a
+		// lower outlier, set recommend close to true.
+		if !upperOutlier && outlier.LowerOutlier {
+			recommendClose = true
+		}
+
 		recommendations[chanPoint] = Recommendation{
-			Value:          uptime.Value(chanPoint),
-			RecommendClose: outlier.LowerOutlier,
+			Value:          values.Value(chanPoint),
+			RecommendClose: recommendClose,
 		}
 	}
 

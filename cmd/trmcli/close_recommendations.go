@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/lightninglabs/terminator/trmrpc"
@@ -27,6 +28,12 @@ var (
 			Usage: "Ratio of uptime to time monitored, expressed" +
 				"in [0;1].",
 		},
+		cli.Float64Flag{
+			Name: "revenue_threshold",
+			Usage: "threshold revenue (in msat) per confirmation " +
+				"beneath which channels will be identified " +
+				"for close.",
+		},
 		monitoredFlag,
 	}
 
@@ -39,6 +46,17 @@ var (
 				"from quartiles to be considered an outlier. " +
 				"Recommended values are 1.5 for aggressive " +
 				"recommendations and 3 for conservative ones.",
+		},
+		cli.BoolFlag{
+			Name: "uptime",
+			Usage: "set to get recommendations based on the " +
+				"channel's peer's ratio of uptime to time " +
+				"monitored",
+		},
+		cli.BoolFlag{
+			Name: "revenue",
+			Usage: "get recommendations based on the " +
+				"channel's revenue per confirmation",
 		},
 		monitoredFlag,
 	}
@@ -65,12 +83,19 @@ func queryThresholdRecommendations(ctx *cli.Context) error {
 		},
 	}
 
-	// If an uptime threshold was set, use it, otherwise allow the call
-	// to proceed with 0 threshold, because we assess lower outlier <= the
-	// threshold so 0 is a valid value.
-	if ctx.IsSet("uptime_threshold") {
-		uptimeThreshold := float32(ctx.Float64("uptime_threshold"))
-		req.ThresholdValue = uptimeThreshold
+	// Set threshold and metric based on uptime/revenue flags.
+	switch {
+	case ctx.IsSet("uptime_threshold"):
+		req.ThresholdValue = float32(ctx.Float64("uptime_threshold"))
+		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_UPTIME
+
+	case ctx.IsSet("revenue_threshold"):
+		req.ThresholdValue = float32(ctx.Float64("revenue_threshold"))
+		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_REVENUE
+
+	default:
+		return fmt.Errorf("uptime_threshold or " +
+			"revenue_threshold required")
 	}
 
 	rpcCtx := context.Background()
@@ -111,6 +136,18 @@ func queryOutlierRecommendations(ctx *cli.Context) error {
 	// If an a custom outlier multiple was set, use it.
 	if ctx.IsSet("outlier_mult") {
 		req.OutlierMultiplier = float32(ctx.Float64("outlier_mult"))
+	}
+
+	// Set metric based on uptime or revenue flags.
+	switch {
+	case ctx.IsSet("uptime"):
+		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_UPTIME
+
+	case ctx.IsSet("revenue"):
+		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_REVENUE
+
+	default:
+		return fmt.Errorf("uptime or revenue flag required")
 	}
 
 	rpcCtx := context.Background()

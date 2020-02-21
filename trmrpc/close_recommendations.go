@@ -16,14 +16,25 @@ func parseRecommendationRequest(ctx context.Context, cfg *Config,
 
 	// Create a close recommendations config with the minimum monitored
 	// value provided in the request and the default outlier multiplier.
-	return &recommend.CloseRecommendationConfig{
+	recCfg := &recommend.CloseRecommendationConfig{
 		ChannelInsights: func() ([]*insights.ChannelInfo, error) {
 			return channelInsights(ctx, cfg)
 		},
-		Metric: recommend.UptimeMetric,
 		MinimumMonitored: time.Second *
 			time.Duration(req.MinimumMonitored),
 	}
+
+	// Get the metric that the recommendations are being calculated based
+	// on.
+	switch req.Metric {
+	case CloseRecommendationRequest_UPTIME:
+		recCfg.Metric = recommend.UptimeMetric
+
+	case CloseRecommendationRequest_REVENUE:
+		recCfg.Metric = recommend.RevenueMetric
+	}
+
+	return recCfg
 }
 
 // parseOutlierRequest parses a rpc outlier recommendation request and returns

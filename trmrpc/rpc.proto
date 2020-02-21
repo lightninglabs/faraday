@@ -18,6 +18,21 @@ message CloseRecommendationRequest {
     protect against closing of newer channels.
     */
     int64 minimum_monitored = 1;
+
+    enum Metric{
+        UNKNOWN = 0;
+        UPTIME = 1;
+        REVENUE = 2;
+    }
+
+    /*
+    The data point base close recommendations on. Available options are:
+    Uptime: ratio of channel peer's uptime to the period they have been
+    monitored to.
+    Revenue: the revenue that the channel has produced per block that its
+    funding transaction has been confirmed for.
+    */
+    Metric metric = 2;
 }
 
 message OutlierRecommendationsRequest {
@@ -46,6 +61,10 @@ message ThresholdRecommendationsRequest {
     The threshold that recommendations will be calculated based on.
     For uptime: ratio of uptime to observed lifetime beneath which channels
     will be recommended for closure.
+    For revenue: revenue per block that capital has been committed to the
+    channel beneath which channels will be recommended for closure. This
+    value is provided per block so that channels that have been open for
+    different periods of time can be compared.
     */
     float threshold_value = 2;
 }

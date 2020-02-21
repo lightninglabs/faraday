@@ -6,6 +6,9 @@
 // Channels will be assessed based on the following data points:
 // - Uptime ratio
 // - Fee revenue per block capital has been committed for
+// - Incoming volume per block capital has been committed for
+// - Outgoing volume per block capital has been committed for
+// - Total volume per block capital has been committed for
 //
 // Channels that are outliers within the set of channels that are eligible for
 // close recommendation will be recommended for closure.
@@ -50,6 +53,18 @@ const (
 	// RevenueMetric bases recommendations on the revenue that the channel
 	// has generated per block that our capital has been committed for.
 	RevenueMetric
+
+	// IncomingVolume bases recommendations on the incoming volume that the
+	// channel has processed, scaled by funding transaction confirmations.
+	IncomingVolume
+
+	// IncomingVolume bases recommendations on the incoming volume that the
+	// channel has processed, scaled by funding transaction confirmations.
+	OutgoingVolume
+
+	// Volume bases recommendations on the total volume that the
+	// channel has processed, scaled by funding transaction confirmations.
+	Volume
 )
 
 // CloseRecommendationConfig provides the functions and parameters required to
@@ -152,7 +167,20 @@ func closeRecommendations(cfg *CloseRecommendationConfig,
 		data = getUptimeDataset(filtered)
 
 	case RevenueMetric:
-		data = getRevenueDataset(filtered)
+		data = getConfirmationScaledDataset(revenueValue, filtered)
+
+	case IncomingVolume:
+		data = getConfirmationScaledDataset(
+			incomingVolumeValue, filtered,
+		)
+
+	case OutgoingVolume:
+		data = getConfirmationScaledDataset(
+			outgoingVolumeValue, filtered,
+		)
+
+	case Volume:
+		data = getConfirmationScaledDataset(totalVolumeValue, filtered)
 
 	default:
 		return nil, ErrNoMetric
@@ -291,10 +319,10 @@ func getUptimeDataset(
 	return dataset.New(channels)
 }
 
-// getRevenueDataset returns a dataset that scales revenue by the number of
-// confirmations that a channel's opening transaction has. This allows for
-// comparing of channels that have been open for different periods of time.
-func getRevenueDataset(
+// getConfirmationScaledDataset returns a dataset that scales a value by the
+// number of confirmations its funding transaction has. It takes a function
+// which gets the relevant value from the channel insight as input.
+func getConfirmationScaledDataset(getValue perConfirmationValue,
 	eligibleChannels []*insights.ChannelInfo) dataset.Dataset {
 
 	// Create a map which will hold channel point string label to revenue
@@ -304,13 +332,37 @@ func getRevenueDataset(
 	for _, channel := range eligibleChannels {
 		// Channels cannot have zero confirmations because we are
 		// dealing with open (ie confirmed) channels, so we can
-		// calculate fees per confirmation for every channel.
-		feesPerConfirmation :=
-			float64(channel.FeesEarned) /
+		// get the value and scale it by our confirmation total.
+		valuePerConfirmation :=
+			getValue(channel) /
 				float64(channel.Confirmations)
 
-		channels[channel.ChannelPoint] = feesPerConfirmation
+		channels[channel.ChannelPoint] = valuePerConfirmation
 	}
 
 	return channels
+}
+
+// perConfirmationValue is a function which gets a value from a channel insight
+// that needs to be scaled by its number of confirmations.
+type perConfirmationValue func(channel *insights.ChannelInfo) float64
+
+// revenueValue gets total revenue for a channel.
+func revenueValue(channel *insights.ChannelInfo) float64 {
+	return float64(channel.FeesEarned)
+}
+
+// incomingVolumeValue gets total incoming volume for a channel.
+func incomingVolumeValue(channel *insights.ChannelInfo) float64 {
+	return float64(channel.VolumeIncoming)
+}
+
+// outgoingVolumeValue gets total outgoing volume for a channel.
+func outgoingVolumeValue(channel *insights.ChannelInfo) float64 {
+	return float64(channel.VolumeOutgoing)
+}
+
+// totalVolumeValue gets total volume for a channel.
+func totalVolumeValue(channel *insights.ChannelInfo) float64 {
+	return float64(channel.VolumeIncoming + channel.VolumeOutgoing)
 }

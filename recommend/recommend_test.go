@@ -442,20 +442,23 @@ func TestFilterChannels(t *testing.T) {
 	}
 }
 
-// TestGetRevenueDataset tests scaling of revenue by the number of confirmations
-// that a channel has.
-func TestGetRevenueDataset(t *testing.T) {
+// TestGetConfirmationScaledDataset tests scaling of data by the number of
+// confirmations that a channel has.
+func TestGetConfirmationScaledDataset(t *testing.T) {
 	tests := []struct {
 		name           string
 		insights       []*insights.ChannelInfo
+		getValue       perConfirmationValue
 		expectedValues map[string]float64
 	}{
 		{
 			name:     "no channels",
+			getValue: revenueValue,
 			insights: []*insights.ChannelInfo{},
 		},
 		{
-			name: "two channels",
+			name:     "revenue scaled",
+			getValue: revenueValue,
 			insights: []*insights.ChannelInfo{
 				{
 					ChannelPoint:  "a:0",
@@ -473,13 +476,60 @@ func TestGetRevenueDataset(t *testing.T) {
 				"a:1": 10,
 			},
 		},
+		{
+			name:     "total volume",
+			getValue: totalVolumeValue,
+			insights: []*insights.ChannelInfo{
+				{
+					ChannelPoint:   "a:0",
+					VolumeIncoming: 10,
+					VolumeOutgoing: 2,
+					Confirmations:  2,
+				},
+			},
+			expectedValues: map[string]float64{
+				"a:0": 6,
+			},
+		},
+		{
+			name:     "incoming volume",
+			getValue: incomingVolumeValue,
+			insights: []*insights.ChannelInfo{
+				{
+					ChannelPoint:   "a:0",
+					VolumeIncoming: 10,
+					VolumeOutgoing: 2,
+					Confirmations:  2,
+				},
+			},
+			expectedValues: map[string]float64{
+				"a:0": 5,
+			},
+		},
+		{
+			name:     "outgoing volume",
+			getValue: outgoingVolumeValue,
+			insights: []*insights.ChannelInfo{
+				{
+					ChannelPoint:   "a:0",
+					VolumeIncoming: 10,
+					VolumeOutgoing: 2,
+					Confirmations:  2,
+				},
+			},
+			expectedValues: map[string]float64{
+				"a:0": 1,
+			},
+		},
 	}
 
 	for _, test := range tests {
 		test := test
 
 		t.Run(test.name, func(t *testing.T) {
-			data := getRevenueDataset(test.insights)
+			data := getConfirmationScaledDataset(
+				test.getValue, test.insights,
+			)
 			if len(data) != len(test.expectedValues) {
 				t.Fatalf("expected: %v, got: %v",
 					len(test.expectedValues), len(data))

@@ -19,12 +19,14 @@ func TestCloseRecommendations(t *testing.T) {
 
 	tests := []struct {
 		name         string
+		upperOutlier bool
 		ChanInsights func() ([]*insights.ChannelInfo, error)
 		MinMonitored time.Duration
 		expectedErr  error
 	}{
 		{
-			name: "no channels",
+			name:         "no channels",
+			upperOutlier: false,
 			ChanInsights: func() ([]*insights.ChannelInfo, error) {
 				return nil, nil
 			},
@@ -32,7 +34,8 @@ func TestCloseRecommendations(t *testing.T) {
 			expectedErr:  nil,
 		},
 		{
-			name: "channel insights fails",
+			name:         "channel insights fails",
+			upperOutlier: false,
 			ChanInsights: func() ([]*insights.ChannelInfo, error) {
 				return nil, openChanErr
 			},
@@ -40,7 +43,8 @@ func TestCloseRecommendations(t *testing.T) {
 			expectedErr:  openChanErr,
 		},
 		{
-			name: "zero min monitored",
+			name:         "zero min monitored",
+			upperOutlier: false,
 			ChanInsights: func() ([]*insights.ChannelInfo, error) {
 				return nil, nil
 			},
@@ -48,7 +52,8 @@ func TestCloseRecommendations(t *testing.T) {
 			expectedErr:  errZeroMinMonitored,
 		},
 		{
-			name: "enough channels",
+			name:         "enough channels",
+			upperOutlier: false,
 			ChanInsights: func() ([]*insights.ChannelInfo, error) {
 				return []*insights.ChannelInfo{
 					{
@@ -76,12 +81,23 @@ func TestCloseRecommendations(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := CloseRecommendations(
+			recFunc := func(data dataset.Dataset) (
+				m map[string]Recommendation, err error) {
+
+				return getOutlierRecs(
+					data, DefaultOutlierMultiplier,
+					test.upperOutlier,
+				)
+			}
+
+			_, err := closeRecommendations(
 				&CloseRecommendationConfig{
-					ChannelInsights:   test.ChanInsights,
-					OutlierMultiplier: 3,
-					MinimumMonitored:  test.MinMonitored,
-				})
+					ChannelInsights:  test.ChanInsights,
+					MinimumMonitored: test.MinMonitored,
+				},
+				recFunc,
+			)
+
 			if err != test.expectedErr {
 				t.Fatalf("expected: %v, got: %v",
 					test.expectedErr, err)

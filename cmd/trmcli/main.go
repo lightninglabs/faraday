@@ -23,7 +23,8 @@ func main() {
 		},
 	}
 	app.Commands = []cli.Command{
-		closeRecommendationCommand,
+		thresholdRecommendationCommand,
+		outlierRecommendationCommand,
 		revenueReportCommand,
 		channelInsightsCommand,
 	}

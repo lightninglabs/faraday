@@ -5,6 +5,7 @@
 //
 // Channels will be assessed based on the following data points:
 // - Uptime ratio
+// - Fee revenue per block capital has been committed for
 //
 // Channels that are outliers within the set of channels that are eligible for
 // close recommendation will be recommended for closure.
@@ -24,10 +25,31 @@ var (
 	errZeroMinMonitored = errors.New("must provide a non-zero minimum " +
 		"monitor time for channel exclusion")
 
+	// ErrNoMetric is returned when a close recommendations with no chosen
+	// metric is provided.
+	ErrNoMetric = errors.New("metric required for close " +
+		"recommendations")
+
 	// DefaultOutlierMultiplier is the default value used in close
 	// recommendations based on outliers when there is no user provided
 	// value.
 	DefaultOutlierMultiplier float64 = 3
+)
+
+// Metric is an enum which indicate what data point our recommendations should
+// be based on.
+type Metric int
+
+const (
+	invalidMetric Metric = iota
+
+	// UptimeMetric bases recommendations on the uptime of the channel's
+	// remote peer.
+	UptimeMetric
+
+	// RevenueMetric bases recommendations on the revenue that the channel
+	// has generated per block that our capital has been committed for.
+	RevenueMetric
 )
 
 // CloseRecommendationConfig provides the functions and parameters required to
@@ -37,6 +59,10 @@ type CloseRecommendationConfig struct {
 	// ChannelInsights is a function which returns a set of channel insights
 	// for our current set of channels.
 	ChannelInsights func() ([]*insights.ChannelInfo, error)
+
+	// Metric defines the metric that we will use to provide close
+	// recommendations. Calls will fail if no value is provided.
+	Metric Metric
 
 	// MinimumMonitored is the minimum amount of time that a channel must
 	// have been monitored for before it is considered for closing.
@@ -115,13 +141,21 @@ func closeRecommendations(cfg *CloseRecommendationConfig,
 	// Filter out channels that are below the minimum required age.
 	filtered := filterChannels(channels, cfg.MinimumMonitored)
 
-	// Produce a dataset containing uptime ratio for channels that have
-	// been monitored for longer than the minimum time.
-	data := getUptimeDataset(filtered)
-
 	report := &Report{
 		TotalChannels:      len(channels),
 		ConsideredChannels: len(filtered),
+	}
+
+	var data dataset.Dataset
+	switch cfg.Metric {
+	case UptimeMetric:
+		data = getUptimeDataset(filtered)
+
+	case RevenueMetric:
+		data = getRevenueDataset(filtered)
+
+	default:
+		return nil, ErrNoMetric
 	}
 
 	// Get close recommendations based on outliers.
@@ -255,4 +289,28 @@ func getUptimeDataset(
 
 	// Create a dataset for the uptime values we have collected.
 	return dataset.New(channels)
+}
+
+// getRevenueDataset returns a dataset that scales revenue by the number of
+// confirmations that a channel's opening transaction has. This allows for
+// comparing of channels that have been open for different periods of time.
+func getRevenueDataset(
+	eligibleChannels []*insights.ChannelInfo) dataset.Dataset {
+
+	// Create a map which will hold channel point string label to revenue
+	// per block that we have had revenue committed for.
+	var channels = make(map[string]float64, len(eligibleChannels))
+
+	for _, channel := range eligibleChannels {
+		// Channels cannot have zero confirmations because we are
+		// dealing with open (ie confirmed) channels, so we can
+		// calculate fees per confirmation for every channel.
+		feesPerConfirmation :=
+			float64(channel.FeesEarned) /
+				float64(channel.Confirmations)
+
+		channels[channel.ChannelPoint] = feesPerConfirmation
+	}
+
+	return channels
 }

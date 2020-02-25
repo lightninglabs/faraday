@@ -20,6 +20,7 @@ func parseRecommendationRequest(ctx context.Context, cfg *Config,
 		ChannelInsights: func() ([]*insights.ChannelInfo, error) {
 			return channelInsights(ctx, cfg)
 		},
+		Metric: recommend.UptimeMetric,
 		MinimumMonitored: time.Second *
 			time.Duration(req.MinimumMonitored),
 	}

@@ -20,6 +20,7 @@ func TestCloseRecommendations(t *testing.T) {
 	tests := []struct {
 		name         string
 		upperOutlier bool
+		metric       Metric
 		ChanInsights func() ([]*insights.ChannelInfo, error)
 		MinMonitored time.Duration
 		expectedErr  error
@@ -27,6 +28,7 @@ func TestCloseRecommendations(t *testing.T) {
 		{
 			name:         "no channels",
 			upperOutlier: false,
+			metric:       UptimeMetric,
 			ChanInsights: func() ([]*insights.ChannelInfo, error) {
 				return nil, nil
 			},
@@ -36,6 +38,16 @@ func TestCloseRecommendations(t *testing.T) {
 		{
 			name:         "channel insights fails",
 			upperOutlier: false,
+			metric:       invalidMetric,
+			ChanInsights: func() ([]*insights.ChannelInfo, error) {
+				return nil, nil
+			},
+			MinMonitored: time.Hour,
+			expectedErr:  ErrNoMetric,
+		},
+		{
+			name:   "channel insights fails",
+			metric: UptimeMetric,
 			ChanInsights: func() ([]*insights.ChannelInfo, error) {
 				return nil, openChanErr
 			},
@@ -45,6 +57,7 @@ func TestCloseRecommendations(t *testing.T) {
 		{
 			name:         "zero min monitored",
 			upperOutlier: false,
+			metric:       UptimeMetric,
 			ChanInsights: func() ([]*insights.ChannelInfo, error) {
 				return nil, nil
 			},
@@ -54,6 +67,7 @@ func TestCloseRecommendations(t *testing.T) {
 		{
 			name:         "enough channels",
 			upperOutlier: false,
+			metric:       UptimeMetric,
 			ChanInsights: func() ([]*insights.ChannelInfo, error) {
 				return []*insights.ChannelInfo{
 					{
@@ -94,6 +108,7 @@ func TestCloseRecommendations(t *testing.T) {
 				&CloseRecommendationConfig{
 					ChannelInsights:  test.ChanInsights,
 					MinimumMonitored: test.MinMonitored,
+					Metric:           test.metric,
 				},
 				recFunc,
 			)
@@ -421,6 +436,60 @@ func TestFilterChannels(t *testing.T) {
 				if !ok {
 					t.Fatalf("unexpected channel: %v",
 						filteredChan)
+				}
+			}
+		})
+	}
+}
+
+// TestGetRevenueDataset tests scaling of revenue by the number of confirmations
+// that a channel has.
+func TestGetRevenueDataset(t *testing.T) {
+	tests := []struct {
+		name           string
+		insights       []*insights.ChannelInfo
+		expectedValues map[string]float64
+	}{
+		{
+			name:     "no channels",
+			insights: []*insights.ChannelInfo{},
+		},
+		{
+			name: "two channels",
+			insights: []*insights.ChannelInfo{
+				{
+					ChannelPoint:  "a:0",
+					FeesEarned:    7,
+					Confirmations: 2,
+				},
+				{
+					ChannelPoint:  "a:1",
+					FeesEarned:    10,
+					Confirmations: 1,
+				},
+			},
+			expectedValues: map[string]float64{
+				"a:0": 3.5,
+				"a:1": 10,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			data := getRevenueDataset(test.insights)
+			if len(data) != len(test.expectedValues) {
+				t.Fatalf("expected: %v, got: %v",
+					len(test.expectedValues), len(data))
+			}
+
+			for chanPoint, value := range test.expectedValues {
+				if data.Value(chanPoint) != value {
+					t.Fatalf("expected: %v to "+
+						"have value %v, got %v", chanPoint,
+						value, data.Value(chanPoint))
 				}
 			}
 		})

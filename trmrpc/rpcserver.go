@@ -129,20 +129,37 @@ func (s *RPCServer) Stop() error {
 	return nil
 }
 
-// CloseRecommendations provides a set of close recommendations for the
-// current set of open channels.
-func (s *RPCServer) CloseRecommendations(ctx context.Context,
-	req *CloseRecommendationsRequest) (*CloseRecommendationsResponse,
+// OutlierRecommendations provides a set of close recommendations for the
+// current set of open channels based on whether they are outliers.
+func (s *RPCServer) OutlierRecommendations(ctx context.Context,
+	req *OutlierRecommendationsRequest) (*CloseRecommendationsResponse,
 	error) {
 
-	cfg := parseRequest(ctx, s.cfg, req)
+	cfg, multiplier := parseOutlierRequest(ctx, s.cfg, req)
 
-	report, err := recommend.CloseRecommendations(cfg)
+	report, err := recommend.OutlierRecommendations(cfg, multiplier)
 	if err != nil {
 		return nil, err
 	}
 
-	return parseResponse(report), nil
+	return rpcResponse(report), nil
+}
+
+// ThresholdRecommendations provides a set of close recommendations for the
+// current set of open channels based on whether they are above or below a
+// given threshold.
+func (s *RPCServer) ThresholdRecommendations(ctx context.Context,
+	req *ThresholdRecommendationsRequest) (*CloseRecommendationsResponse,
+	error) {
+
+	cfg, threshold := parseThresholdRequest(ctx, s.cfg, req)
+
+	report, err := recommend.ThresholdRecommendations(cfg, threshold)
+	if err != nil {
+		return nil, err
+	}
+
+	return rpcResponse(report), nil
 }
 
 // RevenueReport returns a pairwise revenue report for a channel

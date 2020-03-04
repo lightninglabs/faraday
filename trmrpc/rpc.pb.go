@@ -23,99 +23,226 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-type CloseRecommendationsRequest struct {
+type CloseRecommendationRequest_Metric int32
+
+const (
+	CloseRecommendationRequest_UNKNOWN         CloseRecommendationRequest_Metric = 0
+	CloseRecommendationRequest_UPTIME          CloseRecommendationRequest_Metric = 1
+	CloseRecommendationRequest_REVENUE         CloseRecommendationRequest_Metric = 2
+	CloseRecommendationRequest_INCOMING_VOLUME CloseRecommendationRequest_Metric = 3
+	CloseRecommendationRequest_OUTGOING_VOLUME CloseRecommendationRequest_Metric = 4
+	CloseRecommendationRequest_TOTAL_VOLUME    CloseRecommendationRequest_Metric = 5
+)
+
+var CloseRecommendationRequest_Metric_name = map[int32]string{
+	0: "UNKNOWN",
+	1: "UPTIME",
+	2: "REVENUE",
+	3: "INCOMING_VOLUME",
+	4: "OUTGOING_VOLUME",
+	5: "TOTAL_VOLUME",
+}
+
+var CloseRecommendationRequest_Metric_value = map[string]int32{
+	"UNKNOWN":         0,
+	"UPTIME":          1,
+	"REVENUE":         2,
+	"INCOMING_VOLUME": 3,
+	"OUTGOING_VOLUME": 4,
+	"TOTAL_VOLUME":    5,
+}
+
+func (x CloseRecommendationRequest_Metric) String() string {
+	return proto.EnumName(CloseRecommendationRequest_Metric_name, int32(x))
+}
+
+func (CloseRecommendationRequest_Metric) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{0, 0}
+}
+
+type CloseRecommendationRequest struct {
 	//
 	//The minimum amount of time in seconds that a channel should have been
 	//monitored by lnd to be eligible for close. This value is in place to
 	//protect against closing of newer channels.
 	MinimumMonitored int64 `protobuf:"varint,1,opt,name=minimum_monitored,json=minimumMonitored,proto3" json:"minimum_monitored,omitempty"`
 	//
-	//The number of inter-quartile ranges a value needs to be beneath the lower
-	//quartile/ above the upper quartile to be considered a lower/upper outlier.
-	//Lower values will be more aggressive in recommending channel closes, and
-	//upper values will be more conservative. Recommended values are 1.5 for
-	//aggressive recommendations and 3 for conservative recommendations.
-	OutlierMultiplier float32 `protobuf:"fixed32,2,opt,name=outlier_multiplier,json=outlierMultiplier,proto3" json:"outlier_multiplier,omitempty"`
-	//
-	//Threshold contains the threshold value that is used to recommend channels
-	//for closure.
-	//
-	// Types that are valid to be assigned to Threshold:
-	//	*CloseRecommendationsRequest_UptimeThreshold
-	Threshold            isCloseRecommendationsRequest_Threshold `protobuf_oneof:"threshold"`
-	XXX_NoUnkeyedLiteral struct{}                                `json:"-"`
-	XXX_unrecognized     []byte                                  `json:"-"`
-	XXX_sizecache        int32                                   `json:"-"`
+	//The data point base close recommendations on. Available options are:
+	//Uptime: ratio of channel peer's uptime to the period they have been
+	//monitored to.
+	//Revenue: the revenue that the channel has produced per block that its
+	//funding transaction has been confirmed for.
+	Metric               CloseRecommendationRequest_Metric `protobuf:"varint,2,opt,name=metric,proto3,enum=trmrpc.CloseRecommendationRequest_Metric" json:"metric,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                          `json:"-"`
+	XXX_unrecognized     []byte                            `json:"-"`
+	XXX_sizecache        int32                             `json:"-"`
 }
 
-func (m *CloseRecommendationsRequest) Reset()         { *m = CloseRecommendationsRequest{} }
-func (m *CloseRecommendationsRequest) String() string { return proto.CompactTextString(m) }
-func (*CloseRecommendationsRequest) ProtoMessage()    {}
-func (*CloseRecommendationsRequest) Descriptor() ([]byte, []int) {
+func (m *CloseRecommendationRequest) Reset()         { *m = CloseRecommendationRequest{} }
+func (m *CloseRecommendationRequest) String() string { return proto.CompactTextString(m) }
+func (*CloseRecommendationRequest) ProtoMessage()    {}
+func (*CloseRecommendationRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_77a6da22d6a3feb1, []int{0}
 }
 
-func (m *CloseRecommendationsRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CloseRecommendationsRequest.Unmarshal(m, b)
+func (m *CloseRecommendationRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CloseRecommendationRequest.Unmarshal(m, b)
 }
-func (m *CloseRecommendationsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CloseRecommendationsRequest.Marshal(b, m, deterministic)
+func (m *CloseRecommendationRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CloseRecommendationRequest.Marshal(b, m, deterministic)
 }
-func (m *CloseRecommendationsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CloseRecommendationsRequest.Merge(m, src)
+func (m *CloseRecommendationRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CloseRecommendationRequest.Merge(m, src)
 }
-func (m *CloseRecommendationsRequest) XXX_Size() int {
-	return xxx_messageInfo_CloseRecommendationsRequest.Size(m)
+func (m *CloseRecommendationRequest) XXX_Size() int {
+	return xxx_messageInfo_CloseRecommendationRequest.Size(m)
 }
-func (m *CloseRecommendationsRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_CloseRecommendationsRequest.DiscardUnknown(m)
+func (m *CloseRecommendationRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CloseRecommendationRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_CloseRecommendationsRequest proto.InternalMessageInfo
+var xxx_messageInfo_CloseRecommendationRequest proto.InternalMessageInfo
 
-func (m *CloseRecommendationsRequest) GetMinimumMonitored() int64 {
+func (m *CloseRecommendationRequest) GetMinimumMonitored() int64 {
 	if m != nil {
 		return m.MinimumMonitored
 	}
 	return 0
 }
 
-func (m *CloseRecommendationsRequest) GetOutlierMultiplier() float32 {
+func (m *CloseRecommendationRequest) GetMetric() CloseRecommendationRequest_Metric {
+	if m != nil {
+		return m.Metric
+	}
+	return CloseRecommendationRequest_UNKNOWN
+}
+
+type OutlierRecommendationsRequest struct {
+	//
+	//The parameters that are common to all close recommendations.
+	RecRequest *CloseRecommendationRequest `protobuf:"bytes,1,opt,name=rec_request,json=recRequest,proto3" json:"rec_request,omitempty"`
+	//
+	//The number of inter-quartile ranges a value needs to be beneath the lower
+	//quartile/ above the upper quartile to be considered a lower/upper outlier.
+	//Lower values will be more aggressive in recommending channel closes, and
+	//upper values will be more conservative. Recommended values are 1.5 for
+	//aggressive recommendations and 3 for conservative recommendations.
+	OutlierMultiplier    float32  `protobuf:"fixed32,2,opt,name=outlier_multiplier,json=outlierMultiplier,proto3" json:"outlier_multiplier,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *OutlierRecommendationsRequest) Reset()         { *m = OutlierRecommendationsRequest{} }
+func (m *OutlierRecommendationsRequest) String() string { return proto.CompactTextString(m) }
+func (*OutlierRecommendationsRequest) ProtoMessage()    {}
+func (*OutlierRecommendationsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{1}
+}
+
+func (m *OutlierRecommendationsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_OutlierRecommendationsRequest.Unmarshal(m, b)
+}
+func (m *OutlierRecommendationsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_OutlierRecommendationsRequest.Marshal(b, m, deterministic)
+}
+func (m *OutlierRecommendationsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_OutlierRecommendationsRequest.Merge(m, src)
+}
+func (m *OutlierRecommendationsRequest) XXX_Size() int {
+	return xxx_messageInfo_OutlierRecommendationsRequest.Size(m)
+}
+func (m *OutlierRecommendationsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_OutlierRecommendationsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_OutlierRecommendationsRequest proto.InternalMessageInfo
+
+func (m *OutlierRecommendationsRequest) GetRecRequest() *CloseRecommendationRequest {
+	if m != nil {
+		return m.RecRequest
+	}
+	return nil
+}
+
+func (m *OutlierRecommendationsRequest) GetOutlierMultiplier() float32 {
 	if m != nil {
 		return m.OutlierMultiplier
 	}
 	return 0
 }
 
-type isCloseRecommendationsRequest_Threshold interface {
-	isCloseRecommendationsRequest_Threshold()
+type ThresholdRecommendationsRequest struct {
+	//
+	//The parameters that are common to all close recommendations.
+	RecRequest *CloseRecommendationRequest `protobuf:"bytes,1,opt,name=rec_request,json=recRequest,proto3" json:"rec_request,omitempty"`
+	//
+	//The threshold that recommendations will be calculated based on.
+	//For uptime: ratio of uptime to observed lifetime beneath which channels
+	//will be recommended for closure.
+	//
+	//For revenue: revenue per block that capital has been committed to the
+	//channel beneath which channels will be recommended for closure. This
+	//value is provided per block so that channels that have been open for
+	//different periods of time can be compared.
+	//
+	//For incoming volume: The incoming volume per block that capital has
+	//been committed to the channel beneath which channels will be recommended
+	//for closure. This value is provided per block so that channels that have
+	//been open for different periods of time can be compared.
+	//
+	//For outgoing volume: The outgoing volume per block that capital has been
+	//committed to the channel beneath which channels will be recommended for
+	//closure. This value is provided per block so that channels that have been
+	//open for different periods of time can be compared.
+	//
+	//For total volume: The total volume per block that capital has been
+	//committed to the channel beneath which channels will be recommended for
+	//closure. This value is provided per block so that channels that have been
+	//open for different periods of time can be compared.
+	ThresholdValue       float32  `protobuf:"fixed32,2,opt,name=threshold_value,json=thresholdValue,proto3" json:"threshold_value,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-type CloseRecommendationsRequest_UptimeThreshold struct {
-	UptimeThreshold float32 `protobuf:"fixed32,3,opt,name=uptime_threshold,json=uptimeThreshold,proto3,oneof"`
+func (m *ThresholdRecommendationsRequest) Reset()         { *m = ThresholdRecommendationsRequest{} }
+func (m *ThresholdRecommendationsRequest) String() string { return proto.CompactTextString(m) }
+func (*ThresholdRecommendationsRequest) ProtoMessage()    {}
+func (*ThresholdRecommendationsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{2}
 }
 
-func (*CloseRecommendationsRequest_UptimeThreshold) isCloseRecommendationsRequest_Threshold() {}
+func (m *ThresholdRecommendationsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ThresholdRecommendationsRequest.Unmarshal(m, b)
+}
+func (m *ThresholdRecommendationsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ThresholdRecommendationsRequest.Marshal(b, m, deterministic)
+}
+func (m *ThresholdRecommendationsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ThresholdRecommendationsRequest.Merge(m, src)
+}
+func (m *ThresholdRecommendationsRequest) XXX_Size() int {
+	return xxx_messageInfo_ThresholdRecommendationsRequest.Size(m)
+}
+func (m *ThresholdRecommendationsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ThresholdRecommendationsRequest.DiscardUnknown(m)
+}
 
-func (m *CloseRecommendationsRequest) GetThreshold() isCloseRecommendationsRequest_Threshold {
+var xxx_messageInfo_ThresholdRecommendationsRequest proto.InternalMessageInfo
+
+func (m *ThresholdRecommendationsRequest) GetRecRequest() *CloseRecommendationRequest {
 	if m != nil {
-		return m.Threshold
+		return m.RecRequest
 	}
 	return nil
 }
 
-func (m *CloseRecommendationsRequest) GetUptimeThreshold() float32 {
-	if x, ok := m.GetThreshold().(*CloseRecommendationsRequest_UptimeThreshold); ok {
-		return x.UptimeThreshold
+func (m *ThresholdRecommendationsRequest) GetThresholdValue() float32 {
+	if m != nil {
+		return m.ThresholdValue
 	}
 	return 0
-}
-
-// XXX_OneofWrappers is for the internal use of the proto package.
-func (*CloseRecommendationsRequest) XXX_OneofWrappers() []interface{} {
-	return []interface{}{
-		(*CloseRecommendationsRequest_UptimeThreshold)(nil),
-	}
 }
 
 type CloseRecommendationsResponse struct {
@@ -127,29 +254,21 @@ type CloseRecommendationsResponse struct {
 	//The number of channels that were considered for close recommendations.
 	ConsideredChannels int32 `protobuf:"varint,2,opt,name=considered_channels,json=consideredChannels,proto3" json:"considered_channels,omitempty"`
 	//
-	//A map of channels to close recommendations, based out whether they are
-	//outliers in the uptime dataset. The absence of a channel in this set
-	//implies that it was not considered for close because it did not meet
-	//the criteria for close (it is private, or has not been monitored for
-	//long enough to make a decision).
-	OutlierRecommendations []*Recommendation `protobuf:"bytes,3,rep,name=outlier_recommendations,json=outlierRecommendations,proto3" json:"outlier_recommendations,omitempty"`
-	//
-	//A set of channel close recommendations, based out whether they are
-	//beneath the threshold provided in the request. The absence of a channel
-	//in this set implies that it was not considered for close because it
-	//did not meet the criteria for close (it is private, or has not been
-	//monitored for long enough to make a decision).
-	ThresholdRecommendations []*Recommendation `protobuf:"bytes,4,rep,name=threshold_recommendations,json=thresholdRecommendations,proto3" json:"threshold_recommendations,omitempty"`
-	XXX_NoUnkeyedLiteral     struct{}          `json:"-"`
-	XXX_unrecognized         []byte            `json:"-"`
-	XXX_sizecache            int32             `json:"-"`
+	//A set of channel close recommendations. The absence of a channel in this
+	//set implies that it was not considered for close because it did not meet
+	//the criteria for close recommendations (it is private, or has not been
+	//monitored for long enough).
+	Recommendations      []*Recommendation `protobuf:"bytes,3,rep,name=recommendations,proto3" json:"recommendations,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
 func (m *CloseRecommendationsResponse) Reset()         { *m = CloseRecommendationsResponse{} }
 func (m *CloseRecommendationsResponse) String() string { return proto.CompactTextString(m) }
 func (*CloseRecommendationsResponse) ProtoMessage()    {}
 func (*CloseRecommendationsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{1}
+	return fileDescriptor_77a6da22d6a3feb1, []int{3}
 }
 
 func (m *CloseRecommendationsResponse) XXX_Unmarshal(b []byte) error {
@@ -184,16 +303,9 @@ func (m *CloseRecommendationsResponse) GetConsideredChannels() int32 {
 	return 0
 }
 
-func (m *CloseRecommendationsResponse) GetOutlierRecommendations() []*Recommendation {
+func (m *CloseRecommendationsResponse) GetRecommendations() []*Recommendation {
 	if m != nil {
-		return m.OutlierRecommendations
-	}
-	return nil
-}
-
-func (m *CloseRecommendationsResponse) GetThresholdRecommendations() []*Recommendation {
-	if m != nil {
-		return m.ThresholdRecommendations
+		return m.Recommendations
 	}
 	return nil
 }
@@ -216,7 +328,7 @@ func (m *Recommendation) Reset()         { *m = Recommendation{} }
 func (m *Recommendation) String() string { return proto.CompactTextString(m) }
 func (*Recommendation) ProtoMessage()    {}
 func (*Recommendation) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{2}
+	return fileDescriptor_77a6da22d6a3feb1, []int{4}
 }
 
 func (m *Recommendation) XXX_Unmarshal(b []byte) error {
@@ -282,7 +394,7 @@ func (m *RevenueReportRequest) Reset()         { *m = RevenueReportRequest{} }
 func (m *RevenueReportRequest) String() string { return proto.CompactTextString(m) }
 func (*RevenueReportRequest) ProtoMessage()    {}
 func (*RevenueReportRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{3}
+	return fileDescriptor_77a6da22d6a3feb1, []int{5}
 }
 
 func (m *RevenueReportRequest) XXX_Unmarshal(b []byte) error {
@@ -338,7 +450,7 @@ func (m *RevenueReportResponse) Reset()         { *m = RevenueReportResponse{} }
 func (m *RevenueReportResponse) String() string { return proto.CompactTextString(m) }
 func (*RevenueReportResponse) ProtoMessage()    {}
 func (*RevenueReportResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{4}
+	return fileDescriptor_77a6da22d6a3feb1, []int{6}
 }
 
 func (m *RevenueReportResponse) XXX_Unmarshal(b []byte) error {
@@ -386,7 +498,7 @@ func (m *RevenueReport) Reset()         { *m = RevenueReport{} }
 func (m *RevenueReport) String() string { return proto.CompactTextString(m) }
 func (*RevenueReport) ProtoMessage()    {}
 func (*RevenueReport) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{5}
+	return fileDescriptor_77a6da22d6a3feb1, []int{7}
 }
 
 func (m *RevenueReport) XXX_Unmarshal(b []byte) error {
@@ -449,7 +561,7 @@ func (m *PairReport) Reset()         { *m = PairReport{} }
 func (m *PairReport) String() string { return proto.CompactTextString(m) }
 func (*PairReport) ProtoMessage()    {}
 func (*PairReport) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{6}
+	return fileDescriptor_77a6da22d6a3feb1, []int{8}
 }
 
 func (m *PairReport) XXX_Unmarshal(b []byte) error {
@@ -508,7 +620,7 @@ func (m *ChannelInsightsRequest) Reset()         { *m = ChannelInsightsRequest{}
 func (m *ChannelInsightsRequest) String() string { return proto.CompactTextString(m) }
 func (*ChannelInsightsRequest) ProtoMessage()    {}
 func (*ChannelInsightsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{7}
+	return fileDescriptor_77a6da22d6a3feb1, []int{9}
 }
 
 func (m *ChannelInsightsRequest) XXX_Unmarshal(b []byte) error {
@@ -541,7 +653,7 @@ func (m *ChannelInsightsResponse) Reset()         { *m = ChannelInsightsResponse
 func (m *ChannelInsightsResponse) String() string { return proto.CompactTextString(m) }
 func (*ChannelInsightsResponse) ProtoMessage()    {}
 func (*ChannelInsightsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{8}
+	return fileDescriptor_77a6da22d6a3feb1, []int{10}
 }
 
 func (m *ChannelInsightsResponse) XXX_Unmarshal(b []byte) error {
@@ -606,7 +718,7 @@ func (m *ChannelInsight) Reset()         { *m = ChannelInsight{} }
 func (m *ChannelInsight) String() string { return proto.CompactTextString(m) }
 func (*ChannelInsight) ProtoMessage()    {}
 func (*ChannelInsight) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{9}
+	return fileDescriptor_77a6da22d6a3feb1, []int{11}
 }
 
 func (m *ChannelInsight) XXX_Unmarshal(b []byte) error {
@@ -684,7 +796,10 @@ func (m *ChannelInsight) GetPrivate() bool {
 }
 
 func init() {
-	proto.RegisterType((*CloseRecommendationsRequest)(nil), "trmrpc.CloseRecommendationsRequest")
+	proto.RegisterEnum("trmrpc.CloseRecommendationRequest_Metric", CloseRecommendationRequest_Metric_name, CloseRecommendationRequest_Metric_value)
+	proto.RegisterType((*CloseRecommendationRequest)(nil), "trmrpc.CloseRecommendationRequest")
+	proto.RegisterType((*OutlierRecommendationsRequest)(nil), "trmrpc.OutlierRecommendationsRequest")
+	proto.RegisterType((*ThresholdRecommendationsRequest)(nil), "trmrpc.ThresholdRecommendationsRequest")
 	proto.RegisterType((*CloseRecommendationsResponse)(nil), "trmrpc.CloseRecommendationsResponse")
 	proto.RegisterType((*Recommendation)(nil), "trmrpc.Recommendation")
 	proto.RegisterType((*RevenueReportRequest)(nil), "trmrpc.RevenueReportRequest")
@@ -700,58 +815,66 @@ func init() {
 func init() { proto.RegisterFile("rpc.proto", fileDescriptor_77a6da22d6a3feb1) }
 
 var fileDescriptor_77a6da22d6a3feb1 = []byte{
-	// 814 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x55, 0xcd, 0x6e, 0xdb, 0x46,
-	0x10, 0xae, 0x28, 0xff, 0x69, 0x54, 0xc9, 0xca, 0x56, 0x71, 0x14, 0xd7, 0x69, 0x0c, 0x36, 0x6d,
-	0x05, 0xa4, 0xb5, 0x03, 0xf7, 0x52, 0xf4, 0xd6, 0x06, 0x01, 0x62, 0xa0, 0x46, 0x82, 0xb5, 0x8f,
-	0x05, 0x88, 0x2d, 0x35, 0x91, 0x17, 0xe5, 0xee, 0x32, 0xbb, 0x4b, 0x01, 0x79, 0x92, 0x5e, 0xfa,
-	0x16, 0x7d, 0x8d, 0x5e, 0x7a, 0xe8, 0xfb, 0x14, 0xfb, 0x43, 0x52, 0x54, 0x64, 0xf7, 0x46, 0x7e,
-	0xdf, 0xb7, 0x33, 0xc3, 0x99, 0x6f, 0x87, 0x30, 0xd0, 0x65, 0x7e, 0x56, 0x6a, 0x65, 0x15, 0xd9,
-	0xb3, 0x5a, 0xe8, 0x32, 0x3f, 0x3e, 0x59, 0x2a, 0xb5, 0x2c, 0xf0, 0x9c, 0x95, 0xfc, 0x9c, 0x49,
-	0xa9, 0x2c, 0xb3, 0x5c, 0x49, 0x13, 0x54, 0xe9, 0x5f, 0x3d, 0xf8, 0xfc, 0x65, 0xa1, 0x0c, 0x52,
-	0xcc, 0x95, 0x10, 0x28, 0x17, 0x81, 0xa6, 0xf8, 0xbe, 0x42, 0x63, 0xc9, 0x73, 0x78, 0x20, 0xb8,
-	0xe4, 0xa2, 0x12, 0x99, 0x50, 0x92, 0x5b, 0xa5, 0x71, 0x31, 0xeb, 0x9d, 0xf6, 0xe6, 0x7d, 0x3a,
-	0x89, 0xc4, 0x55, 0x8d, 0x93, 0xef, 0x80, 0xa8, 0xca, 0x16, 0x1c, 0x75, 0x26, 0xaa, 0xc2, 0xf2,
-	0xd2, 0x3d, 0xce, 0x92, 0xd3, 0xde, 0x3c, 0xa1, 0x0f, 0x22, 0x73, 0xd5, 0x10, 0xe4, 0x39, 0x4c,
-	0xaa, 0xd2, 0x72, 0x81, 0x99, 0xbd, 0xd5, 0x68, 0x6e, 0x55, 0xb1, 0x98, 0xf5, 0x9d, 0xf8, 0xf5,
-	0x27, 0xf4, 0x30, 0x30, 0x37, 0x35, 0xf1, 0xf3, 0x10, 0x06, 0x8d, 0x2a, 0xfd, 0x33, 0x81, 0x93,
-	0xed, 0x55, 0x9b, 0x52, 0x49, 0x83, 0xe4, 0x2b, 0x18, 0x5b, 0x65, 0x59, 0x91, 0xe5, 0xb7, 0x4c,
-	0x4a, 0x2c, 0x8c, 0xaf, 0x79, 0x97, 0x8e, 0x3c, 0xfa, 0x32, 0x82, 0xe4, 0x1c, 0x3e, 0xcb, 0x95,
-	0x34, 0x7c, 0x81, 0x1a, 0x17, 0xad, 0x36, 0xf1, 0x5a, 0xd2, 0x52, 0xcd, 0x81, 0x37, 0xf0, 0xa8,
-	0xfe, 0x42, 0xdd, 0x4d, 0x3d, 0xeb, 0x9f, 0xf6, 0xe7, 0xc3, 0x8b, 0xa3, 0xb3, 0xd0, 0xf6, 0xb3,
-	0x6e, 0x65, 0xf4, 0x28, 0x1e, 0xdb, 0x28, 0x98, 0x5c, 0xc3, 0xe3, 0xe6, 0xb3, 0x3e, 0x0a, 0xb9,
-	0x73, 0x6f, 0xc8, 0x59, 0x73, 0x70, 0x23, 0x68, 0x2a, 0x61, 0xdc, 0x85, 0xc8, 0x13, 0x00, 0xf7,
-	0x75, 0x59, 0xa9, 0xb8, 0xb4, 0xbe, 0x17, 0x03, 0x3a, 0x70, 0xc8, 0x5b, 0x07, 0x90, 0x29, 0xec,
-	0xae, 0x58, 0x51, 0x61, 0x9c, 0x55, 0x78, 0x21, 0xdf, 0xc0, 0x61, 0x53, 0x51, 0x96, 0xbb, 0x76,
-	0xfb, 0xf1, 0x1c, 0xd0, 0x71, 0x03, 0xfb, 0x21, 0xa4, 0xef, 0x61, 0x4a, 0x71, 0x85, 0xb2, 0x42,
-	0x8a, 0xa5, 0xd2, 0xb6, 0x36, 0xcf, 0x53, 0x18, 0xb6, 0x59, 0xdd, 0x08, 0xfa, 0xf3, 0x01, 0x85,
-	0x26, 0xad, 0x71, 0x65, 0x19, 0xcb, 0xb4, 0xcd, 0xdc, 0xac, 0x7d, 0xf2, 0x1d, 0x3a, 0xf0, 0xc8,
-	0x0d, 0x17, 0x48, 0x1e, 0xc3, 0x81, 0x4b, 0xed, 0xc9, 0xbe, 0x27, 0xf7, 0x51, 0x2e, 0x1c, 0x95,
-	0xbe, 0x86, 0x87, 0x1b, 0x29, 0xe3, 0xe4, 0xcf, 0x61, 0x5f, 0x7b, 0x24, 0xe4, 0x1b, 0x5e, 0x3c,
-	0x6c, 0xdb, 0xb7, 0xae, 0xaf, 0x55, 0xe9, 0xbf, 0x3d, 0x18, 0x75, 0x28, 0x6f, 0x1e, 0xa6, 0x97,
-	0x68, 0x6b, 0x47, 0xc4, 0x86, 0x8d, 0x02, 0x1a, 0xcd, 0x40, 0x2e, 0xe1, 0xd3, 0x92, 0x71, 0x67,
-	0x84, 0x90, 0x2e, 0xf1, 0xe9, 0xbe, 0xde, 0x9a, 0xee, 0xec, 0x2d, 0xe3, 0x3a, 0x3c, 0x9a, 0x57,
-	0xd2, 0xea, 0x0f, 0x74, 0x58, 0xb6, 0xc8, 0x31, 0x85, 0xc9, 0xa6, 0x80, 0x4c, 0xa0, 0xff, 0x3b,
-	0x7e, 0x88, 0xa9, 0xdd, 0x23, 0x99, 0xaf, 0x4f, 0x69, 0x78, 0x41, 0xea, 0x4c, 0xed, 0xd1, 0x38,
-	0xb9, 0x1f, 0x93, 0x1f, 0x7a, 0xe9, 0xdf, 0x3d, 0x80, 0x96, 0x21, 0x2f, 0x60, 0xca, 0x84, 0xaa,
-	0xa4, 0xcd, 0x54, 0x65, 0x97, 0x8a, 0xcb, 0x65, 0x26, 0x0c, 0xb3, 0xf1, 0x2e, 0x93, 0xc0, 0xbd,
-	0x89, 0xd4, 0x95, 0x61, 0x96, 0x7c, 0x0b, 0xe4, 0x1d, 0xa2, 0xd9, 0xd0, 0x27, 0xe1, 0xee, 0x3b,
-	0xa6, 0xa3, 0x6e, 0xe3, 0x73, 0x99, 0x2b, 0xd1, 0xe8, 0xfb, 0xeb, 0xf1, 0x2f, 0x23, 0xd5, 0x89,
-	0xdf, 0xd5, 0xef, 0xb4, 0xf1, 0xd7, 0xd5, 0xe9, 0x0c, 0x8e, 0x62, 0xe3, 0x2f, 0xa5, 0xe1, 0xcb,
-	0x5b, 0x5b, 0xaf, 0xa8, 0xf4, 0x57, 0x78, 0xf4, 0x11, 0x13, 0xcd, 0xf0, 0x13, 0x4c, 0xe2, 0x08,
-	0x33, 0x1e, 0xb9, 0xe8, 0x8a, 0xe6, 0x52, 0x75, 0x8f, 0xd2, 0xc3, 0xbc, 0x1b, 0x2a, 0xfd, 0x27,
-	0x81, 0x71, 0x57, 0xf3, 0x7f, 0x97, 0xc9, 0xad, 0xcc, 0x7a, 0x25, 0x66, 0x06, 0x73, 0x25, 0x17,
-	0x26, 0x7a, 0x7b, 0xd2, 0x10, 0xd7, 0x01, 0x77, 0x5e, 0x8b, 0x3b, 0xb0, 0x56, 0x06, 0xa3, 0x8f,
-	0x02, 0x5a, 0xcb, 0x5e, 0xc0, 0x74, 0xa5, 0x8a, 0x4a, 0xe0, 0xd6, 0x6e, 0x91, 0xc0, 0x75, 0xba,
-	0xdb, 0x9e, 0xe8, 0xce, 0x6f, 0x77, 0xfd, 0x44, 0x67, 0x82, 0x73, 0xf0, 0x5d, 0xcf, 0x90, 0x69,
-	0x89, 0x8b, 0xa0, 0xde, 0xf3, 0xea, 0xb1, 0xc3, 0x5f, 0x79, 0xd8, 0x2b, 0x9f, 0xc1, 0x28, 0x57,
-	0xf2, 0x1d, 0xd7, 0x22, 0x2e, 0xaa, 0xfd, 0xd3, 0xde, 0x7c, 0x44, 0xbb, 0x20, 0x99, 0xc1, 0x7e,
-	0xa9, 0xf9, 0x8a, 0x59, 0x9c, 0x1d, 0xf8, 0xb5, 0x51, 0xbf, 0x5e, 0xfc, 0x91, 0xc0, 0xe4, 0x06,
-	0xb5, 0xe0, 0x92, 0x59, 0xa5, 0xaf, 0x51, 0xaf, 0x50, 0x13, 0x06, 0xd3, 0x6d, 0x2b, 0x9d, 0x7c,
-	0xd9, 0x4c, 0xea, 0xee, 0xdf, 0xd4, 0xf1, 0xb3, 0xfb, 0x45, 0xd1, 0x0e, 0xbf, 0x6c, 0xde, 0xf4,
-	0x93, 0xed, 0xbb, 0x21, 0x06, 0x7d, 0x72, 0x07, 0x1b, 0xa3, 0x51, 0x38, 0xdc, 0xf0, 0x1d, 0xf9,
-	0x62, 0xbb, 0xab, 0x9a, 0x32, 0x9f, 0xde, 0xc9, 0x87, 0x98, 0xbf, 0xed, 0xf9, 0xbf, 0xf2, 0xf7,
-	0xff, 0x05, 0x00, 0x00, 0xff, 0xff, 0x9d, 0x67, 0xb7, 0xb2, 0xc8, 0x07, 0x00, 0x00,
+	// 944 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x56, 0x4f, 0x6f, 0xe3, 0x44,
+	0x14, 0xc7, 0x71, 0x9b, 0xb6, 0x2f, 0x9b, 0xd4, 0x3b, 0xdb, 0x2d, 0xa1, 0x6a, 0x69, 0x64, 0xed,
+	0xb2, 0x41, 0x40, 0xba, 0x0a, 0x17, 0xc4, 0x89, 0xaa, 0x8a, 0x96, 0x88, 0x26, 0xa9, 0x66, 0x93,
+	0x72, 0x41, 0xb2, 0x8c, 0x33, 0x9b, 0x0e, 0xc4, 0x33, 0xde, 0xf1, 0x38, 0xd2, 0x7e, 0x01, 0xae,
+	0x1c, 0xf8, 0x32, 0x7c, 0x08, 0x2e, 0x1c, 0xf8, 0x2e, 0x1c, 0xd1, 0xfc, 0xb1, 0x1d, 0x87, 0x74,
+	0xcb, 0x85, 0x9b, 0xe7, 0xf7, 0xfb, 0xcd, 0xfb, 0xcd, 0xbc, 0xf7, 0x32, 0x2f, 0x70, 0x20, 0x92,
+	0xa8, 0x97, 0x08, 0x2e, 0x39, 0xaa, 0x4b, 0x11, 0x8b, 0x24, 0x3a, 0x39, 0x5d, 0x70, 0xbe, 0x58,
+	0x92, 0x8b, 0x30, 0xa1, 0x17, 0x21, 0x63, 0x5c, 0x86, 0x92, 0x72, 0x96, 0x1a, 0x95, 0xff, 0xb7,
+	0x03, 0x27, 0x57, 0x4b, 0x9e, 0x12, 0x4c, 0x22, 0x1e, 0xc7, 0x84, 0xcd, 0x35, 0x8d, 0xc9, 0xdb,
+	0x8c, 0xa4, 0x12, 0x7d, 0x06, 0x8f, 0x63, 0xca, 0x68, 0x9c, 0xc5, 0x41, 0xcc, 0x19, 0x95, 0x5c,
+	0x90, 0x79, 0xdb, 0xe9, 0x38, 0x5d, 0x17, 0x7b, 0x96, 0x18, 0xe5, 0x38, 0xba, 0x84, 0x7a, 0x4c,
+	0xa4, 0xa0, 0x51, 0xbb, 0xd6, 0x71, 0xba, 0xad, 0xfe, 0xa7, 0x3d, 0x73, 0x84, 0xde, 0xfd, 0x06,
+	0xbd, 0x91, 0xde, 0x80, 0xed, 0x46, 0xff, 0x27, 0xa8, 0x1b, 0x04, 0x35, 0x60, 0x6f, 0x36, 0xfe,
+	0x6e, 0x3c, 0xf9, 0x7e, 0xec, 0x7d, 0x80, 0x00, 0xea, 0xb3, 0x9b, 0xe9, 0x70, 0x34, 0xf0, 0x1c,
+	0x45, 0xe0, 0xc1, 0xed, 0x60, 0x3c, 0x1b, 0x78, 0x35, 0xf4, 0x04, 0x0e, 0x87, 0xe3, 0xab, 0xc9,
+	0x68, 0x38, 0x7e, 0x15, 0xdc, 0x4e, 0xae, 0x67, 0xa3, 0x81, 0xe7, 0x2a, 0x70, 0x32, 0x9b, 0xbe,
+	0x9a, 0xac, 0x81, 0x3b, 0xc8, 0x83, 0x47, 0xd3, 0xc9, 0xf4, 0xf2, 0x3a, 0x47, 0x76, 0xfd, 0xdf,
+	0x1c, 0x38, 0x9b, 0x64, 0x72, 0x49, 0x89, 0xa8, 0x9e, 0x2d, 0xcd, 0x6f, 0x7f, 0x05, 0x0d, 0x41,
+	0xa2, 0x40, 0x98, 0xa5, 0xbe, 0x77, 0xa3, 0xef, 0x3f, 0x7c, 0x2b, 0x0c, 0x82, 0x44, 0x79, 0x90,
+	0x2f, 0x00, 0x71, 0xe3, 0x12, 0xc4, 0xd9, 0x52, 0xd2, 0x44, 0x7d, 0xea, 0x0c, 0xd5, 0xf0, 0x63,
+	0xcb, 0x8c, 0x0a, 0xc2, 0xff, 0xd5, 0x81, 0xf3, 0xe9, 0x9d, 0x20, 0xe9, 0x1d, 0x5f, 0xce, 0xff,
+	0xcf, 0x73, 0xbd, 0x80, 0x43, 0x99, 0xfb, 0x04, 0xab, 0x70, 0x99, 0x11, 0x7b, 0xa8, 0x56, 0x01,
+	0xdf, 0x2a, 0xd4, 0xff, 0xdd, 0x81, 0xd3, 0x2d, 0x31, 0x53, 0x4c, 0xd2, 0x84, 0xb3, 0x94, 0xa0,
+	0xe7, 0xd0, 0x92, 0x5c, 0x86, 0xcb, 0x20, 0xba, 0x0b, 0x19, 0x23, 0xcb, 0x54, 0x9f, 0x68, 0x17,
+	0x37, 0x35, 0x7a, 0x65, 0x41, 0x74, 0x01, 0x4f, 0x22, 0xce, 0x52, 0x3a, 0x27, 0x82, 0xcc, 0x4b,
+	0x6d, 0x4d, 0x6b, 0x51, 0x49, 0x15, 0x1b, 0xbe, 0x81, 0x43, 0x51, 0xb5, 0x6c, 0xbb, 0x1d, 0xb7,
+	0xdb, 0xe8, 0x1f, 0xe7, 0x57, 0xdd, 0xb8, 0xe5, 0xa6, 0xdc, 0x67, 0xd0, 0xaa, 0x4a, 0xd0, 0x19,
+	0x80, 0x72, 0x0e, 0x12, 0x4e, 0x99, 0xc9, 0xdc, 0x01, 0x3e, 0x50, 0xc8, 0x8d, 0x02, 0xd0, 0x11,
+	0xec, 0xae, 0xa7, 0xc2, 0x2c, 0x54, 0xaa, 0x8a, 0xc8, 0x41, 0xa4, 0x52, 0xd1, 0x76, 0x3b, 0x4e,
+	0x77, 0x1f, 0xb7, 0x0a, 0x58, 0x27, 0xc8, 0x7f, 0x0b, 0x47, 0x98, 0xac, 0x08, 0xcb, 0x08, 0x26,
+	0x09, 0x17, 0x32, 0xcf, 0xf5, 0x39, 0x34, 0x4a, 0x57, 0x95, 0x1e, 0xb7, 0x7b, 0x80, 0xa1, 0xb0,
+	0x4d, 0xd5, 0xb1, 0x52, 0x19, 0x0a, 0x19, 0x48, 0x1a, 0x1b, 0xf3, 0x1d, 0x7c, 0xa0, 0x91, 0x29,
+	0x8d, 0x09, 0xfa, 0x08, 0xf6, 0x95, 0xb5, 0x26, 0x5d, 0x4d, 0xee, 0x11, 0x36, 0x57, 0x94, 0xff,
+	0x2d, 0x3c, 0xdd, 0xb0, 0xb4, 0x55, 0xb9, 0x80, 0x3d, 0xa1, 0x11, 0xe3, 0xd7, 0xe8, 0x3f, 0x2d,
+	0xb3, 0xb6, 0xae, 0xcf, 0x55, 0xfe, 0x5f, 0x0e, 0x34, 0x2b, 0x94, 0x2e, 0x6c, 0x28, 0x16, 0x44,
+	0xe6, 0xd5, 0xb2, 0x09, 0x6b, 0x1a, 0xd4, 0x16, 0x0a, 0x0d, 0xe1, 0x51, 0x12, 0x52, 0x11, 0xe4,
+	0x76, 0x35, 0x6d, 0xf7, 0xc9, 0x56, 0xbb, 0xde, 0x4d, 0x48, 0x85, 0xf9, 0x4c, 0x07, 0x4c, 0x8a,
+	0x77, 0xb8, 0x91, 0x94, 0xc8, 0x09, 0x06, 0x6f, 0x53, 0x80, 0x3c, 0x70, 0x7f, 0x26, 0xef, 0xac,
+	0xb5, 0xfa, 0x44, 0xdd, 0xf5, 0x2a, 0x35, 0xfa, 0x28, 0x77, 0x2a, 0xb7, 0xda, 0xca, 0x7d, 0x5d,
+	0xfb, 0xca, 0xf1, 0xff, 0x70, 0x00, 0x4a, 0x06, 0xbd, 0x84, 0xa3, 0x30, 0xe6, 0x19, 0x93, 0x01,
+	0xcf, 0xe4, 0x82, 0x53, 0xb6, 0x08, 0xe2, 0x34, 0x94, 0xf6, 0x55, 0x43, 0x86, 0x9b, 0x58, 0x6a,
+	0x94, 0x86, 0x12, 0x7d, 0x0e, 0xe8, 0x0d, 0x21, 0xe9, 0x86, 0xbe, 0x66, 0x5e, 0x41, 0xc5, 0x54,
+	0xd4, 0x65, 0x7c, 0xca, 0x22, 0x1e, 0x17, 0x7a, 0x77, 0x3d, 0xfe, 0xd0, 0x52, 0x95, 0xf8, 0x55,
+	0xfd, 0x4e, 0x19, 0x7f, 0x5d, 0xed, 0xb7, 0xe1, 0xd8, 0x26, 0x7e, 0xc8, 0x52, 0xba, 0xb8, 0x93,
+	0xf9, 0xb3, 0xe0, 0xff, 0x00, 0x1f, 0xfe, 0x8b, 0xb1, 0xcd, 0x70, 0x09, 0x9e, 0x2d, 0x61, 0x40,
+	0x2d, 0x67, 0xbb, 0xa2, 0xf8, 0x2d, 0x55, 0xb7, 0xe2, 0xc3, 0xa8, 0x1a, 0xca, 0xff, 0xb3, 0x06,
+	0xad, 0xaa, 0xe6, 0xa1, 0x1f, 0x93, 0x1a, 0x1e, 0xf9, 0x70, 0x08, 0x52, 0x12, 0x71, 0x36, 0x4f,
+	0x6d, 0x6f, 0x7b, 0x05, 0xf1, 0xda, 0xe0, 0xaa, 0xd7, 0xb2, 0x44, 0x35, 0x78, 0xa1, 0x34, 0x8d,
+	0xde, 0x34, 0x68, 0x2e, 0x7b, 0x09, 0x47, 0x2b, 0xbe, 0xcc, 0x62, 0xb2, 0x35, 0x5b, 0xc8, 0x70,
+	0x95, 0xec, 0x96, 0x3b, 0xaa, 0xf5, 0xdb, 0x5d, 0xdf, 0x51, 0xa9, 0x60, 0x17, 0x74, 0xd6, 0x03,
+	0x12, 0x0a, 0x46, 0xe6, 0x46, 0x5d, 0xd7, 0xea, 0x96, 0xc2, 0x07, 0x1a, 0xd6, 0xca, 0x67, 0xd0,
+	0x8c, 0x38, 0x7b, 0x43, 0x45, 0x6c, 0xdf, 0xa7, 0xbd, 0x8e, 0xd3, 0x6d, 0xe2, 0x2a, 0x88, 0xda,
+	0xb0, 0x97, 0x08, 0xba, 0x0a, 0x25, 0x69, 0xef, 0xeb, 0x67, 0x23, 0x5f, 0xf6, 0x7f, 0x71, 0xc1,
+	0x9b, 0x12, 0x11, 0x53, 0x16, 0x4a, 0x2e, 0x5e, 0x13, 0xb1, 0x22, 0x02, 0x11, 0x38, 0xde, 0x3e,
+	0x96, 0xd0, 0xf3, 0xbc, 0x56, 0xef, 0x1d, 0x5b, 0x27, 0xcf, 0xde, 0x33, 0x09, 0xca, 0x96, 0xa0,
+	0xd0, 0xbe, 0x6f, 0xce, 0xa0, 0x17, 0x79, 0x84, 0x07, 0x26, 0xd1, 0x7f, 0xb4, 0xba, 0xde, 0x7c,
+	0x58, 0x4e, 0xb7, 0x3f, 0x45, 0x36, 0xe8, 0xd9, 0x3d, 0xac, 0x8d, 0x86, 0xe1, 0x70, 0xa3, 0xcd,
+	0xd1, 0xc7, 0xdb, 0x9b, 0xb8, 0x38, 0xe6, 0xf9, 0xbd, 0xbc, 0x89, 0xf9, 0x63, 0x5d, 0xff, 0x1b,
+	0xfa, 0xf2, 0x9f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x0b, 0xdf, 0x60, 0xc4, 0x40, 0x09, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -766,7 +889,8 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type TerminatorServerClient interface {
-	CloseRecommendations(ctx context.Context, in *CloseRecommendationsRequest, opts ...grpc.CallOption) (*CloseRecommendationsResponse, error)
+	OutlierRecommendations(ctx context.Context, in *OutlierRecommendationsRequest, opts ...grpc.CallOption) (*CloseRecommendationsResponse, error)
+	ThresholdRecommendations(ctx context.Context, in *ThresholdRecommendationsRequest, opts ...grpc.CallOption) (*CloseRecommendationsResponse, error)
 	RevenueReport(ctx context.Context, in *RevenueReportRequest, opts ...grpc.CallOption) (*RevenueReportResponse, error)
 	ChannelInsights(ctx context.Context, in *ChannelInsightsRequest, opts ...grpc.CallOption) (*ChannelInsightsResponse, error)
 }
@@ -779,9 +903,18 @@ func NewTerminatorServerClient(cc *grpc.ClientConn) TerminatorServerClient {
 	return &terminatorServerClient{cc}
 }
 
-func (c *terminatorServerClient) CloseRecommendations(ctx context.Context, in *CloseRecommendationsRequest, opts ...grpc.CallOption) (*CloseRecommendationsResponse, error) {
+func (c *terminatorServerClient) OutlierRecommendations(ctx context.Context, in *OutlierRecommendationsRequest, opts ...grpc.CallOption) (*CloseRecommendationsResponse, error) {
 	out := new(CloseRecommendationsResponse)
-	err := c.cc.Invoke(ctx, "/trmrpc.TerminatorServer/CloseRecommendations", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/trmrpc.TerminatorServer/OutlierRecommendations", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *terminatorServerClient) ThresholdRecommendations(ctx context.Context, in *ThresholdRecommendationsRequest, opts ...grpc.CallOption) (*CloseRecommendationsResponse, error) {
+	out := new(CloseRecommendationsResponse)
+	err := c.cc.Invoke(ctx, "/trmrpc.TerminatorServer/ThresholdRecommendations", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -808,7 +941,8 @@ func (c *terminatorServerClient) ChannelInsights(ctx context.Context, in *Channe
 
 // TerminatorServerServer is the server API for TerminatorServer service.
 type TerminatorServerServer interface {
-	CloseRecommendations(context.Context, *CloseRecommendationsRequest) (*CloseRecommendationsResponse, error)
+	OutlierRecommendations(context.Context, *OutlierRecommendationsRequest) (*CloseRecommendationsResponse, error)
+	ThresholdRecommendations(context.Context, *ThresholdRecommendationsRequest) (*CloseRecommendationsResponse, error)
 	RevenueReport(context.Context, *RevenueReportRequest) (*RevenueReportResponse, error)
 	ChannelInsights(context.Context, *ChannelInsightsRequest) (*ChannelInsightsResponse, error)
 }
@@ -817,20 +951,38 @@ func RegisterTerminatorServerServer(s *grpc.Server, srv TerminatorServerServer) 
 	s.RegisterService(&_TerminatorServer_serviceDesc, srv)
 }
 
-func _TerminatorServer_CloseRecommendations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CloseRecommendationsRequest)
+func _TerminatorServer_OutlierRecommendations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OutlierRecommendationsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TerminatorServerServer).CloseRecommendations(ctx, in)
+		return srv.(TerminatorServerServer).OutlierRecommendations(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/trmrpc.TerminatorServer/CloseRecommendations",
+		FullMethod: "/trmrpc.TerminatorServer/OutlierRecommendations",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TerminatorServerServer).CloseRecommendations(ctx, req.(*CloseRecommendationsRequest))
+		return srv.(TerminatorServerServer).OutlierRecommendations(ctx, req.(*OutlierRecommendationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TerminatorServer_ThresholdRecommendations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ThresholdRecommendationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TerminatorServerServer).ThresholdRecommendations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/trmrpc.TerminatorServer/ThresholdRecommendations",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TerminatorServerServer).ThresholdRecommendations(ctx, req.(*ThresholdRecommendationsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -876,8 +1028,12 @@ var _TerminatorServer_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*TerminatorServerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CloseRecommendations",
-			Handler:    _TerminatorServer_CloseRecommendations_Handler,
+			MethodName: "OutlierRecommendations",
+			Handler:    _TerminatorServer_OutlierRecommendations_Handler,
+		},
+		{
+			MethodName: "ThresholdRecommendations",
+			Handler:    _TerminatorServer_ThresholdRecommendations_Handler,
 		},
 		{
 			MethodName: "RevenueReport",

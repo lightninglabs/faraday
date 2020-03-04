@@ -4,7 +4,11 @@
 // time will be considered for closing.
 //
 // Channels will be assessed based on the following data points:
-// - Uptime percentage
+// - Uptime ratio
+// - Fee revenue per block capital has been committed for
+// - Incoming volume per block capital has been committed for
+// - Outgoing volume per block capital has been committed for
+// - Total volume per block capital has been committed for
 //
 // Channels that are outliers within the set of channels that are eligible for
 // close recommendation will be recommended for closure.
@@ -15,7 +19,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/terminator/dataset"
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightninglabs/terminator/insights"
 )
 
 var (
@@ -24,30 +28,56 @@ var (
 	errZeroMinMonitored = errors.New("must provide a non-zero minimum " +
 		"monitor time for channel exclusion")
 
+	// ErrNoMetric is returned when a close recommendations with no chosen
+	// metric is provided.
+	ErrNoMetric = errors.New("metric required for close " +
+		"recommendations")
+
 	// DefaultOutlierMultiplier is the default value used in close
 	// recommendations based on outliers when there is no user provided
 	// value.
 	DefaultOutlierMultiplier float64 = 3
 )
 
+// Metric is an enum which indicate what data point our recommendations should
+// be based on.
+type Metric int
+
+const (
+	invalidMetric Metric = iota
+
+	// UptimeMetric bases recommendations on the uptime of the channel's
+	// remote peer.
+	UptimeMetric
+
+	// RevenueMetric bases recommendations on the revenue that the channel
+	// has generated per block that our capital has been committed for.
+	RevenueMetric
+
+	// IncomingVolume bases recommendations on the incoming volume that the
+	// channel has processed, scaled by funding transaction confirmations.
+	IncomingVolume
+
+	// IncomingVolume bases recommendations on the incoming volume that the
+	// channel has processed, scaled by funding transaction confirmations.
+	OutgoingVolume
+
+	// Volume bases recommendations on the total volume that the
+	// channel has processed, scaled by funding transaction confirmations.
+	Volume
+)
+
 // CloseRecommendationConfig provides the functions and parameters required to
-// provide close recommendations.
+// provide close recommendations. This struct holds fields which are common to
+// all recommendation calculation strategies.
 type CloseRecommendationConfig struct {
-	// OpenChannels is a function which returns all of our currently open,
-	// public channels.
-	OpenChannels func() ([]*lnrpc.Channel, error)
+	// ChannelInsights is a function which returns a set of channel insights
+	// for our current set of channels.
+	ChannelInsights func() ([]*insights.ChannelInfo, error)
 
-	// OutlierMultiplier is the number of inter quartile ranges a value
-	// should be away from the lower/upper quartile to be considered an
-	// outlier. Recommended values are 1.5 for more aggressive
-	// recommendations and 3 for more cautious recommendations.
-	OutlierMultiplier float64
-
-	// UptimeThreshold is the uptime percentage over the channel's observed
-	// lifetime beneath which channels will be recommended for close. This
-	// value is expressed as a percentage in [0,1], and will default to 0 if
-	// it is not set.
-	UptimeThreshold float64
+	// Metric defines the metric that we will use to provide close
+	// recommendations. Calls will fail if no value is provided.
+	Metric Metric
 
 	// MinimumMonitored is the minimum amount of time that a channel must
 	// have been monitored for before it is considered for closing.
@@ -72,29 +102,53 @@ type Report struct {
 	// for long enough to be considered for close.
 	ConsideredChannels int
 
-	// OutlierRecommendations is a map of chanel outpoints to a bool which
-	// indicates whether we should close the channel based on whether it is
-	// an outlier.
-	OutlierRecommendations map[string]Recommendation
-
-	// ThresholdRecommendations is a map of chanel outpoints to a bool which
-	// indicates whether we should close the channel based on whether it is
-	// below a user provided threshold.
-	ThresholdRecommendations map[string]Recommendation
+	// Recommendations is a map of chanel outpoints to a bool which
+	// indicates whether we should close the channel.
+	Recommendations map[string]Recommendation
 }
 
-// CloseRecommendations returns a report which contains information about the
-// channels that were considered and a list of close recommendations. Channels
-// are considered for close if their uptime percentage is a lower outlier in
-// uptime percentage dataset.
-func CloseRecommendations(cfg *CloseRecommendationConfig) (*Report, error) {
+// OutlierRecommendations returns recommendations based on whether a value is a
+// lower outlier within its current dataset. It takes an outlier multiplier value
+// which is the number of inter quartile ranges a value should be away from the
+// lower/upper quartile to be considered an outlier. Recommended values are 1.5
+// for more aggressive recommendations and 3 for more cautious recommendations.
+func OutlierRecommendations(cfg *CloseRecommendationConfig,
+	outlierMultiplier float64) (*Report, error) {
+
+	getRecs := func(dataset dataset.Dataset) (map[string]Recommendation, error) {
+		return getOutlierRecs(dataset, outlierMultiplier, false)
+	}
+
+	return closeRecommendations(cfg, getRecs)
+}
+
+// ThresholdRecommendations returns a recommendations based on whether a value is
+// below a given threshold.
+func ThresholdRecommendations(cfg *CloseRecommendationConfig,
+	threshold float64) (*Report, error) {
+
+	getRecs := func(dataset dataset.Dataset) (map[string]Recommendation, error) {
+		return getThresholdRecs(dataset, threshold, true), nil
+	}
+
+	return closeRecommendations(cfg, getRecs)
+}
+
+// closeRecommendations returns a report which contains information about the
+// channels that were considered and a list of close recommendations. It takes
+// a function which can produce the relevant dataset from a set of channel
+// insights and a function which can produces recommendations as parameters.
+func closeRecommendations(cfg *CloseRecommendationConfig,
+	getRecommendations func(data dataset.Dataset) (
+		map[string]Recommendation, error)) (*Report, error) {
+
 	// Check that the minimum wait time is non-zero.
 	if cfg.MinimumMonitored == 0 {
 		return nil, errZeroMinMonitored
 	}
 
-	// Get the set of currently open channels.
-	channels, err := cfg.OpenChannels()
+	// Get the set of insights for our currently open channels.
+	channels, err := cfg.ChannelInsights()
 	if err != nil {
 		return nil, err
 	}
@@ -102,48 +156,62 @@ func CloseRecommendations(cfg *CloseRecommendationConfig) (*Report, error) {
 	// Filter out channels that are below the minimum required age.
 	filtered := filterChannels(channels, cfg.MinimumMonitored)
 
-	// Produce a dataset containing uptime percentage for channels that have
-	// been monitored for longer than the minimum time.
-	uptime := getUptimeDataset(filtered)
-
 	report := &Report{
 		TotalChannels:      len(channels),
-		ConsideredChannels: len(uptime),
+		ConsideredChannels: len(filtered),
+	}
+
+	var data dataset.Dataset
+	switch cfg.Metric {
+	case UptimeMetric:
+		data = getUptimeDataset(filtered)
+
+	case RevenueMetric:
+		data = getConfirmationScaledDataset(revenueValue, filtered)
+
+	case IncomingVolume:
+		data = getConfirmationScaledDataset(
+			incomingVolumeValue, filtered,
+		)
+
+	case OutgoingVolume:
+		data = getConfirmationScaledDataset(
+			outgoingVolumeValue, filtered,
+		)
+
+	case Volume:
+		data = getConfirmationScaledDataset(totalVolumeValue, filtered)
+
+	default:
+		return nil, ErrNoMetric
 	}
 
 	// Get close recommendations based on outliers.
-	report.OutlierRecommendations, err = getOutlierRecs(
-		uptime, cfg.OutlierMultiplier,
-	)
+	report.Recommendations, err = getRecommendations(data)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get close recommendations based on threshold.
-	report.ThresholdRecommendations = getThresholdRecs(
-		uptime, cfg.UptimeThreshold,
-	)
-
 	return report, nil
 }
 
-// getThresholdRecs returns a map of channel points to values that are below a
-// given threshold.
-func getThresholdRecs(uptime dataset.Dataset,
-	threshold float64) map[string]Recommendation {
+// getThresholdRecs returns a map of channel points to values that are above
+// or below a given threshold.
+func getThresholdRecs(values dataset.Dataset,
+	threshold float64, belowThreshold bool) map[string]Recommendation {
 
 	// Get a map of channel labels to a boolean indicating whether
 	// they are beneath the threshold.
-	thresholdValues := uptime.GetThreshold(threshold, true)
+	thresholdValues := values.GetThreshold(threshold, belowThreshold)
 
 	recommendations := make(
 		map[string]Recommendation, len(thresholdValues),
 	)
 
-	for chanPoint, belowThrehsold := range thresholdValues {
+	for chanPoint, crossesThreshold := range thresholdValues {
 		recommendations[chanPoint] = Recommendation{
-			Value:          uptime.Value(chanPoint),
-			RecommendClose: belowThrehsold,
+			Value:          values.Value(chanPoint),
+			RecommendClose: crossesThreshold,
 		}
 	}
 
@@ -151,75 +219,150 @@ func getThresholdRecs(uptime dataset.Dataset,
 }
 
 // getOutlierRecs generates map of channel outpoint strings to booleans
-// indicating whether we recommend closing a channel.
-func getOutlierRecs(uptime dataset.Dataset,
-	outlierMultiplier float64) (map[string]Recommendation, error) {
+// indicating whether we recommend closing a channel. It takes a outlier
+// multiplier which scales the degree to which we want to calculate outliers,
+// and an upper outlier boolean which determines whether we want to identify
+// upper or lower outliers.
+func getOutlierRecs(values dataset.Dataset,
+	outlierMultiplier float64,
+	upperOutlier bool) (map[string]Recommendation, error) {
 
 	recommendations := make(map[string]Recommendation)
 
-	outliers, err := uptime.GetOutliers(outlierMultiplier)
+	outliers, err := values.GetOutliers(outlierMultiplier)
 	if err != nil {
 		return nil, err
 	}
 
 	// Add a recommendation for each channel to our set of recommendations.
-	// If the channel is a lower outlier, we recommend it for close.
+	// RecommendClose in the recommendation will be set to true if the
+	// channel matches the outlier type we are looking for (upper or
+	// lower).
 	for chanPoint, outlier := range outliers {
+		var recommendClose bool
+
+		// If we want to detect upper outliers, and the channel is a
+		// upper outlier, set recommend close to true.
+		if upperOutlier && outlier.UpperOutlier {
+			recommendClose = true
+		}
+
+		// If we want to detect lower outliers, and the channel is a
+		// lower outlier, set recommend close to true.
+		if !upperOutlier && outlier.LowerOutlier {
+			recommendClose = true
+		}
+
 		recommendations[chanPoint] = Recommendation{
-			Value:          uptime.Value(chanPoint),
-			RecommendClose: outlier.LowerOutlier,
+			Value:          values.Value(chanPoint),
+			RecommendClose: recommendClose,
 		}
 	}
 
 	return recommendations, nil
 }
 
-// filterChannels filters out channels that are beneath the minimum age and
-// produces a map of channel outpoint strings to rpc channels which contains
-// the channels that are eligible for close recommendation.
-func filterChannels(openChannels []*lnrpc.Channel,
-	minimumAge time.Duration) map[string]*lnrpc.Channel {
+// filterChannels filters out channels that are beneath the minimum age, or
+// are private and returns a set of channels that are eligible for close
+// recommendations.
+func filterChannels(channelInsights []*insights.ChannelInfo,
+	minimumAge time.Duration) []*insights.ChannelInfo {
 
-	// Create a map which will hold channel point labels to uptime
-	// percentage.
-	channels := make(map[string]*lnrpc.Channel)
+	filteredChannels := make(
+		[]*insights.ChannelInfo, 0, len(channelInsights),
+	)
 
-	for _, channel := range openChannels {
-		if channel.Lifetime < int64(minimumAge.Seconds()) {
-			log.Tracef("Channel: %v has not been monitored for "+
-				"long enough, excluding it from consideration",
-				channel.ChannelPoint)
+	for _, channel := range channelInsights {
+		if channel.MonitoredFor < minimumAge {
+			log.Tracef("Channel: %v has not been "+
+				"monitored for long enough, excluding it "+
+				"from consideration", channel.ChannelPoint)
+
 			continue
 		}
 
-		channels[channel.ChannelPoint] = channel
+		if channel.Private {
+			log.Tracef("Channel: %v is private, excluding "+
+				"it from consideration", channel.ChannelPoint)
+
+			continue
+		}
+
+		filteredChannels = append(filteredChannels, channel)
 	}
 
 	log.Debugf("considering: %v channels for close out of %v",
-		len(channels), len(openChannels))
+		len(filteredChannels), len(channelInsights))
 
-	return channels
+	return filteredChannels
 }
 
 // getUptimeDataset takes a set of channels that are eligible for close and
 // produces an uptime dataset.
 func getUptimeDataset(
-	eligibleChannels map[string]*lnrpc.Channel) dataset.Dataset {
+	eligibleChannels []*insights.ChannelInfo) dataset.Dataset {
 
 	// Create a map which will hold channel point string label to uptime
-	// percentage.
-	var channels = make(map[string]float64)
+	// ratio.
+	var channels = make(map[string]float64, len(eligibleChannels))
 
-	for outpoint, channel := range eligibleChannels {
-		// Calculate the uptime percentage for the channel and add it
+	for _, channel := range eligibleChannels {
+		// Calculate the uptime ratio for the channel and add it
 		// to the channel -> uptime map.
-		uptimePercentage := float64(channel.Uptime) / float64(channel.Lifetime)
-		channels[outpoint] = uptimePercentage
+		uptimeRatio := float64(channel.Uptime) /
+			float64(channel.MonitoredFor)
 
-		log.Tracef("channel: %v has uptime percentage: %v",
-			outpoint, uptimePercentage)
+		channels[channel.ChannelPoint] = uptimeRatio
 	}
 
 	// Create a dataset for the uptime values we have collected.
 	return dataset.New(channels)
+}
+
+// getConfirmationScaledDataset returns a dataset that scales a value by the
+// number of confirmations its funding transaction has. It takes a function
+// which gets the relevant value from the channel insight as input.
+func getConfirmationScaledDataset(getValue perConfirmationValue,
+	eligibleChannels []*insights.ChannelInfo) dataset.Dataset {
+
+	// Create a map which will hold channel point string label to revenue
+	// per block that we have had revenue committed for.
+	var channels = make(map[string]float64, len(eligibleChannels))
+
+	for _, channel := range eligibleChannels {
+		// Channels cannot have zero confirmations because we are
+		// dealing with open (ie confirmed) channels, so we can
+		// get the value and scale it by our confirmation total.
+		valuePerConfirmation :=
+			getValue(channel) /
+				float64(channel.Confirmations)
+
+		channels[channel.ChannelPoint] = valuePerConfirmation
+	}
+
+	return channels
+}
+
+// perConfirmationValue is a function which gets a value from a channel insight
+// that needs to be scaled by its number of confirmations.
+type perConfirmationValue func(channel *insights.ChannelInfo) float64
+
+// revenueValue gets total revenue for a channel.
+func revenueValue(channel *insights.ChannelInfo) float64 {
+	return float64(channel.FeesEarned)
+}
+
+// incomingVolumeValue gets total incoming volume for a channel.
+func incomingVolumeValue(channel *insights.ChannelInfo) float64 {
+	return float64(channel.VolumeIncoming)
+}
+
+// outgoingVolumeValue gets total outgoing volume for a channel.
+func outgoingVolumeValue(channel *insights.ChannelInfo) float64 {
+	return float64(channel.VolumeOutgoing)
+}
+
+// totalVolumeValue gets total volume for a channel.
+func totalVolumeValue(channel *insights.ChannelInfo) float64 {
+	return float64(channel.VolumeIncoming + channel.VolumeOutgoing)
 }

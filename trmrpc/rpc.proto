@@ -5,18 +5,44 @@ import "google/api/annotations.proto";
 package trmrpc;
 
 service TerminatorServer {
-    rpc CloseRecommendations (CloseRecommendationsRequest) returns (CloseRecommendationsResponse);
+    rpc OutlierRecommendations (OutlierRecommendationsRequest) returns (CloseRecommendationsResponse);
+    rpc ThresholdRecommendations (ThresholdRecommendationsRequest) returns (CloseRecommendationsResponse);
     rpc RevenueReport (RevenueReportRequest) returns (RevenueReportResponse);
     rpc ChannelInsights (ChannelInsightsRequest) returns (ChannelInsightsResponse);
 }
 
-message CloseRecommendationsRequest {
+message CloseRecommendationRequest {
     /*
     The minimum amount of time in seconds that a channel should have been
     monitored by lnd to be eligible for close. This value is in place to
     protect against closing of newer channels.
     */
     int64 minimum_monitored = 1;
+
+    enum Metric{
+        UNKNOWN = 0;
+        UPTIME = 1;
+        REVENUE = 2;
+        INCOMING_VOLUME = 3;
+        OUTGOING_VOLUME = 4;
+        TOTAL_VOLUME = 5;
+    }
+
+    /*
+    The data point base close recommendations on. Available options are:
+    Uptime: ratio of channel peer's uptime to the period they have been
+    monitored to.
+    Revenue: the revenue that the channel has produced per block that its
+    funding transaction has been confirmed for.
+    */
+    Metric metric = 2;
+}
+
+message OutlierRecommendationsRequest {
+    /*
+    The parameters that are common to all close recommendations.
+    */
+    CloseRecommendationRequest rec_request = 1;
 
     /*
     The number of inter-quartile ranges a value needs to be beneath the lower
@@ -26,21 +52,43 @@ message CloseRecommendationsRequest {
     aggressive recommendations and 3 for conservative recommendations.
     */
     float outlier_multiplier = 2;
+}
+
+message ThresholdRecommendationsRequest {
+    /*
+    The parameters that are common to all close recommendations.
+    */
+    CloseRecommendationRequest rec_request = 1;
 
     /*
-    Threshold contains the threshold value that is used to recommend channels
-    for closure.
-    */
-    oneof threshold{
-        /*
-        The threshold percentage uptime over observed lifetime beneath which
-        channels will be recommended for closure.
-        */
-        float uptime_threshold = 3;
-    }
-  }
+    The threshold that recommendations will be calculated based on.
+    For uptime: ratio of uptime to observed lifetime beneath which channels
+    will be recommended for closure.
 
-message CloseRecommendationsResponse{
+    For revenue: revenue per block that capital has been committed to the
+    channel beneath which channels will be recommended for closure. This
+    value is provided per block so that channels that have been open for
+    different periods of time can be compared.
+
+    For incoming volume: The incoming volume per block that capital has
+    been committed to the channel beneath which channels will be recommended
+    for closure. This value is provided per block so that channels that have
+    been open for different periods of time can be compared.
+
+    For outgoing volume: The outgoing volume per block that capital has been
+    committed to the channel beneath which channels will be recommended for
+    closure. This value is provided per block so that channels that have been
+    open for different periods of time can be compared.
+
+    For total volume: The total volume per block that capital has been
+    committed to the channel beneath which channels will be recommended for
+    closure. This value is provided per block so that channels that have been
+    open for different periods of time can be compared.
+    */
+    float threshold_value = 2;
+}
+
+message CloseRecommendationsResponse {
     /*
     The total number of channels, before filtering out channels that are
     not eligible for close recommendations.
@@ -53,25 +101,15 @@ message CloseRecommendationsResponse{
     int32 considered_channels = 2;
 
     /*
-    A map of channels to close recommendations, based out whether they are
-    outliers in the uptime dataset. The absence of a channel in this set
-    implies that it was not considered for close because it did not meet
-    the criteria for close (it is private, or has not been monitored for
-    long enough to make a decision).
+    A set of channel close recommendations. The absence of a channel in this
+    set implies that it was not considered for close because it did not meet
+    the criteria for close recommendations (it is private, or has not been
+    monitored for long enough).
     */
-    repeated Recommendation outlier_recommendations = 3;
-
-    /*
-    A set of channel close recommendations, based out whether they are
-    beneath the threshold provided in the request. The absence of a channel
-    in this set implies that it was not considered for close because it
-    did not meet the criteria for close (it is private, or has not been
-    monitored for long enough to make a decision).
-    */
-    repeated Recommendation threshold_recommendations = 4;
+    repeated Recommendation recommendations = 3;
 }
 
-message Recommendation{
+message Recommendation {
     /*
     The channel point [funding txid: outpoint] of the channel being considered
     for close.
@@ -115,7 +153,7 @@ message RevenueReportResponse {
     repeated RevenueReport reports = 1;
 }
 
-message RevenueReport{
+message RevenueReport {
     /*
     Target channel is the channel that the report is generated for; incoming
     fields in the report mean that this channel was the incoming channel,

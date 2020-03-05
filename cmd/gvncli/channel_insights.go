@@ -65,7 +65,7 @@ func queryChannelInsights(ctx *cli.Context) error {
 
 		insight.VolumePerConfirmation =
 			insight.IncomingVolumePerConfirmation +
-				confirmations
+				insight.OutgoingVolumePerConfirmation
 
 		insights[i] = insight
 	}

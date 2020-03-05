@@ -4,7 +4,7 @@ package governator
 import (
 	"fmt"
 
-	"github.com/lightninglabs/governator/trmrpc"
+	"github.com/lightninglabs/governator/gvnrpc"
 	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/signal"
 )
@@ -30,9 +30,9 @@ func Main() error {
 			err)
 	}
 
-	// Instantiate the terminator gRPC server.
-	server := trmrpc.NewRPCServer(
-		&trmrpc.Config{
+	// Instantiate the governator gRPC server.
+	server := gvnrpc.NewRPCServer(
+		&gvnrpc.Config{
 			LightningClient: client,
 			RPCListen:       config.RPCListen,
 		},

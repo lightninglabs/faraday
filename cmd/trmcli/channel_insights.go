@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"github.com/lightninglabs/governator/trmrpc"
+	"github.com/lightninglabs/governator/gvnrpc"
 	"github.com/urfave/cli"
 )
 
@@ -18,7 +18,7 @@ var channelInsightsCommand = cli.Command{
 // insightsResp is used to display additional information that is calculated
 // from the channel insight in the cli response.
 type insightsResp struct {
-	*trmrpc.ChannelInsight
+	*gvnrpc.ChannelInsight
 	UptimeRatio                   float64 `json:"uptime_ratio"`
 	RevenuePerConfirmation        float64 `json:"revenue_per_conf_msat"`
 	VolumePerConfirmation         float64 `json:"volume_per_conf_msat"`
@@ -32,7 +32,7 @@ func queryChannelInsights(ctx *cli.Context) error {
 
 	rpcCtx := context.Background()
 	resp, err := client.ChannelInsights(
-		rpcCtx, &trmrpc.ChannelInsightsRequest{},
+		rpcCtx, &gvnrpc.ChannelInsightsRequest{},
 	)
 	if err != nil {
 		return err

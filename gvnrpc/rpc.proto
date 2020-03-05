@@ -2,9 +2,9 @@ syntax = "proto3";
 
 import "google/api/annotations.proto";
 
-package trmrpc;
+package gvnrpc;
 
-service TerminatorServer {
+service GovernatorServer {
     rpc OutlierRecommendations (OutlierRecommendationsRequest) returns (CloseRecommendationsResponse);
     rpc ThresholdRecommendations (ThresholdRecommendationsRequest) returns (CloseRecommendationsResponse);
     rpc RevenueReport (RevenueReportRequest) returns (RevenueReportResponse);

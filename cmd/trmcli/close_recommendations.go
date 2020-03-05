@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lightninglabs/governator/trmrpc"
+	"github.com/lightninglabs/governator/gvnrpc"
 	"github.com/urfave/cli"
 )
 
@@ -110,8 +110,8 @@ func queryThresholdRecommendations(ctx *cli.Context) error {
 
 	// Set monitored value from cli values, this value will always be
 	// non-zero because the flag has a default.
-	req := &trmrpc.ThresholdRecommendationsRequest{
-		RecRequest: &trmrpc.CloseRecommendationRequest{
+	req := &gvnrpc.ThresholdRecommendationsRequest{
+		RecRequest: &gvnrpc.CloseRecommendationRequest{
 			MinimumMonitored: ctx.Int64("min_monitored"),
 		},
 	}
@@ -120,23 +120,23 @@ func queryThresholdRecommendations(ctx *cli.Context) error {
 	switch {
 	case ctx.IsSet("uptime"):
 		req.ThresholdValue = float32(ctx.Float64("uptime"))
-		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_UPTIME
+		req.RecRequest.Metric = gvnrpc.CloseRecommendationRequest_UPTIME
 
 	case ctx.IsSet("revenue"):
 		req.ThresholdValue = float32(ctx.Float64("revenue"))
-		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_REVENUE
+		req.RecRequest.Metric = gvnrpc.CloseRecommendationRequest_REVENUE
 
 	case ctx.IsSet("incoming"):
 		req.ThresholdValue = float32(ctx.Float64("incoming"))
-		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_INCOMING_VOLUME
+		req.RecRequest.Metric = gvnrpc.CloseRecommendationRequest_INCOMING_VOLUME
 
 	case ctx.IsSet("outgoing"):
 		req.ThresholdValue = float32(ctx.Float64("outgoing"))
-		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_OUTGOING_VOLUME
+		req.RecRequest.Metric = gvnrpc.CloseRecommendationRequest_OUTGOING_VOLUME
 
 	case ctx.IsSet("volume"):
 		req.ThresholdValue = float32(ctx.Float64("volume"))
-		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_TOTAL_VOLUME
+		req.RecRequest.Metric = gvnrpc.CloseRecommendationRequest_TOTAL_VOLUME
 
 	default:
 		return fmt.Errorf("threshold required")
@@ -170,8 +170,8 @@ func queryOutlierRecommendations(ctx *cli.Context) error {
 	// outlier multiplier will be overwritten if the user provided it, and
 	// the monitored value will always be non-zero because the flag has a
 	// default value.
-	req := &trmrpc.OutlierRecommendationsRequest{
-		RecRequest: &trmrpc.CloseRecommendationRequest{
+	req := &gvnrpc.OutlierRecommendationsRequest{
+		RecRequest: &gvnrpc.CloseRecommendationRequest{
 			MinimumMonitored: ctx.Int64("min_monitored"),
 		},
 		OutlierMultiplier: float32(defaultOutlierMultiplier),
@@ -185,19 +185,19 @@ func queryOutlierRecommendations(ctx *cli.Context) error {
 	// Set metric based on uptime or revenue flags.
 	switch {
 	case ctx.IsSet("uptime"):
-		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_UPTIME
+		req.RecRequest.Metric = gvnrpc.CloseRecommendationRequest_UPTIME
 
 	case ctx.IsSet("revenue"):
-		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_REVENUE
+		req.RecRequest.Metric = gvnrpc.CloseRecommendationRequest_REVENUE
 
 	case ctx.IsSet("incoming_volume"):
-		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_INCOMING_VOLUME
+		req.RecRequest.Metric = gvnrpc.CloseRecommendationRequest_INCOMING_VOLUME
 
 	case ctx.IsSet("outgoing_volume"):
-		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_OUTGOING_VOLUME
+		req.RecRequest.Metric = gvnrpc.CloseRecommendationRequest_OUTGOING_VOLUME
 
 	case ctx.IsSet("volume"):
-		req.RecRequest.Metric = trmrpc.CloseRecommendationRequest_TOTAL_VOLUME
+		req.RecRequest.Metric = gvnrpc.CloseRecommendationRequest_TOTAL_VOLUME
 
 	default:
 		return fmt.Errorf("uptime, revenue or volume realted flag " +

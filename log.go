@@ -3,9 +3,9 @@ package governator
 import (
 	"github.com/btcsuite/btclog"
 	"github.com/lightninglabs/governator/dataset"
+	"github.com/lightninglabs/governator/gvnrpc"
 	"github.com/lightninglabs/governator/recommend"
 	"github.com/lightninglabs/governator/revenue"
-	"github.com/lightninglabs/governator/trmrpc"
 	"github.com/lightningnetwork/lnd/build"
 )
 
@@ -26,7 +26,7 @@ func init() {
 	setSubLogger(Subsystem, log, nil)
 	addSubLogger(recommend.Subsystem, recommend.UseLogger)
 	addSubLogger(dataset.Subsystem, dataset.UseLogger)
-	addSubLogger(trmrpc.Subsystem, trmrpc.UseLogger)
+	addSubLogger(gvnrpc.Subsystem, gvnrpc.UseLogger)
 	addSubLogger(revenue.Subsystem, revenue.UseLogger)
 }
 

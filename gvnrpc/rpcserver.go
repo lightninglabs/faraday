@@ -1,14 +1,14 @@
-// Package trmrpc contains the proto files, generated code and server logic
-// for the terminator's grpc server which serves requests for close
+// Package gvrpc contains the proto files, generated code and server logic
+// for the governator's grpc server which serves requests for close
 // recommendations.
 //
-// The Terminator server interface is implemented by the RPCServer struct.
+// The Governator server interface is implemented by the RPCServer struct.
 // To keep this file readable, each function implemented by the interface
 // has a file named after the function call which contains rpc parsing
 // code for the request and response. If the call requires extensive
 // additional logic, and unexported function with the same name should
 // be created in this file as well.
-package trmrpc
+package gvnrpc
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// RPCServer implements the terminator service, serving requests over grpc.
+// RPCServer implements the governator service, serving requests over grpc.
 type RPCServer struct {
 	// To be used atomically.
 	started int32
@@ -103,7 +103,7 @@ func (s *RPCServer) Start() error {
 	}
 	s.rpcListener = grpcListener
 
-	RegisterTerminatorServerServer(s.grpcServer, s)
+	RegisterGovernatorServerServer(s.grpcServer, s)
 
 	s.wg.Add(1)
 	go func() {

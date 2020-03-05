@@ -91,7 +91,7 @@ goveralls: $(GOVERALLS_BIN)
 
 rpc:
 	@$(call print, "Compiling protos.")
-	cd ./trmrpc; ./gen_protos.sh
+	cd ./gvnrpc; ./gen_protos.sh
 
 travis-race: lint unit-race
 

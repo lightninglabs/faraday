@@ -1,4 +1,4 @@
-package trmrpc
+package gvnrpc
 
 import (
 	"github.com/btcsuite/btclog"

@@ -5,8 +5,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/lightninglabs/terminator/insights"
-	"github.com/lightninglabs/terminator/recommend"
+	"github.com/lightninglabs/governator/insights"
+	"github.com/lightninglabs/governator/recommend"
 )
 
 // parseRecommendationRequest parses a close recommendation request and

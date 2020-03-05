@@ -1,5 +1,5 @@
-PKG := github.com/lightninglabs/terminator
-ESCPKG := github.com\/lightninglabs\/terminator
+PKG := github.com/lightninglabs/governator
+ESCPKG := github.com\/lightninglabs\/governator
 
 LINT_PKG := github.com/golangci/golangci-lint/cmd/golangci-lint
 GOVERALLS_PKG := github.com/mattn/goveralls
@@ -56,13 +56,13 @@ $(GOACC_BIN):
 # ============
 
 build:
-	@$(call print, "Building terminator.")
-	$(GOBUILD) $(PKG)/cmd/terminator
+	@$(call print, "Building governator.")
+	$(GOBUILD) $(PKG)/cmd/governator
 	$(GOBUILD) $(PKG)/cmd/trmcli
 
 install:
-	@$(call print, "Installing terminator.")
-	$(GOINSTALL) $(PKG)/cmd/terminator
+	@$(call print, "Installing governator.")
+	$(GOINSTALL) $(PKG)/cmd/governator
 	$(GOINSTALL) $(PKG)/cmd/trmcli
 
 scratch: build
@@ -126,6 +126,6 @@ list:
 		sort
 clean:
 	@$(call print, "Cleaning source.$(NC)")
-	$(RM) ./terminator
+	$(RM) ./governator
 	$(RM) ./trmcli
 	$(RM) coverage.txt

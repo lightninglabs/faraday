@@ -8,9 +8,9 @@ import (
 	"net"
 	"os"
 
+	"github.com/lightninglabs/governator/trmrpc"
 	"github.com/lightninglabs/protobuf-hex-display/jsonpb"
 	"github.com/lightninglabs/protobuf-hex-display/proto"
-	"github.com/lightninglabs/terminator/trmrpc"
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"

@@ -1,16 +1,16 @@
-package terminator
+package governator
 
 import (
 	"github.com/btcsuite/btclog"
-	"github.com/lightninglabs/terminator/dataset"
-	"github.com/lightninglabs/terminator/recommend"
-	"github.com/lightninglabs/terminator/revenue"
-	"github.com/lightninglabs/terminator/trmrpc"
+	"github.com/lightninglabs/governator/dataset"
+	"github.com/lightninglabs/governator/recommend"
+	"github.com/lightninglabs/governator/revenue"
+	"github.com/lightninglabs/governator/trmrpc"
 	"github.com/lightningnetwork/lnd/build"
 )
 
 // Subsystem defines the logging code for this subsystem.
-const Subsystem = "TERM"
+const Subsystem = "GVRN"
 
 var (
 	logWriter = build.NewRotatingLogWriter()

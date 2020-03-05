@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lightninglabs/terminator/trmrpc"
+	"github.com/lightninglabs/governator/trmrpc"
 	"github.com/urfave/cli"
 )
 

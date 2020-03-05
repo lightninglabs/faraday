@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"github.com/lightninglabs/terminator/trmrpc"
+	"github.com/lightninglabs/governator/trmrpc"
 	"github.com/urfave/cli"
 )
 

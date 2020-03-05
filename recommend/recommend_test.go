@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lightninglabs/terminator/dataset"
-	"github.com/lightninglabs/terminator/insights"
+	"github.com/lightninglabs/governator/dataset"
+	"github.com/lightninglabs/governator/insights"
 )
 
 // TestCloseRecommendations tests CloseRecommendations for error cases where

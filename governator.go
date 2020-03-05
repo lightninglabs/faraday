@@ -1,15 +1,15 @@
-// Package terminator contains the main function for the terminator.
-package terminator
+// Package governator contains the main function for the governator.
+package governator
 
 import (
 	"fmt"
 
+	"github.com/lightninglabs/governator/trmrpc"
 	"github.com/lightninglabs/loop/lndclient"
-	"github.com/lightninglabs/terminator/trmrpc"
 	"github.com/lightningnetwork/lnd/signal"
 )
 
-// Main is the real entry point for terminator. It is required to ensure that
+// Main is the real entry point for governator. It is required to ensure that
 // defers are properly executed when os.Exit() is called.
 func Main() error {
 	config, err := loadConfig()

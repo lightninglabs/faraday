@@ -17,8 +17,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/lightninglabs/terminator/recommend"
-	"github.com/lightninglabs/terminator/revenue"
+	"github.com/lightninglabs/governator/recommend"
+	"github.com/lightninglabs/governator/revenue"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"google.golang.org/grpc"
 )

@@ -13,13 +13,13 @@ var (
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "trmcli"
-	app.Usage = "command line tool for terminator"
+	app.Name = "gvncli"
+	app.Usage = "command line tool for governator"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "rpcserver",
 			Value: defaultRPCHostPort,
-			Usage: "host:port of terminator",
+			Usage: "host:port of governator",
 		},
 	}
 	app.Commands = []cli.Command{

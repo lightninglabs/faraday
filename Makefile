@@ -58,12 +58,12 @@ $(GOACC_BIN):
 build:
 	@$(call print, "Building governator.")
 	$(GOBUILD) $(PKG)/cmd/governator
-	$(GOBUILD) $(PKG)/cmd/trmcli
+	$(GOBUILD) $(PKG)/cmd/gvncli
 
 install:
 	@$(call print, "Installing governator.")
 	$(GOINSTALL) $(PKG)/cmd/governator
-	$(GOINSTALL) $(PKG)/cmd/trmcli
+	$(GOINSTALL) $(PKG)/cmd/gvncli
 
 scratch: build
 
@@ -127,5 +127,5 @@ list:
 clean:
 	@$(call print, "Cleaning source.$(NC)")
 	$(RM) ./governator
-	$(RM) ./trmcli
+	$(RM) ./gvncli
 	$(RM) coverage.txt

@@ -24,7 +24,7 @@ var (
 
 // fatal logs and error and exits.
 func fatal(err error) {
-	_, _ = fmt.Fprintf(os.Stderr, "[trmcli] %v\n", err)
+	_, _ = fmt.Fprintf(os.Stderr, "[gvncli] %v\n", err)
 	os.Exit(1)
 }
 

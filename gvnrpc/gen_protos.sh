@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo "Generating terminator gRPC server protos"
+echo "Generating governator gRPC server protos"
 
 # Generate the protos.
 protoc -I/usr/local/include -I. \

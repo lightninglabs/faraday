@@ -8,9 +8,9 @@ import (
 	"net"
 	"os"
 
+	"github.com/lightninglabs/governator/gvnrpc"
 	"github.com/lightninglabs/protobuf-hex-display/jsonpb"
 	"github.com/lightninglabs/protobuf-hex-display/proto"
-	"github.com/lightninglabs/terminator/trmrpc"
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
@@ -24,7 +24,7 @@ var (
 
 // fatal logs and error and exits.
 func fatal(err error) {
-	_, _ = fmt.Fprintf(os.Stderr, "[trmcli] %v\n", err)
+	_, _ = fmt.Fprintf(os.Stderr, "[gvncli] %v\n", err)
 	os.Exit(1)
 }
 
@@ -57,8 +57,8 @@ func printJSON(resp interface{}) {
 	_, _ = out.WriteTo(os.Stdout)
 }
 
-// getClient returns a terminator client.
-func getClient(ctx *cli.Context) (trmrpc.TerminatorServerClient, func()) {
+// getClient returns a governator client.
+func getClient(ctx *cli.Context) (gvnrpc.GovernatorServerClient, func()) {
 	conn := getClientConn(ctx)
 
 	cleanUp := func() {
@@ -67,7 +67,7 @@ func getClient(ctx *cli.Context) (trmrpc.TerminatorServerClient, func()) {
 		}
 	}
 
-	return trmrpc.NewTerminatorServerClient(conn), cleanUp
+	return gvnrpc.NewGovernatorServerClient(conn), cleanUp
 }
 
 // getClientConn gets a client connection to the address provided by the

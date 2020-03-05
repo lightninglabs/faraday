@@ -1,4 +1,4 @@
-module github.com/lightninglabs/terminator
+module github.com/lightninglabs/governator
 
 require (
 	github.com/btcsuite/btcd v0.20.1-beta

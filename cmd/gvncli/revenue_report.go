@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"github.com/lightninglabs/terminator/trmrpc"
+	"github.com/lightninglabs/governator/gvnrpc"
 	"github.com/urfave/cli"
 )
 
@@ -48,7 +48,7 @@ func queryRevenueReport(ctx *cli.Context) error {
 
 	// Set start and end times from user specified values, defaulting
 	// to zero if they are not set.
-	req := &trmrpc.RevenueReportRequest{
+	req := &gvnrpc.RevenueReportRequest{
 		StartTime: uint64(ctx.Int64("start_time")),
 		EndTime:   uint64(ctx.Int64("end_time")),
 	}

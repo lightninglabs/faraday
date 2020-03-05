@@ -1,10 +1,10 @@
-package trmrpc
+package gvnrpc
 
 import (
 	"context"
 	"time"
 
-	"github.com/lightninglabs/terminator/revenue"
+	"github.com/lightninglabs/governator/revenue"
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
 

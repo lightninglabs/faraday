@@ -1,5 +1,5 @@
-PKG := github.com/lightninglabs/terminator
-ESCPKG := github.com\/lightninglabs\/terminator
+PKG := github.com/lightninglabs/governator
+ESCPKG := github.com\/lightninglabs\/governator
 
 LINT_PKG := github.com/golangci/golangci-lint/cmd/golangci-lint
 GOVERALLS_PKG := github.com/mattn/goveralls
@@ -56,14 +56,14 @@ $(GOACC_BIN):
 # ============
 
 build:
-	@$(call print, "Building terminator.")
-	$(GOBUILD) $(PKG)/cmd/terminator
-	$(GOBUILD) $(PKG)/cmd/trmcli
+	@$(call print, "Building governator.")
+	$(GOBUILD) $(PKG)/cmd/governator
+	$(GOBUILD) $(PKG)/cmd/gvncli
 
 install:
-	@$(call print, "Installing terminator.")
-	$(GOINSTALL) $(PKG)/cmd/terminator
-	$(GOINSTALL) $(PKG)/cmd/trmcli
+	@$(call print, "Installing governator.")
+	$(GOINSTALL) $(PKG)/cmd/governator
+	$(GOINSTALL) $(PKG)/cmd/gvncli
 
 scratch: build
 
@@ -91,7 +91,7 @@ goveralls: $(GOVERALLS_BIN)
 
 rpc:
 	@$(call print, "Compiling protos.")
-	cd ./trmrpc; ./gen_protos.sh
+	cd ./gvnrpc; ./gen_protos.sh
 
 travis-race: lint unit-race
 
@@ -126,6 +126,6 @@ list:
 		sort
 clean:
 	@$(call print, "Cleaning source.$(NC)")
-	$(RM) ./terminator
-	$(RM) ./trmcli
+	$(RM) ./governator
+	$(RM) ./gvncli
 	$(RM) coverage.txt

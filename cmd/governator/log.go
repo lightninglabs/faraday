@@ -2,18 +2,18 @@ package main
 
 import (
 	"github.com/btcsuite/btclog"
-	"github.com/lightninglabs/terminator"
+	"github.com/lightninglabs/governator"
 	"github.com/lightningnetwork/lnd/build"
 )
 
 var (
 	logWriter = build.NewRotatingLogWriter()
-	log       = build.NewSubLogger("TERMD", logWriter.GenSubLogger)
+	log       = build.NewSubLogger("GVNR", logWriter.GenSubLogger)
 )
 
 func init() {
-	setSubLogger("TERMD", log, nil)
-	addSubLogger(terminator.Subsystem, terminator.UseLogger)
+	setSubLogger("GVNR", log, nil)
+	addSubLogger(governator.Subsystem, governator.UseLogger)
 }
 
 // addSubLogger is a helper method to conveniently create and register the

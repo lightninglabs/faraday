@@ -15,7 +15,7 @@ const (
 	defaultNetwork        = "mainnet"
 	defaultMinimumMonitor = time.Hour * 24 * 7 * 4 // four weeks in hours
 	defaultDebugLevel     = "info"
-	defaultRPCListen      = "localhost:8419"
+	defaultRPCListen      = "localhost:8465"
 )
 
 type config struct {

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 
+	"github.com/lightninglabs/governator"
 	"github.com/urfave/cli"
 )
 
@@ -15,6 +16,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "gvncli"
 	app.Usage = "command line tool for governator"
+	app.Version = governator.Version()
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "rpcserver",

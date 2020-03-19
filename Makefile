@@ -10,6 +10,9 @@ GOVERALLS_BIN := $(GO_BIN)/goveralls
 LINT_BIN := $(GO_BIN)/golangci-lint
 GOACC_BIN := $(GO_BIN)/go-acc
 
+COMMIT := $(shell git describe --abbrev=40 --dirty)
+LDFLAGS := -ldflags "-X $(PKG).Commit=$(COMMIT)"
+
 LINT_COMMIT := v1.18.0
 GOACC_COMMIT := ddc355013f90fea78d83d3a6c71f1d37ac07ecd5
 
@@ -57,13 +60,13 @@ $(GOACC_BIN):
 
 build:
 	@$(call print, "Building governator.")
-	$(GOBUILD) $(PKG)/cmd/governator
-	$(GOBUILD) $(PKG)/cmd/gvncli
+	$(GOBUILD) $(LDFLAGS) $(PKG)/cmd/governator
+	$(GOBUILD) $(LDFLAGS) $(PKG)/cmd/gvncli
 
 install:
 	@$(call print, "Installing governator.")
-	$(GOINSTALL) $(PKG)/cmd/governator
-	$(GOINSTALL) $(PKG)/cmd/gvncli
+	$(GOINSTALL) $(LDFLAGS) $(PKG)/cmd/governator
+	$(GOINSTALL) $(LDFLAGS) $(PKG)/cmd/gvncli
 
 scratch: build
 

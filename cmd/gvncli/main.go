@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	defaultRPCPort     = "8419"
+	defaultRPCPort     = "8465"
 	defaultRPCHostPort = "localhost:" + defaultRPCPort
 )
 

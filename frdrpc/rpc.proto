@@ -2,9 +2,9 @@ syntax = "proto3";
 
 import "google/api/annotations.proto";
 
-package gvnrpc;
+package frdrpc;
 
-service GovernatorServer {
+service FaradayServer {
     rpc OutlierRecommendations (OutlierRecommendationsRequest) returns (CloseRecommendationsResponse);
     rpc ThresholdRecommendations (ThresholdRecommendationsRequest) returns (CloseRecommendationsResponse);
     rpc RevenueReport (RevenueReportRequest) returns (RevenueReportResponse);

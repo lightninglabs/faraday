@@ -1,4 +1,4 @@
-package gvnrpc
+package frdrpc
 
 import (
 	"github.com/btcsuite/btclog"

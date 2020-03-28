@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/lightninglabs/governator"
+	"github.com/lightninglabs/faraday"
 	"github.com/urfave/cli"
 )
 
@@ -14,14 +14,14 @@ var (
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "gvncli"
-	app.Usage = "command line tool for governator"
-	app.Version = governator.Version()
+	app.Name = "frcli"
+	app.Usage = "command line tool for faraday"
+	app.Version = faraday.Version()
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "rpcserver",
 			Value: defaultRPCHostPort,
-			Usage: "host:port of governator",
+			Usage: "host:port of faraday",
 		},
 	}
 	app.Commands = []cli.Command{

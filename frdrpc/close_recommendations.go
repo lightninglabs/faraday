@@ -1,12 +1,12 @@
-package gvnrpc
+package frdrpc
 
 import (
 	"context"
 	"sort"
 	"time"
 
-	"github.com/lightninglabs/governator/insights"
-	"github.com/lightninglabs/governator/recommend"
+	"github.com/lightninglabs/faraday/insights"
+	"github.com/lightninglabs/faraday/recommend"
 )
 
 // parseRecommendationRequest parses a close recommendation request and

@@ -1,11 +1,11 @@
-package gvnrpc
+package frdrpc
 
 import (
 	"context"
 	"time"
 
-	"github.com/lightninglabs/governator/insights"
-	"github.com/lightninglabs/governator/revenue"
+	"github.com/lightninglabs/faraday/insights"
+	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
 

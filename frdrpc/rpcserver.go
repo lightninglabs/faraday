@@ -1,14 +1,13 @@
-// Package gvrpc contains the proto files, generated code and server logic
-// for the governator's grpc server which serves requests for close
-// recommendations.
+// Package frdrpc contains the proto files, generated code and server logic
+// for faraday's grpc server which serves requests for close recommendations.
 //
-// The Governator server interface is implemented by the RPCServer struct.
+// The Faraday server interface is implemented by the RPCServer struct.
 // To keep this file readable, each function implemented by the interface
 // has a file named after the function call which contains rpc parsing
 // code for the request and response. If the call requires extensive
 // additional logic, and unexported function with the same name should
 // be created in this file as well.
-package gvnrpc
+package frdrpc
 
 import (
 	"context"
@@ -17,13 +16,13 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/lightninglabs/governator/recommend"
-	"github.com/lightninglabs/governator/revenue"
+	"github.com/lightninglabs/faraday/recommend"
+	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"google.golang.org/grpc"
 )
 
-// RPCServer implements the governator service, serving requests over grpc.
+// RPCServer implements the faraday service, serving requests over grpc.
 type RPCServer struct {
 	// To be used atomically.
 	started int32
@@ -103,7 +102,7 @@ func (s *RPCServer) Start() error {
 	}
 	s.rpcListener = grpcListener
 
-	RegisterGovernatorServerServer(s.grpcServer, s)
+	RegisterFaradayServerServer(s.grpcServer, s)
 
 	s.wg.Add(1)
 	go func() {

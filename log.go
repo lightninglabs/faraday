@@ -10,7 +10,7 @@ import (
 )
 
 // Subsystem defines the logging code for this subsystem.
-const Subsystem = "GVRN"
+const Subsystem = "FRDY"
 
 var (
 	logWriter = build.NewRotatingLogWriter()

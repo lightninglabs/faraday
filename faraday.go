@@ -50,7 +50,5 @@ func Main() error {
 		return err
 	}
 
-	log.Info("That's all for now. I will be back.")
-
 	return nil
 }

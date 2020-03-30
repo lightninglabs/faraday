@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/btcsuite/btclog"
-	"github.com/lightninglabs/governator"
+	"github.com/lightninglabs/faraday"
 	"github.com/lightningnetwork/lnd/build"
 )
 
@@ -13,7 +13,7 @@ var (
 
 func init() {
 	setSubLogger("GVNR", log, nil)
-	addSubLogger(governator.Subsystem, governator.UseLogger)
+	addSubLogger(faraday.Subsystem, faraday.UseLogger)
 }
 
 // addSubLogger is a helper method to conveniently create and register the

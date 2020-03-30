@@ -1,4 +1,4 @@
-package governator
+package faraday
 
 import (
 	"fmt"
@@ -28,7 +28,7 @@ type config struct {
 	// MacaroonFile is the file name of the macaroon to use.
 	MacaroonFile string `long:"macaroonfile" description:"Macaroon file to use."`
 
-	// TLSCertPath is the path to the tls cert that governator should use.
+	// TLSCertPath is the path to the tls cert that faraday should use.
 	TLSCertPath string `long:"tlscertpath" description:"Path to TLS cert"`
 
 	// TestNet is set to true when running on testnet.
@@ -48,9 +48,9 @@ type config struct {
 
 	// DebugLevel is a string defining the log level for the service either
 	// for all subsystems the same or individual level by subsystem.
-	DebugLevel string `long:"debuglevel" description:"Debug level for governator and its subsystems."`
+	DebugLevel string `long:"debuglevel" description:"Debug level for faraday and its subsystems."`
 
-	// RPCListen is the listen address for the governator rpc server.
+	// RPCListen is the listen address for the faraday rpc server.
 	RPCListen string `long:"rpclisten" description:"Address to listen on for gRPC clients"`
 }
 

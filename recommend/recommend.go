@@ -18,8 +18,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/lightninglabs/governator/dataset"
-	"github.com/lightninglabs/governator/insights"
+	"github.com/lightninglabs/faraday/dataset"
+	"github.com/lightninglabs/faraday/insights"
 )
 
 var (

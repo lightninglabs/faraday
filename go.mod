@@ -1,4 +1,4 @@
-module github.com/lightninglabs/governator
+module github.com/lightninglabs/faraday
 
 require (
 	github.com/btcsuite/btcd v0.20.1-beta

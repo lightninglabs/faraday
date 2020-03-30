@@ -1,5 +1,5 @@
-PKG := github.com/lightninglabs/governator
-ESCPKG := github.com\/lightninglabs\/governator
+PKG := github.com/lightninglabs/faraday
+ESCPKG := github.com\/lightninglabs\/faraday
 
 LINT_PKG := github.com/golangci/golangci-lint/cmd/golangci-lint
 GOVERALLS_PKG := github.com/mattn/goveralls
@@ -59,14 +59,14 @@ $(GOACC_BIN):
 # ============
 
 build:
-	@$(call print, "Building governator.")
-	$(GOBUILD) $(LDFLAGS) $(PKG)/cmd/governator
-	$(GOBUILD) $(LDFLAGS) $(PKG)/cmd/gvncli
+	@$(call print, "Building faraday.")
+	$(GOBUILD) $(LDFLAGS) $(PKG)/cmd/faraday
+	$(GOBUILD) $(LDFLAGS) $(PKG)/cmd/frcli
 
 install:
-	@$(call print, "Installing governator.")
-	$(GOINSTALL) $(LDFLAGS) $(PKG)/cmd/governator
-	$(GOINSTALL) $(LDFLAGS) $(PKG)/cmd/gvncli
+	@$(call print, "Installing faraday.")
+	$(GOINSTALL) $(LDFLAGS) $(PKG)/cmd/faraday
+	$(GOINSTALL) $(LDFLAGS) $(PKG)/cmd/frcli
 
 scratch: build
 
@@ -94,7 +94,7 @@ goveralls: $(GOVERALLS_BIN)
 
 rpc:
 	@$(call print, "Compiling protos.")
-	cd ./gvnrpc; ./gen_protos.sh
+	cd ./frdrpc; ./gen_protos.sh
 
 travis-race: lint unit-race
 
@@ -123,12 +123,12 @@ lint: $(LINT_BIN)
 
 list:
 	@$(call print, "Listing commands.")
-	@$(MAKE) -qp | \
+	@$(MAKE)  -qp | \
 		awk -F':' '/^[a-zA-Z0-9][^$$#\/\t=]*:([^=]|$$)/ {split($$1,A,/ /);for(i in A)print A[i]}' | \
 		grep -v Makefile | \
 		sort
 clean:
 	@$(call print, "Cleaning source.$(NC)")
-	$(RM) ./governator
-	$(RM) ./gvncli
+	$(RM) ./faraday
+	$(RM) ./frcli
 	$(RM) coverage.txt

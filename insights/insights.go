@@ -3,7 +3,7 @@ package insights
 import (
 	"time"
 
-	"github.com/lightninglabs/governator/revenue"
+	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
 )

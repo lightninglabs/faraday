@@ -3,7 +3,7 @@
 // Heavily inspired by https://github.com/btcsuite/btcd/blob/master/version.go
 // Copyright (C) 2015-2020 The Lightning Network Developers
 
-package governator
+package faraday
 
 import (
 	"bytes"

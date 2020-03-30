@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/lightninglabs/governator/gvnrpc"
+	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/protobuf-hex-display/jsonpb"
 	"github.com/lightninglabs/protobuf-hex-display/proto"
 	"github.com/lightningnetwork/lnd/lncfg"
@@ -24,7 +24,7 @@ var (
 
 // fatal logs and error and exits.
 func fatal(err error) {
-	_, _ = fmt.Fprintf(os.Stderr, "[gvncli] %v\n", err)
+	_, _ = fmt.Fprintf(os.Stderr, "[frcli] %v\n", err)
 	os.Exit(1)
 }
 
@@ -57,8 +57,8 @@ func printJSON(resp interface{}) {
 	_, _ = out.WriteTo(os.Stdout)
 }
 
-// getClient returns a governator client.
-func getClient(ctx *cli.Context) (gvnrpc.GovernatorServerClient, func()) {
+// getClient returns a faraday client.
+func getClient(ctx *cli.Context) (frdrpc.FaradayServerClient, func()) {
 	conn := getClientConn(ctx)
 
 	cleanUp := func() {
@@ -67,7 +67,7 @@ func getClient(ctx *cli.Context) (gvnrpc.GovernatorServerClient, func()) {
 		}
 	}
 
-	return gvnrpc.NewGovernatorServerClient(conn), cleanUp
+	return frdrpc.NewFaradayServerClient(conn), cleanUp
 }
 
 // getClientConn gets a client connection to the address provided by the

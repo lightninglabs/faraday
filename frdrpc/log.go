@@ -1,4 +1,4 @@
-package gvnrpc
+package frdrpc
 
 import (
 	"github.com/btcsuite/btclog"
@@ -6,7 +6,7 @@ import (
 )
 
 // Subsystem defines the logging code for this subsystem.
-const Subsystem = "TRPC"
+const Subsystem = "FRPC"
 
 // log is a logger that is initialized with no output filters. This
 // means the package will not perform any logging by default until the

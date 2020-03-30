@@ -1,16 +1,16 @@
-package governator
+package faraday
 
 import (
 	"github.com/btcsuite/btclog"
-	"github.com/lightninglabs/governator/dataset"
-	"github.com/lightninglabs/governator/gvnrpc"
-	"github.com/lightninglabs/governator/recommend"
-	"github.com/lightninglabs/governator/revenue"
+	"github.com/lightninglabs/faraday/dataset"
+	"github.com/lightninglabs/faraday/frdrpc"
+	"github.com/lightninglabs/faraday/recommend"
+	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightningnetwork/lnd/build"
 )
 
 // Subsystem defines the logging code for this subsystem.
-const Subsystem = "GVRN"
+const Subsystem = "FRDY"
 
 var (
 	logWriter = build.NewRotatingLogWriter()
@@ -26,7 +26,7 @@ func init() {
 	setSubLogger(Subsystem, log, nil)
 	addSubLogger(recommend.Subsystem, recommend.UseLogger)
 	addSubLogger(dataset.Subsystem, dataset.UseLogger)
-	addSubLogger(gvnrpc.Subsystem, gvnrpc.UseLogger)
+	addSubLogger(frdrpc.Subsystem, frdrpc.UseLogger)
 	addSubLogger(revenue.Subsystem, revenue.UseLogger)
 }
 

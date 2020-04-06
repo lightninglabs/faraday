@@ -13,13 +13,34 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"sync"
 	"sync/atomic"
 
+	proxy "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"google.golang.org/grpc"
+)
+
+var (
+	// customMarshalerOption is the configuratino we use for the JSON
+	// marshaler of the REST proxy. The default JSON marshaler only sets
+	// OrigName to true, which instructs it to use the same field names as
+	// specified in the proto file and not switch to camel case. What we
+	// also want is that the marshaler prints all values, even if they are
+	// falsey.
+	customMarshalerOption = proxy.WithMarshalerOption(
+		proxy.MIMEWildcard, &proxy.JSONPb{
+			OrigName:     true,
+			EmitDefaults: true,
+		},
+	)
+
+	// maxMsgRecvSize is the largest message our REST proxy will receive. We
+	// set this to 200MiB atm.
+	maxMsgRecvSize = grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 200)
 )
 
 // RPCServer implements the faraday service, serving requests over grpc.
@@ -37,10 +58,14 @@ type RPCServer struct {
 	// register itself with and accept client requests from.
 	grpcServer *grpc.Server
 
-	// rpcListener is the to use when starting the grpc server.
+	// rpcListener is the listener to use when starting the gRPC server.
 	rpcListener net.Listener
 
-	wg sync.WaitGroup
+	// restServer is the REST proxy server.
+	restServer *http.Server
+
+	restCancel func()
+	wg         sync.WaitGroup
 }
 
 // Config provides closures and settings required to run the rpc server.
@@ -48,9 +73,15 @@ type Config struct {
 	// LightningClient is a client which can be used to query lnd.
 	LightningClient lnrpc.LightningClient
 
-	// RPCListen is the address:port that the rpc server should listen
-	// on.
+	// RPCListen is the address:port that the gRPC server should listen on.
 	RPCListen string
+
+	// RESTListen is the address:port that the REST server should listen on.
+	RESTListen string
+
+	// CORSOrigin specifies the CORS header that should be set on REST
+	// responses. No header is added if the value is empty.
+	CORSOrigin string
 }
 
 // wrapListChannels wraps the listchannels call to lnd, with a publicOnly bool
@@ -101,8 +132,56 @@ func (s *RPCServer) Start() error {
 
 	}
 	s.rpcListener = grpcListener
+	log.Infof("gRPC server listening on %s", grpcListener.Addr())
 
 	RegisterFaradayServerServer(s.grpcServer, s)
+
+	// We'll also create and start an accompanying proxy to serve clients
+	// through REST. An empty address indicates REST is disabled.
+	if s.cfg.RESTListen != "" {
+		log.Infof("Starting REST proxy listener ")
+		restListener, err := net.Listen("tcp", s.cfg.RESTListen)
+		if err != nil {
+			return fmt.Errorf("REST server unable to listen on %v",
+				s.cfg.RESTListen)
+
+		}
+		log.Infof("REST server listening on %s", restListener.Addr())
+
+		// We'll dial into the local gRPC server so we need to set some
+		// gRPC dial options and CORS settings.
+		var restCtx context.Context
+		restCtx, s.restCancel = context.WithCancel(context.Background())
+		mux := proxy.NewServeMux(customMarshalerOption)
+		var restHandler http.Handler = mux
+		if s.cfg.CORSOrigin != "" {
+			restHandler = allowCORS(restHandler, s.cfg.CORSOrigin)
+		}
+		proxyOpts := []grpc.DialOption{
+			grpc.WithInsecure(),
+			grpc.WithDefaultCallOptions(maxMsgRecvSize),
+		}
+		err = RegisterFaradayServerHandlerFromEndpoint(
+			restCtx, mux, s.cfg.RPCListen, proxyOpts,
+		)
+		if err != nil {
+			return err
+		}
+		s.restServer = &http.Server{Handler: restHandler}
+
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			err := s.restServer.Serve(restListener)
+			// ErrServerClosed is always returned when the proxy is
+			// shut down, so don't log it.
+			if err != nil && err != http.ErrServerClosed {
+				log.Error(err)
+			}
+		}()
+	} else {
+		log.Infof("REST proxy disabled")
+	}
 
 	s.wg.Add(1)
 	go func() {
@@ -119,6 +198,14 @@ func (s *RPCServer) Start() error {
 func (s *RPCServer) Stop() error {
 	if atomic.AddInt32(&s.stopped, 1) != 1 {
 		return nil
+	}
+
+	if s.restServer != nil {
+		s.restCancel()
+		err := s.restServer.Close()
+		if err != nil {
+			log.Errorf("unable to close REST listener: %v", err)
+		}
 	}
 
 	// Stop the grpc server and wait for all go routines to terminate.
@@ -187,4 +274,13 @@ func (s *RPCServer) ChannelInsights(ctx context.Context,
 	}
 
 	return rpcChannelInsightsResponse(insights), nil
+}
+
+// allowCORS wraps the given http.Handler with a function that adds the
+// Access-Control-Allow-Origin header to the response.
+func allowCORS(handler http.Handler, origin string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		handler.ServeHTTP(w, r)
+	})
 }

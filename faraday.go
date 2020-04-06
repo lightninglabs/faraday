@@ -35,6 +35,8 @@ func Main() error {
 		&frdrpc.Config{
 			LightningClient: client,
 			RPCListen:       config.RPCListen,
+			RESTListen:      config.RESTListen,
+			CORSOrigin:      config.CORSOrigin,
 		},
 	)
 

@@ -2,6 +2,9 @@ language: go
 cache:
   directories:
   - $GOCACHE
+  - $GOPATH/src/github.com/grpc-ecosystem
+  - $GOPATH/src/gopkg.in/alecthomas
+  - $GOPATH/src/google.golang.org
 
 go:
   - "1.13.x"
@@ -12,8 +15,13 @@ env:
 
 sudo: required
 
+before_script:
+  - bash ./scripts/install_travis_proto.sh
+
 script:
   - export GO111MODULE=on
+  - make rpc-check
+  - make mod-check
   - make lint unit
 
 after_script:

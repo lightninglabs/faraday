@@ -21,6 +21,7 @@ before_script:
 script:
   - export GO111MODULE=on
   - make rpc-check
+  - make mod-check
   - make lint unit
 
 after_script:

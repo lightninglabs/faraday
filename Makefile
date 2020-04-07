@@ -20,6 +20,7 @@ DEPGET := cd /tmp && GO111MODULE=on go get -v
 GOBUILD := GO111MODULE=on go build -v
 GOINSTALL := GO111MODULE=on go install -v
 GOTEST := GO111MODULE=on go test -v
+GOMOD := GO111MODULE=on go mod
 
 GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 GOLIST := go list -deps $(PKG)/... | grep '$(PKG)'| grep -v '/vendor/'
@@ -116,6 +117,15 @@ fmt:
 lint: $(LINT_BIN)
 	@$(call print, "Linting source.")
 	$(LINT)
+
+mod:
+	@$(call print, "Tidying modules.")
+	$(GOMOD) tidy
+
+mod-check:
+	@$(call print, "Checking modules.")
+	$(GOMOD) tidy
+	if test -n "$$(git status | grep -e "go.mod\|go.sum")"; then echo "Running go mod tidy changes go.mod/go.sum"; git status; git diff; exit 1; fi
 
 rpc:
 	@$(call print, "Compiling protos.")

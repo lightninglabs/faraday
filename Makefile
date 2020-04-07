@@ -121,6 +121,10 @@ rpc:
 	@$(call print, "Compiling protos.")
 	cd ./frdrpc; ./gen_protos.sh
 
+rpc-check: rpc
+	@$(call print, "Verifying protos.")
+	if test -n "$$(git describe --dirty | grep dirty)"; then echo "Protos not properly formatted or not compiled with v3.4.0"; git status; git diff; exit 1; fi
+
 rpc-format:
 	@$(call print, "Formatting protos.")
 	cd ./frdrpc; find . -name "*.proto" | xargs clang-format --style=file -i
@@ -131,6 +135,7 @@ list:
 		awk -F':' '/^[a-zA-Z0-9][^$$#\/\t=]*:([^=]|$$)/ {split($$1,A,/ /);for(i in A)print A[i]}' | \
 		grep -v Makefile | \
 		sort
+
 clean:
 	@$(call print, "Cleaning source.$(NC)")
 	$(RM) ./faraday

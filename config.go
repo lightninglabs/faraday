@@ -51,7 +51,13 @@ type config struct {
 	DebugLevel string `long:"debuglevel" description:"Debug level for faraday and its subsystems."`
 
 	// RPCListen is the listen address for the faraday rpc server.
-	RPCListen string `long:"rpclisten" description:"Address to listen on for gRPC clients"`
+	RPCListen string `long:"rpclisten" description:"Address to listen on for gRPC clients."`
+
+	// RESTListen is the listen address for the faraday REST server.
+	RESTListen string `long:"restlisten" description:"Address to listen on for REST clients. If not specified, no REST listener will be started."`
+
+	// CORSOrigin specifies the CORS header that should be set on REST responses. No header is added if the value is empty.
+	CORSOrigin string `long:"corsorigin" description:"The value to send in the Access-Control-Allow-Origin header. Header will be omitted if empty."`
 }
 
 // loadConfig starts with a skeleton default config, and reads in user provided

@@ -5,10 +5,58 @@ import "google/api/annotations.proto";
 package frdrpc;
 
 service FaradayServer {
-    rpc OutlierRecommendations (OutlierRecommendationsRequest) returns (CloseRecommendationsResponse);
-    rpc ThresholdRecommendations (ThresholdRecommendationsRequest) returns (CloseRecommendationsResponse);
-    rpc RevenueReport (RevenueReportRequest) returns (RevenueReportResponse);
-    rpc ChannelInsights (ChannelInsightsRequest) returns (ChannelInsightsResponse);
+    /** frcli: `outliers`
+    Get close recommendations for currently open channels based on whether it is
+    an outlier.
+
+    Example request:
+    http://localhost:8466/v1/faraday/outliers/REVENUE?rec_request.minimum_monitored=123
+    */
+    rpc OutlierRecommendations (OutlierRecommendationsRequest)
+        returns (CloseRecommendationsResponse) {
+        option (google.api.http) = {
+            get: "/v1/faraday/outliers/{rec_request.metric}"
+        };
+    }
+
+    /** frcli: `threshold`
+    Get close recommendations for currently open channels based whether they are
+    below a set threshold.
+
+    Example request:
+    http://localhost:8466/v1/faraday/threshold/UPTIME?rec_request.minimum_monitored=123
+    */
+    rpc ThresholdRecommendations (ThresholdRecommendationsRequest)
+        returns (CloseRecommendationsResponse) {
+        option (google.api.http) = {
+            get: "/v1/faraday/threshold/{rec_request.metric}"
+        };
+    }
+
+    /** frcli: `revenue`
+    Get a pairwise revenue report for a channel.
+
+    Example request:
+    http://localhost:8466/v1/faraday/revenue
+    */
+    rpc RevenueReport (RevenueReportRequest) returns (RevenueReportResponse) {
+        option (google.api.http) = {
+            get: "/v1/faraday/revenue"
+        };
+    }
+
+    /** frcli: `insights`
+    List currently open channel with routing and uptime information.
+
+    Example request:
+    http://localhost:8466/v1/faraday/insights
+    */
+    rpc ChannelInsights (ChannelInsightsRequest)
+        returns (ChannelInsightsResponse) {
+        option (google.api.http) = {
+            get: "/v1/faraday/insights"
+        };
+    }
 }
 
 message CloseRecommendationRequest {
@@ -19,7 +67,7 @@ message CloseRecommendationRequest {
     */
     int64 minimum_monitored = 1;
 
-    enum Metric{
+    enum Metric {
         UNKNOWN = 0;
         UPTIME = 1;
         REVENUE = 2;

@@ -1,0 +1,364 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "rpc.proto",
+    "version": "version not set"
+  },
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/faraday/insights": {
+      "get": {
+        "summary": "* frcli: `insights`\nList currently open channel with routing and uptime information.",
+        "description": "Example request:\nhttp://localhost:8466/v1/faraday/insights",
+        "operationId": "ChannelInsights",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcChannelInsightsResponse"
+            }
+          }
+        },
+        "tags": [
+          "FaradayServer"
+        ]
+      }
+    },
+    "/v1/faraday/outliers/{rec_request.metric}": {
+      "get": {
+        "summary": "* frcli: `outliers`\nGet close recommendations for currently open channels based on whether it is\nan outlier.",
+        "description": "Example request:\nhttp://localhost:8466/v1/faraday/outliers/REVENUE?rec_request.minimum_monitored=123",
+        "operationId": "OutlierRecommendations",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcCloseRecommendationsResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "rec_request.metric",
+            "description": "The data point base close recommendations on. Available options are:\nUptime: ratio of channel peer's uptime to the period they have been\nmonitored to.\nRevenue: the revenue that the channel has produced per block that its\nfunding transaction has been confirmed for.",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "UPTIME",
+              "REVENUE",
+              "INCOMING_VOLUME",
+              "OUTGOING_VOLUME",
+              "TOTAL_VOLUME"
+            ]
+          },
+          {
+            "name": "rec_request.minimum_monitored",
+            "description": "The minimum amount of time in seconds that a channel should have been\nmonitored by lnd to be eligible for close. This value is in place to\nprotect against closing of newer channels.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "outlier_multiplier",
+            "description": "The number of inter-quartile ranges a value needs to be beneath the lower\nquartile/ above the upper quartile to be considered a lower/upper outlier.\nLower values will be more aggressive in recommending channel closes, and\nupper values will be more conservative. Recommended values are 1.5 for\naggressive recommendations and 3 for conservative recommendations.",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "float"
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
+      }
+    },
+    "/v1/faraday/revenue": {
+      "get": {
+        "summary": "* frcli: `revenue`\nGet a pairwise revenue report for a channel.",
+        "description": "Example request:\nhttp://localhost:8466/v1/faraday/revenue",
+        "operationId": "RevenueReport",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcRevenueReportResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "chan_points",
+            "description": "The funding transaction outpoints for the channels to generate a revenue\nreport for. If this is empty, it will be generated for all open and closed\nchannels. Channel funding points should be expressed with the format\nfundingTxID:outpoint.",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "start_time",
+            "description": "Start time is beginning of the range over which the report will be\ngenerated, expressed as unix epoch offset in seconds.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "end_time",
+            "description": "End time is end of the range over which the report will be\ngenerated, expressed as unix epoch offset in seconds.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
+      }
+    },
+    "/v1/faraday/threshold/{rec_request.metric}": {
+      "get": {
+        "summary": "* frcli: `threshold`\nGet close recommendations for currently open channels based whether they are\nbelow a set threshold.",
+        "description": "Example request:\nhttp://localhost:8466/v1/faraday/threshold/UPTIME?rec_request.minimum_monitored=123",
+        "operationId": "ThresholdRecommendations",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcCloseRecommendationsResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "rec_request.metric",
+            "description": "The data point base close recommendations on. Available options are:\nUptime: ratio of channel peer's uptime to the period they have been\nmonitored to.\nRevenue: the revenue that the channel has produced per block that its\nfunding transaction has been confirmed for.",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "UPTIME",
+              "REVENUE",
+              "INCOMING_VOLUME",
+              "OUTGOING_VOLUME",
+              "TOTAL_VOLUME"
+            ]
+          },
+          {
+            "name": "rec_request.minimum_monitored",
+            "description": "The minimum amount of time in seconds that a channel should have been\nmonitored by lnd to be eligible for close. This value is in place to\nprotect against closing of newer channels.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "threshold_value",
+            "description": "The threshold that recommendations will be calculated based on.\nFor uptime: ratio of uptime to observed lifetime beneath which channels\nwill be recommended for closure.\n\nFor revenue: revenue per block that capital has been committed to the\nchannel beneath which channels will be recommended for closure. This\nvalue is provided per block so that channels that have been open for\ndifferent periods of time can be compared.\n\nFor incoming volume: The incoming volume per block that capital has\nbeen committed to the channel beneath which channels will be recommended\nfor closure. This value is provided per block so that channels that have\nbeen open for different periods of time can be compared.\n\nFor outgoing volume: The outgoing volume per block that capital has been\ncommitted to the channel beneath which channels will be recommended for\nclosure. This value is provided per block so that channels that have been\nopen for different periods of time can be compared.\n\nFor total volume: The total volume per block that capital has been\ncommitted to the channel beneath which channels will be recommended for\nclosure. This value is provided per block so that channels that have been\nopen for different periods of time can be compared.",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "float"
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "CloseRecommendationRequestMetric": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN",
+        "UPTIME",
+        "REVENUE",
+        "INCOMING_VOLUME",
+        "OUTGOING_VOLUME",
+        "TOTAL_VOLUME"
+      ],
+      "default": "UNKNOWN"
+    },
+    "frdrpcChannelInsight": {
+      "type": "object",
+      "properties": {
+        "chan_point": {
+          "type": "string",
+          "description": "The outpoint of the channel's funding transaction."
+        },
+        "monitored_seconds": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The amount of time in seconds that we have monitored the channel peer's\nuptime for."
+        },
+        "uptime_seconds": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The amount of time in seconds that the channel peer has been online over\nthe period it has been monitored for."
+        },
+        "volume_incoming_msat": {
+          "type": "string",
+          "format": "int64",
+          "description": "The volume, in millisatoshis, that has been forwarded with this channel as\nthe incoming channel."
+        },
+        "volume_outgoing_msat": {
+          "type": "string",
+          "format": "int64",
+          "description": "The volume, in millisatoshis, that has been forwarded with this channel as\nthe outgoing channel."
+        },
+        "fees_earned_msat": {
+          "type": "string",
+          "format": "int64",
+          "description": "The total fees earned by this channel for its participation in forwards,\nexpressed in millisatoshis. Note that we attribute fees evenly across\nincoming and outgoing channels."
+        },
+        "confirmations": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The number of confirmations the funding transaction has."
+        },
+        "private": {
+          "type": "boolean",
+          "format": "boolean",
+          "description": "True if the channel is private."
+        }
+      }
+    },
+    "frdrpcChannelInsightsResponse": {
+      "type": "object",
+      "properties": {
+        "channel_insights": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/frdrpcChannelInsight"
+          },
+          "description": "Insights for the set of currently open channels."
+        }
+      }
+    },
+    "frdrpcCloseRecommendationRequest": {
+      "type": "object",
+      "properties": {
+        "minimum_monitored": {
+          "type": "string",
+          "format": "int64",
+          "description": "The minimum amount of time in seconds that a channel should have been\nmonitored by lnd to be eligible for close. This value is in place to\nprotect against closing of newer channels."
+        },
+        "metric": {
+          "$ref": "#/definitions/CloseRecommendationRequestMetric",
+          "description": "The data point base close recommendations on. Available options are:\nUptime: ratio of channel peer's uptime to the period they have been\nmonitored to.\nRevenue: the revenue that the channel has produced per block that its\nfunding transaction has been confirmed for."
+        }
+      }
+    },
+    "frdrpcCloseRecommendationsResponse": {
+      "type": "object",
+      "properties": {
+        "total_channels": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The total number of channels, before filtering out channels that are\nnot eligible for close recommendations."
+        },
+        "considered_channels": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The number of channels that were considered for close recommendations."
+        },
+        "recommendations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/frdrpcRecommendation"
+          },
+          "description": "A set of channel close recommendations. The absence of a channel in this\nset implies that it was not considered for close because it did not meet\nthe criteria for close recommendations (it is private, or has not been\nmonitored for long enough)."
+        }
+      }
+    },
+    "frdrpcPairReport": {
+      "type": "object",
+      "properties": {
+        "amount_outgoing_msat": {
+          "type": "string",
+          "format": "int64",
+          "description": "Amount outgoing msat is the amount in millisatoshis that arrived\non the pair channel to be forwarded onwards by our channel."
+        },
+        "fees_outgoing_msat": {
+          "type": "string",
+          "format": "int64",
+          "description": "Fees outgoing is the amount of fees in millisatoshis that we\nattribute to the channel for its role as the outgoing channel in\nforwards."
+        },
+        "amount_incoming_msat": {
+          "type": "string",
+          "format": "int64",
+          "description": "Amount incoming msat is the amount in millisatoshis that arrived\non our channel to be forwarded onwards by the pair channel."
+        },
+        "fees_incoming_msat": {
+          "type": "string",
+          "format": "int64",
+          "description": "Fees incoming is the amount of fees in millisatoshis that we\nattribute to the channel for its role as the incoming channel in\nforwards."
+        }
+      }
+    },
+    "frdrpcRecommendation": {
+      "type": "object",
+      "properties": {
+        "chan_point": {
+          "type": "string",
+          "description": "The channel point [funding txid: outpoint] of the channel being considered\nfor close."
+        },
+        "value": {
+          "type": "number",
+          "format": "float",
+          "description": "The value of the metric that close recommendations were based on."
+        },
+        "recommend_close": {
+          "type": "boolean",
+          "format": "boolean",
+          "description": "A boolean indicating whether we recommend closing the channel."
+        }
+      }
+    },
+    "frdrpcRevenueReport": {
+      "type": "object",
+      "properties": {
+        "target_channel": {
+          "type": "string",
+          "description": "Target channel is the channel that the report is generated for; incoming\nfields in the report mean that this channel was the incoming channel,\nand the pair as the outgoing, outgoing fields mean that this channel was\nthe outgoing channel and the peer was the incoming channel."
+        },
+        "pair_reports": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/frdrpcPairReport"
+          },
+          "description": "Pair reports maps the channel point of a peer that we generated revenue\nwith to a report detailing the revenue."
+        }
+      }
+    },
+    "frdrpcRevenueReportResponse": {
+      "type": "object",
+      "properties": {
+        "reports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/frdrpcRevenueReport"
+          },
+          "description": "Reports is a set of pairwise revenue report generated for the channel(s)\nover the period specified."
+        }
+      }
+    }
+  }
+}

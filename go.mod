@@ -4,6 +4,7 @@ require (
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f
 	github.com/golang/protobuf v1.3.3
+	github.com/grpc-ecosystem/grpc-gateway v1.10.0
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/lightninglabs/loop v0.2.4-alpha
 	github.com/lightninglabs/protobuf-hex-display v1.3.3-0.20191212020323-b444784ce75d

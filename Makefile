@@ -92,10 +92,6 @@ goveralls: $(GOVERALLS_BIN)
 	@$(call print, "Sending coverage report.")
 	$(GOVERALLS_BIN) -coverprofile=coverage.txt -service=travis-ci
 
-rpc:
-	@$(call print, "Compiling protos.")
-	cd ./frdrpc; ./gen_protos.sh
-
 travis-race: lint unit-race
 
 travis-cover: lint unit-cover goveralls
@@ -120,6 +116,14 @@ fmt:
 lint: $(LINT_BIN)
 	@$(call print, "Linting source.")
 	$(LINT)
+
+rpc:
+	@$(call print, "Compiling protos.")
+	cd ./frdrpc; ./gen_protos.sh
+
+rpc-format:
+	@$(call print, "Formatting protos.")
+	cd ./frdrpc; find . -name "*.proto" | xargs clang-format --style=file -i
 
 list:
 	@$(call print, "Listing commands.")

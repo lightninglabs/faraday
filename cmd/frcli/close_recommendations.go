@@ -99,7 +99,7 @@ var thresholdRecommendationCommand = cli.Command{
 	Name:     "threshold",
 	Category: "recommendations",
 	Usage: "Get close recommendations for currently open channels " +
-		"based whether they are below a set threshold.",
+		"based on whether they are below a set threshold.",
 	Flags:  thresholdFlags,
 	Action: queryThresholdRecommendations,
 }
@@ -200,7 +200,7 @@ func queryOutlierRecommendations(ctx *cli.Context) error {
 		req.RecRequest.Metric = frdrpc.CloseRecommendationRequest_TOTAL_VOLUME
 
 	default:
-		return fmt.Errorf("uptime, revenue or volume realted flag " +
+		return fmt.Errorf("uptime, revenue or volume related flag " +
 			"required")
 	}
 

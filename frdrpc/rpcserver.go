@@ -17,6 +17,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/lightninglabs/faraday/fiat"
+
 	proxy "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
@@ -274,6 +276,24 @@ func (s *RPCServer) ChannelInsights(ctx context.Context,
 	}
 
 	return rpcChannelInsightsResponse(insights), nil
+}
+
+// FiatEstimate provides a fiat estimate for a set of timestamped bitcoin
+// prices.
+func (s *RPCServer) FiatEstimate(ctx context.Context,
+	req *FiatEstimateRequest) (*FiatEstimateResponse, error) {
+
+	granularity, reqs, err := parseFiatRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	prices, err := fiat.GetPrices(ctx, reqs, granularity)
+	if err != nil {
+		return nil, err
+	}
+
+	return fiatEstimateResponse(prices), nil
 }
 
 // allowCORS wraps the given http.Handler with a function that adds the

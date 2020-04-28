@@ -57,6 +57,18 @@ service FaradayServer {
             get: "/v1/faraday/insights"
         };
     }
+
+    /** frcli:
+    Get fiat prices for btc.
+
+    Example request:
+    http://localhost:8466/v1/faraday/fiat
+    */
+    rpc FiatEstimate (FiatEstimateRequest) returns (FiatEstimateResponse) {
+        option (google.api.http) = {
+            get: "/v1/faraday/fiat"
+        };
+    }
 }
 
 message CloseRecommendationRequest {
@@ -293,4 +305,39 @@ message ChannelInsight {
 
     // True if the channel is private.
     bool private = 8;
+}
+
+message FiatEstimateRequest {
+    message PriceRequest {
+        // id is a unique identifier for the request.
+        string id = 1;
+
+        // The amount to be converted to fiat in millisatoshis.
+        uint64 amount_msat = 2;
+
+        // The unix timestamp at which the price should be quoted.
+        int64 timestamp = 3;
+    }
+
+    repeated PriceRequest requests = 1;
+
+    // Granularity describes the aggregation level at which the Bitcoin price
+    // is provided.
+    enum Granularity {
+        UNKNOWN = 0;
+        MINUTE = 1;
+        FIVE_MINUTES = 2;
+        FIFTEEN_MINUTES = 3;
+        THIRTY_MINUTES = 4;
+        HOUR = 5;
+        SIX_HOURS = 6;
+        TWELVE_HOURS = 7;
+        DAY = 8;
+    }
+
+    Granularity granularity = 2;
+}
+
+message FiatEstimateResponse {
+    map<string, float> fiat_values = 1;
 }

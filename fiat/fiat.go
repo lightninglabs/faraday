@@ -22,7 +22,10 @@ var (
 )
 
 // usdPrice represents the Bitcoin price in USD at a certain time.
-type usdPrice struct{}
+type usdPrice struct {
+	timestamp time.Time
+	price     float64
+}
 
 // retryQuery calls an api until it succeeds, or we hit our maximum retries.
 // It sleeps between calls and can be terminated early by cancelling the

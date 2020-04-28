@@ -3,6 +3,7 @@ package faraday
 import (
 	"github.com/btcsuite/btclog"
 	"github.com/lightninglabs/faraday/dataset"
+	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
@@ -28,6 +29,7 @@ func init() {
 	addSubLogger(dataset.Subsystem, dataset.UseLogger)
 	addSubLogger(frdrpc.Subsystem, frdrpc.UseLogger)
 	addSubLogger(revenue.Subsystem, revenue.UseLogger)
+	addSubLogger(fiat.Subsystem, fiat.UseLogger)
 }
 
 // UseLogger uses a specified Logger to output package logging info.

@@ -2,8 +2,13 @@ package fiat
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/lightninglabs/faraday/utils"
@@ -13,6 +18,9 @@ const (
 	// maxQueries is the total number of queries we allow a call to coincap
 	// api to be split up.
 	maxQueries = 5
+
+	// coinCapHistoryAPI is the endpoint we hit for historical price data.
+	coinCapHistoryAPI = "https://api.coincap.io/v2/assets/bitcoin/history"
 )
 
 var (
@@ -98,6 +106,77 @@ type coinCapAPI struct {
 	// convert produces usd prices from the output of the query function.
 	// It is set within the struct so that it can be mocked for testing.
 	convert func([]byte) ([]*usdPrice, error)
+}
+
+// newCoinCapAPI returns a coin cap api struct which can be used to query
+// historical prices.
+func newCoinCapAPI(granularity Granularity) *coinCapAPI {
+	return &coinCapAPI{
+		granularity: granularity,
+		query:       queryCoinCap,
+		convert:     parseCoinCapData,
+	}
+}
+
+// queryCoinCap returns a function which will httpQuery coincap for historical
+// prices.
+func queryCoinCap(start, end time.Time, granularity Granularity) ([]byte,
+	error) {
+
+	// The coincap api requires milliseconds.
+	startMs := start.Unix() * 1000
+	endMs := end.Unix() * 1000
+	url := fmt.Sprintf("%v?interval=%v&start=%v&end=%v",
+		coinCapHistoryAPI, granularity, startMs,
+		endMs)
+
+	log.Debugf("coincap url: %v", url)
+
+	// Query the http endpoint with the url provided
+	// #nosec G107
+	response, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	return ioutil.ReadAll(response.Body)
+}
+
+type coinCapResponse struct {
+	Data []*coinCapDataPoint `json:"data"`
+}
+
+type coinCapDataPoint struct {
+	Price     string `json:"priceUsd"`
+	Timestamp int64  `json:"time"`
+}
+
+// parseCoinCapData parses http response data to usc price structs, using
+// intermediary structs to get around parsing.
+func parseCoinCapData(data []byte) ([]*usdPrice, error) {
+	var priceEntries coinCapResponse
+	if err := json.Unmarshal(data, &priceEntries); err != nil {
+		return nil, err
+	}
+
+	var usdRecords = make([]*usdPrice, len(priceEntries.Data))
+
+	// Convert each entry from the api to a usable record with a converted
+	// time and parsed price.
+	for i, entry := range priceEntries.Data {
+		floatPrice, err := strconv.ParseFloat(entry.Price, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		usdRecords[i] = &usdPrice{
+			timestamp: time.Unix(0, entry.Timestamp),
+			price:     floatPrice,
+		}
+	}
+
+	return usdRecords, nil
 }
 
 // GetPrices retrieves price information from coincap's api. If necessary, this

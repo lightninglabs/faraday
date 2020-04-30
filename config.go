@@ -18,7 +18,7 @@ const (
 	defaultRPCListen      = "localhost:8465"
 )
 
-type config struct {
+type Config struct {
 	// RPCServer is host:port that lnd's RPC server is listening on.
 	RPCServer string `long:"rpcserver" description:"host:port that LND is listening for RPC connections on"`
 
@@ -60,9 +60,9 @@ type config struct {
 	CORSOrigin string `long:"corsorigin" description:"The value to send in the Access-Control-Allow-Origin header. Header will be omitted if empty."`
 }
 
-// DefaultConfig returns all default values for the config struct.
-func DefaultConfig() config {
-	return config{
+// DefaultConfig returns all default values for the Config struct.
+func DefaultConfig() Config {
+	return Config{
 		RPCServer:        defaultRPCHostPort,
 		network:          defaultNetwork,
 		MacaroonFile:     defaultMacaroon,
@@ -76,7 +76,7 @@ func DefaultConfig() config {
 // configuration from the command line. It does not provide a full set of
 // defaults or validate user input because validation and sensible default
 // setting are performed by the lndclient package.
-func LoadConfig() (*config, error) {
+func LoadConfig() (*Config, error) {
 	// Start with a default config.
 	config := DefaultConfig()
 

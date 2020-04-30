@@ -60,13 +60,9 @@ type config struct {
 	CORSOrigin string `long:"corsorigin" description:"The value to send in the Access-Control-Allow-Origin header. Header will be omitted if empty."`
 }
 
-// loadConfig starts with a skeleton default config, and reads in user provided
-// configuration from the command line. It does not provide a full set of
-// defaults or validate user input because validation and sensible default
-// setting are performed by the lndclient package.
-func loadConfig() (*config, error) {
-	// Start with a default config.
-	config := &config{
+// DefaultConfig returns all default values for the config struct.
+func DefaultConfig() config {
+	return config{
 		RPCServer:        defaultRPCHostPort,
 		network:          defaultNetwork,
 		MacaroonFile:     defaultMacaroon,
@@ -74,9 +70,18 @@ func loadConfig() (*config, error) {
 		DebugLevel:       defaultDebugLevel,
 		RPCListen:        defaultRPCListen,
 	}
+}
+
+// LoadConfig starts with a skeleton default config, and reads in user provided
+// configuration from the command line. It does not provide a full set of
+// defaults or validate user input because validation and sensible default
+// setting are performed by the lndclient package.
+func LoadConfig() (*config, error) {
+	// Start with a default config.
+	config := DefaultConfig()
 
 	// Parse command line options to obtain user specified values.
-	if _, err := flags.Parse(config); err != nil {
+	if _, err := flags.Parse(&config); err != nil {
 		return nil, err
 	}
 
@@ -102,5 +107,5 @@ func loadConfig() (*config, error) {
 		return nil, err
 	}
 
-	return config, nil
+	return &config, nil
 }

@@ -40,6 +40,8 @@ func Main() error {
 		},
 	)
 
+	// Catch intercept signals, then start the server.
+	signal.Intercept()
 	if err := server.Start(); err != nil {
 		return err
 	}

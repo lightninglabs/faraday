@@ -14,6 +14,7 @@ import (
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 var (
@@ -80,8 +81,25 @@ func getClientConn(ctx *cli.Context) *grpc.ClientConn {
 	opts := []grpc.DialOption{
 		grpc.WithContextDialer(genericDialer),
 		grpc.WithDefaultCallOptions(maxMsgRecvSize),
-		// TODO(carla): add tls and remove this option.
-		grpc.WithInsecure(),
+	}
+
+	switch {
+	// If a TLS certificate file is specified, we need to load it and build
+	// transport credentials with it.
+	case ctx.GlobalIsSet(tlsCertFlag.Name):
+		creds, err := credentials.NewClientTLSFromFile(
+			ctx.GlobalString(tlsCertFlag.Name), "",
+		)
+		if err != nil {
+			fatal(err)
+		}
+
+		opts = append(opts, grpc.WithTransportCredentials(creds))
+
+	// By default, if no certificate is supplied, we assume the RPC server
+	// runs without TLS.
+	default:
+		opts = append(opts, grpc.WithInsecure())
 	}
 
 	conn, err := grpc.Dial(ctx.GlobalString("rpcserver"), opts...)

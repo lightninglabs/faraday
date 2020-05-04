@@ -16,6 +16,11 @@ var (
 			"needed if faraday runs in the same process " +
 			"as lnd (GrUB)",
 	}
+	macaroonPathFlag = cli.StringFlag{
+		Name: "macaroonpath",
+		Usage: "path to macaroon file, only needed if faraday runs " +
+			"in the same process as lnd (GrUB)",
+	}
 )
 
 func main() {
@@ -30,6 +35,7 @@ func main() {
 			Usage: "host:port of faraday",
 		},
 		tlsCertFlag,
+		macaroonPathFlag,
 	}
 	app.Commands = []cli.Command{
 		thresholdRecommendationCommand,

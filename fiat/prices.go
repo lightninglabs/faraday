@@ -50,9 +50,7 @@ func GetPrices(ctx context.Context, requests []*PriceRequest,
 	// so that we can efficiently query for price data.
 	start, end := getQueryableDuration(requests)
 
-	// Get a set of historical price data points.
-	coinCapBackend := newCoinCapAPI(granularity)
-	priceData, err := coinCapBackend.GetPrices(ctx, start, end)
+	priceData, err := CoinCapPriceData(ctx, start, end, granularity)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +68,14 @@ func GetPrices(ctx context.Context, requests []*PriceRequest,
 	}
 
 	return prices, nil
+}
+
+// CoinCapPriceData obtains price data over a given range for coincap.
+func CoinCapPriceData(ctx context.Context, start, end time.Time,
+	granularity Granularity) ([]*usdPrice, error) {
+
+	coinCapBackend := newCoinCapAPI(granularity)
+	return coinCapBackend.GetPrices(ctx, start, end)
 }
 
 // getQueryableDuration gets the smallest and largest timestamp from a set of

@@ -61,7 +61,7 @@ func GetPrices(ctx context.Context, requests []*PriceRequest,
 	var prices = make(map[string]float64, len(requests))
 
 	for _, request := range requests {
-		price, err := getPrice(priceData, request)
+		price, err := GetPrice(priceData, request)
 		if err != nil {
 			return nil, err
 		}
@@ -99,10 +99,10 @@ func msatToUSD(price float64, amt lnwire.MilliSatoshi) float64 {
 	return price * btcBal
 }
 
-// getPrice gets the price for a timestamped request from a set of price data.
+// GetPrice gets the price for a timestamped request from a set of price data.
 // This function expects the price data to be sorted with ascending timestamps.
 // If request lies between two price points, we simply aggregate the two prices.
-func getPrice(prices []*usdPrice, request *PriceRequest) (float64, error) {
+func GetPrice(prices []*usdPrice, request *PriceRequest) (float64, error) {
 	var lastPrice float64
 
 	if len(prices) == 0 {

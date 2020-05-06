@@ -107,7 +107,7 @@ func TestGetPrice(t *testing.T) {
 		test := test
 
 		t.Run(test.name, func(t *testing.T) {
-			price, err := getPrice(test.prices, test.request)
+			price, err := GetPrice(test.prices, test.request)
 			if err != test.expectedErr {
 				t.Fatalf("expected: %v, got: %v",
 					test.expectedErr, err)

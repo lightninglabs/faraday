@@ -21,8 +21,8 @@ var (
 	errRetriesFailed = errors.New("could not get data within max retries")
 )
 
-// usdPrice represents the Bitcoin price in USD at a certain time.
-type usdPrice struct {
+// USDPrice represents the Bitcoin price in USD at a certain time.
+type USDPrice struct {
 	timestamp time.Time
 	price     float64
 }
@@ -32,7 +32,7 @@ type usdPrice struct {
 // context passed in. It takes query and convert functions as parameters for
 // testing purposes.
 func retryQuery(ctx context.Context, queryAPI func() ([]byte, error),
-	convert func([]byte) ([]*usdPrice, error)) ([]*usdPrice, error) {
+	convert func([]byte) ([]*USDPrice, error)) ([]*USDPrice, error) {
 
 	for i := 0; i < maxRetries; i++ {
 		// If our request fails, log the error, sleep for the retry

@@ -101,7 +101,7 @@ func TestRetryQuery(t *testing.T) {
 			}
 
 			// Create a mocked parse call which acts as a nop.
-			parse := func([]byte) ([]*usdPrice, error) {
+			parse := func([]byte) ([]*USDPrice, error) {
 				return nil, nil
 			}
 

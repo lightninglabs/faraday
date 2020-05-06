@@ -103,7 +103,7 @@ func TestCoinCapGetPrices(t *testing.T) {
 			}
 
 			// Create a mocked convert function.
-			convert := func([]byte) ([]*usdPrice, error) {
+			convert := func([]byte) ([]*USDPrice, error) {
 				return nil, nil
 			}
 

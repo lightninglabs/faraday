@@ -105,7 +105,7 @@ type coinCapAPI struct {
 
 	// convert produces usd prices from the output of the query function.
 	// It is set within the struct so that it can be mocked for testing.
-	convert func([]byte) ([]*usdPrice, error)
+	convert func([]byte) ([]*USDPrice, error)
 }
 
 // newCoinCapAPI returns a coin cap api struct which can be used to query
@@ -154,13 +154,13 @@ type coinCapDataPoint struct {
 
 // parseCoinCapData parses http response data to usc price structs, using
 // intermediary structs to get around parsing.
-func parseCoinCapData(data []byte) ([]*usdPrice, error) {
+func parseCoinCapData(data []byte) ([]*USDPrice, error) {
 	var priceEntries coinCapResponse
 	if err := json.Unmarshal(data, &priceEntries); err != nil {
 		return nil, err
 	}
 
-	var usdRecords = make([]*usdPrice, len(priceEntries.Data))
+	var usdRecords = make([]*USDPrice, len(priceEntries.Data))
 
 	// Convert each entry from the api to a usable record with a converted
 	// time and parsed price.
@@ -170,7 +170,7 @@ func parseCoinCapData(data []byte) ([]*usdPrice, error) {
 			return nil, err
 		}
 
-		usdRecords[i] = &usdPrice{
+		usdRecords[i] = &USDPrice{
 			timestamp: time.Unix(0, entry.Timestamp),
 			price:     floatPrice,
 		}
@@ -184,7 +184,7 @@ func parseCoinCapData(data []byte) ([]*usdPrice, error) {
 // because the more granular we want our price data to be, the smaller the
 // period coincap allows us to query is.
 func (c *coinCapAPI) GetPrices(ctx context.Context, startTime,
-	endTime time.Time) ([]*usdPrice, error) {
+	endTime time.Time) ([]*USDPrice, error) {
 
 	// First, check that we have a valid start and end time, and that the
 	// range specified is not in the future.
@@ -225,7 +225,7 @@ func (c *coinCapAPI) GetPrices(ctx context.Context, startTime,
 		return nil, errPeriodTooLong
 	}
 
-	var historicalRecords []*usdPrice
+	var historicalRecords []*USDPrice
 	queryStart := startTime
 
 	// The number of requests we require may be a fraction, so we use a

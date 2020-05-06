@@ -15,7 +15,7 @@ func TestGetPrice(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		prices        []*usdPrice
+		prices        []*USDPrice
 		request       *PriceRequest
 		expectedErr   error
 		expectedPrice float64
@@ -31,7 +31,7 @@ func TestGetPrice(t *testing.T) {
 		},
 		{
 			name: "timestamp before range",
-			prices: []*usdPrice{
+			prices: []*USDPrice{
 				{
 					timestamp: now,
 					price:     10000,
@@ -46,7 +46,7 @@ func TestGetPrice(t *testing.T) {
 		},
 		{
 			name: "timestamp equals data point timestamp",
-			prices: []*usdPrice{
+			prices: []*USDPrice{
 				{
 					timestamp: oneHourAgo,
 					price:     10000,
@@ -65,7 +65,7 @@ func TestGetPrice(t *testing.T) {
 		},
 		{
 			name: "timestamp after range",
-			prices: []*usdPrice{
+			prices: []*USDPrice{
 				{
 					timestamp: twoHoursAgo,
 					price:     20000,
@@ -84,7 +84,7 @@ func TestGetPrice(t *testing.T) {
 		},
 		{
 			name: "timestamp between prices, aggregated",
-			prices: []*usdPrice{
+			prices: []*USDPrice{
 				{
 					timestamp: twoHoursAgo,
 					price:     20000,
@@ -107,7 +107,7 @@ func TestGetPrice(t *testing.T) {
 		test := test
 
 		t.Run(test.name, func(t *testing.T) {
-			price, err := getPrice(test.prices, test.request)
+			price, err := GetPrice(test.prices, test.request)
 			if err != test.expectedErr {
 				t.Fatalf("expected: %v, got: %v",
 					test.expectedErr, err)

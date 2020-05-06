@@ -50,9 +50,7 @@ func GetPrices(ctx context.Context, requests []*PriceRequest,
 	// so that we can efficiently query for price data.
 	start, end := getQueryableDuration(requests)
 
-	// Get a set of historical price data points.
-	coinCapBackend := newCoinCapAPI(granularity)
-	priceData, err := coinCapBackend.GetPrices(ctx, start, end)
+	priceData, err := CoinCapPriceData(ctx, start, end, granularity)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +59,7 @@ func GetPrices(ctx context.Context, requests []*PriceRequest,
 	var prices = make(map[string]float64, len(requests))
 
 	for _, request := range requests {
-		price, err := getPrice(priceData, request)
+		price, err := GetPrice(priceData, request)
 		if err != nil {
 			return nil, err
 		}
@@ -70,6 +68,14 @@ func GetPrices(ctx context.Context, requests []*PriceRequest,
 	}
 
 	return prices, nil
+}
+
+// CoinCapPriceData obtains price data over a given range for coincap.
+func CoinCapPriceData(ctx context.Context, start, end time.Time,
+	granularity Granularity) ([]*USDPrice, error) {
+
+	coinCapBackend := newCoinCapAPI(granularity)
+	return coinCapBackend.GetPrices(ctx, start, end)
 }
 
 // getQueryableDuration gets the smallest and largest timestamp from a set of
@@ -99,10 +105,10 @@ func msatToUSD(price float64, amt lnwire.MilliSatoshi) float64 {
 	return price * btcBal
 }
 
-// getPrice gets the price for a timestamped request from a set of price data.
+// GetPrice gets the price for a timestamped request from a set of price data.
 // This function expects the price data to be sorted with ascending timestamps.
 // If request lies between two price points, we simply aggregate the two prices.
-func getPrice(prices []*usdPrice, request *PriceRequest) (float64, error) {
+func GetPrice(prices []*USDPrice, request *PriceRequest) (float64, error) {
 	var lastPrice float64
 
 	if len(prices) == 0 {

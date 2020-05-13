@@ -84,3 +84,21 @@ A fee entry represents the on chain fees we paid for a transaction.
 - TxID: The on chain transaction ID.
 - Reference: TransactionID:-1. 
 - Note: Note set for fees. 
+
+## Off Chain Reports
+
+### Receipt
+Receipts off chain represent invoices that are paid via the Lightning Network.
+
+- Amount: The amount that we were paid, note that this may be greater than the original invoice value.
+- TxID: the payment hash of the invoice
+- Reference: the preimage of the invoice
+- Note: Optionally set if the invoice had a memo attached, was overpaid, or was a keysend.
+
+### Circular Receipt
+Circular receipts record instances where we have paid one of our own invoices. 
+
+- Amount: The amount that we were paid, note that this may be greater than the original invoice value.
+- TxID: the payment hash of the invoice
+- Reference: the preimage of the invoice
+- Note: Optionally set if the invoice had a memo attached, was overpaid, or was a keysend.

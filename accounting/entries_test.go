@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"encoding/hex"
 	"fmt"
 	"testing"
 	"time"
@@ -87,6 +88,36 @@ var (
 		TimeStamp:     onChainTimestamp,
 		TotalFees:     onChainFeeSat,
 		DestAddresses: []string{destAddr},
+	}
+
+	paymentRequest = "lnbcrt10n1p0t6nmypp547evsfyrakg0nmyw59ud9cegkt99yccn5nnp4suq3ac4qyzzgevsdqqcqzpgsp54hvffpajcyddm20k3ptu53930425hpnv8m06nh5jrd6qhq53anrq9qy9qsqphhzyenspf7kfwvm3wyu04fa8cjkmvndyexlnrmh52huwa4tntppjmak703gfln76rvswmsx2cz3utsypzfx40dltesy8nj64ttgemgqtwfnj9"
+
+	invoiceMemo = "memo"
+
+	invoiceAmt = lnwire.MilliSatoshi(300)
+
+	invoiceOverpaidAmt = lnwire.MilliSatoshi(400)
+
+	invoiceSettleTime int64 = 1588159722
+
+	invoicePreimage = "b5f0c5ac0c873a05702d0aa63a518ecdb8f3ba786be2c4f64a5b10581da976ae"
+	preimage, _     = hex.DecodeString(invoicePreimage)
+
+	invoiceHash = "afb2c82483ed90f9ec8ea178d2e328b2ca526313a4e61ac3808f715010424659"
+	hash, _     = hex.DecodeString(invoiceHash)
+
+	invoice = &lnrpc.Invoice{
+		Memo:           invoiceMemo,
+		RPreimage:      preimage,
+		RHash:          hash,
+		ValueMsat:      int64(invoiceAmt),
+		CreationDate:   0,
+		SettleDate:     invoiceSettleTime,
+		PaymentRequest: paymentRequest,
+		AmtPaidSat:     0,
+		AmtPaidMsat:    int64(invoiceOverpaidAmt),
+		Htlcs:          nil,
+		IsKeysend:      true,
 	}
 )
 
@@ -385,6 +416,64 @@ func TestOnChainEntry(t *testing.T) {
 			}
 
 			require.Equal(t, expected, entries)
+		})
+	}
+}
+
+// TestInvoiceEntry tests creation of entries for regular invoices and circular
+// receipts.
+func TestInvoiceEntry(t *testing.T) {
+	getEntry := func(circular bool) *HarmonyEntry {
+		note := invoiceNote(
+			invoice.Memo, invoice.ValueMsat, invoice.AmtPaidMsat,
+			invoice.IsKeysend,
+		)
+
+		fiat, _ := mockconvert(int64(invoiceOverpaidAmt), 0)
+
+		expectedEntry := &HarmonyEntry{
+			Timestamp: time.Unix(invoiceSettleTime, 0),
+			Amount:    invoiceOverpaidAmt,
+			FiatValue: fiat,
+			TxID:      invoiceHash,
+			Reference: invoicePreimage,
+			Note:      note,
+			Type:      EntryTypeReceipt,
+			OnChain:   false,
+			Credit:    true,
+		}
+
+		if circular {
+			expectedEntry.Type = EntryTypeCircularReceipt
+		}
+
+		return expectedEntry
+	}
+	tests := []struct {
+		name     string
+		circular bool
+	}{
+		{
+			name: "test",
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			entry, err := invoiceEntry(
+				invoice, test.circular, mockconvert,
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			expectedEntry := getEntry(test.circular)
+
+			require.Equal(t, expectedEntry, entry)
 		})
 	}
 }

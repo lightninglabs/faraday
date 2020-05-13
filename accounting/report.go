@@ -124,4 +124,9 @@ const (
 	// chain routing. Note that this entry type excludes fees for channel
 	// opens and closes.
 	EntryTypeFee
+
+	// EntryTypeCircularReceipt represents an invoice that we paid to
+	// ourselves. This occurs when circular payments are used to rebalance
+	// channels.
+	EntryTypeCircularReceipt
 )

@@ -1,7 +1,9 @@
 package accounting
 
 import (
+	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
@@ -190,4 +192,52 @@ func onChainEntries(tx *lnrpc.Transaction,
 	}
 
 	return []*HarmonyEntry{txEntry, feeEntry}, nil
+}
+
+// invoiceNote creates an optional note for an invoice if it had a memo, was
+// overpaid, or both.
+func invoiceNote(memo string, amt, amtPaid int64, keysend bool) string {
+	var notes []string
+
+	if memo != "" {
+		notes = append(notes, fmt.Sprintf("memo: %v", memo))
+	}
+
+	if amt != amtPaid {
+		notes = append(notes, fmt.Sprintf("invoice overpaid "+
+			"original amount: %v msat", amt))
+	}
+
+	if keysend {
+		notes = append(notes, "keysend payment")
+	}
+
+	if len(notes) == 0 {
+		return ""
+	}
+
+	return strings.Join(notes, "/")
+}
+
+// invoiceEntry creates an entry for an invoice.
+func invoiceEntry(invoice *lnrpc.Invoice, circularReceipt bool,
+	convert msatToFiat) (*HarmonyEntry, error) {
+
+	eventType := EntryTypeReceipt
+	if circularReceipt {
+		eventType = EntryTypeCircularReceipt
+	}
+
+	note := invoiceNote(
+		invoice.Memo, invoice.ValueMsat, invoice.AmtPaidMsat,
+		invoice.IsKeysend,
+	)
+
+	preimage := hex.EncodeToString(invoice.RPreimage)
+	hash := hex.EncodeToString(invoice.RHash)
+
+	return newHarmonyEntry(
+		invoice.SettleDate, invoice.AmtPaidMsat, eventType,
+		hash, preimage, note, false, convert,
+	)
 }

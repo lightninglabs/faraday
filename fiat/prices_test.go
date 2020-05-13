@@ -213,16 +213,16 @@ func TestMSatToUsd(t *testing.T) {
 			expectedFiat: decimal.NewFromFloat(0.0001),
 		},
 		{
-			name:         "1 msat rounded down",
+			name:         "1 msat not rounded down",
 			amount:       1,
 			price:        decimal.NewFromInt(10000),
-			expectedFiat: decimal.Zero,
+			expectedFiat: decimal.NewFromFloat(0.0000001),
 		},
 		{
-			name:         "1 btc + 1 msat rounded down",
+			name:         "1 btc + 1 msat not rounded down",
 			amount:       100000000001,
 			price:        decimal.NewFromInt(10000),
-			expectedFiat: decimal.NewFromInt(10000),
+			expectedFiat: decimal.NewFromFloat(10000.0000001),
 		},
 	}
 

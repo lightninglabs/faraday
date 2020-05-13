@@ -99,11 +99,15 @@ func getQueryableDuration(requests []*PriceRequest) (time.Time, time.Time) {
 }
 
 // msatToUSD converts a msat amount to usd. Note that this function coverts
-// values to Bitcoin values, then gets the fiat price for that BTC value. If
-// an amount < 1000 msat is given, a zero amount will be returned.
+// values to Bitcoin values, then gets the fiat price for that BTC value.
 func msatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
-	msatDecimal := decimal.NewFromFloat(amt.ToBTC())
-	return price.Mul(msatDecimal)
+	msatDecimal := decimal.NewFromInt(int64(amt))
+
+	// We are quoted price per whole bitcoin. We need to scale this price
+	// down to price per msat - 1 BTC * 10000000 sats * 1000 msats.
+	pricePerMSat := price.Div(decimal.NewFromInt(100000000000))
+
+	return pricePerMSat.Mul(msatDecimal)
 }
 
 // GetPrice gets the price for a timestamped request from a set of price data.

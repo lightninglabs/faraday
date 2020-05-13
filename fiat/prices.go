@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -27,7 +28,7 @@ type PriceRequest struct {
 
 // GetPrices gets a set of prices for a set of timestamped requests.
 func GetPrices(ctx context.Context, requests []*PriceRequest,
-	granularity Granularity) (map[string]float64, error) {
+	granularity Granularity) (map[string]decimal.Decimal, error) {
 
 	if len(requests) == 0 {
 		return nil, nil
@@ -56,7 +57,7 @@ func GetPrices(ctx context.Context, requests []*PriceRequest,
 	}
 
 	// Prices will map transaction identifiers to their USD prices.
-	var prices = make(map[string]float64, len(requests))
+	var prices = make(map[string]decimal.Decimal, len(requests))
 
 	for _, request := range requests {
 		price, err := GetPrice(priceData, request)
@@ -100,19 +101,21 @@ func getQueryableDuration(requests []*PriceRequest) (time.Time, time.Time) {
 // msatToUSD converts a msat amount to usd. Note that this function coverts
 // values to Bitcoin values, then gets the fiat price for that BTC value. If
 // an amount < 1000 msat is given, a zero amount will be returned.
-func msatToUSD(price float64, amt lnwire.MilliSatoshi) float64 {
-	btcBal := amt.ToBTC()
-	return price * btcBal
+func msatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
+	msatDecimal := decimal.NewFromFloat(amt.ToBTC())
+	return price.Mul(msatDecimal)
 }
 
 // GetPrice gets the price for a timestamped request from a set of price data.
 // This function expects the price data to be sorted with ascending timestamps.
 // If request lies between two price points, we simply aggregate the two prices.
-func GetPrice(prices []*USDPrice, request *PriceRequest) (float64, error) {
-	var lastPrice float64
+func GetPrice(prices []*USDPrice, request *PriceRequest) (decimal.Decimal,
+	error) {
+
+	lastPrice := decimal.Zero
 
 	if len(prices) == 0 {
-		return 0, errNoPrices
+		return decimal.Zero, errNoPrices
 	}
 
 	for _, price := range prices {
@@ -129,14 +132,14 @@ func GetPrice(prices []*USDPrice, request *PriceRequest) (float64, error) {
 			// If the last price is 0, the request is after the
 			// very first price data point. We do not aggregate in
 			// this case.
-			if lastPrice == 0 {
+			if lastPrice.Equal(decimal.Zero) {
 				return msatToUSD(price.price, request.Value),
 					nil
 			}
 
 			// Otherwise, aggregate the price over the current data
 			// point and the next one.
-			price := (lastPrice + price.price) / 2
+			price := decimal.Avg(lastPrice, price.price)
 			return msatToUSD(price, request.Value), nil
 		}
 

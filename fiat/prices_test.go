@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/shopspring/decimal"
 )
 
 // TestGetPrice tests getting price from a set of price data.
@@ -13,12 +14,16 @@ func TestGetPrice(t *testing.T) {
 	oneHourAgo := now.Add(time.Hour * -1)
 	twoHoursAgo := now.Add(time.Hour * -2)
 
+	price10K := decimal.New(10000, 1)
+	price20K := decimal.New(20000, 1)
+	avg := decimal.Avg(price10K, price20K)
+
 	tests := []struct {
 		name          string
 		prices        []*USDPrice
 		request       *PriceRequest
 		expectedErr   error
-		expectedPrice float64
+		expectedPrice decimal.Decimal
 	}{
 		{
 			name:   "no prices",
@@ -34,7 +39,7 @@ func TestGetPrice(t *testing.T) {
 			prices: []*USDPrice{
 				{
 					timestamp: now,
-					price:     10000,
+					price:     price10K,
 				},
 			},
 			request: &PriceRequest{
@@ -42,18 +47,18 @@ func TestGetPrice(t *testing.T) {
 				Timestamp: oneHourAgo,
 			},
 			expectedErr:   nil,
-			expectedPrice: msatToUSD(10000, 1),
+			expectedPrice: msatToUSD(price10K, 1),
 		},
 		{
 			name: "timestamp equals data point timestamp",
 			prices: []*USDPrice{
 				{
 					timestamp: oneHourAgo,
-					price:     10000,
+					price:     price10K,
 				},
 				{
 					timestamp: now,
-					price:     10000,
+					price:     price10K,
 				},
 			},
 			request: &PriceRequest{
@@ -61,18 +66,18 @@ func TestGetPrice(t *testing.T) {
 				Timestamp: now,
 			},
 			expectedErr:   nil,
-			expectedPrice: msatToUSD(10000, 2),
+			expectedPrice: msatToUSD(price10K, 2),
 		},
 		{
 			name: "timestamp after range",
 			prices: []*USDPrice{
 				{
 					timestamp: twoHoursAgo,
-					price:     20000,
+					price:     price10K,
 				},
 				{
 					timestamp: oneHourAgo,
-					price:     10000,
+					price:     price10K,
 				},
 			},
 			request: &PriceRequest{
@@ -80,18 +85,18 @@ func TestGetPrice(t *testing.T) {
 				Timestamp: now,
 			},
 			expectedErr:   nil,
-			expectedPrice: msatToUSD(10000, 3),
+			expectedPrice: msatToUSD(price10K, 3),
 		},
 		{
 			name: "timestamp between prices, aggregated",
 			prices: []*USDPrice{
 				{
 					timestamp: twoHoursAgo,
-					price:     20000,
+					price:     price20K,
 				},
 				{
 					timestamp: now,
-					price:     10000,
+					price:     price10K,
 				},
 			},
 			request: &PriceRequest{
@@ -99,7 +104,7 @@ func TestGetPrice(t *testing.T) {
 				Timestamp: oneHourAgo,
 			},
 			expectedErr:   nil,
-			expectedPrice: msatToUSD((20000+10000)/2, 3),
+			expectedPrice: msatToUSD(avg, 3),
 		},
 	}
 
@@ -113,7 +118,7 @@ func TestGetPrice(t *testing.T) {
 					test.expectedErr, err)
 			}
 
-			if price != test.expectedPrice {
+			if !price.Equal(test.expectedPrice) {
 				t.Fatalf("expected: %v, got: %v",
 					test.expectedPrice, price)
 			}
@@ -198,26 +203,26 @@ func TestMSatToUsd(t *testing.T) {
 	tests := []struct {
 		name         string
 		amount       lnwire.MilliSatoshi
-		price        float64
-		expectedFiat float64
+		price        decimal.Decimal
+		expectedFiat decimal.Decimal
 	}{
 		{
 			name:         "1 sat not rounded down",
 			amount:       1000,
-			price:        10000,
-			expectedFiat: 0.0001,
+			price:        decimal.NewFromInt(10000),
+			expectedFiat: decimal.NewFromFloat(0.0001),
 		},
 		{
 			name:         "1 msat rounded down",
 			amount:       1,
-			price:        10000,
-			expectedFiat: 0,
+			price:        decimal.NewFromInt(10000),
+			expectedFiat: decimal.Zero,
 		},
 		{
 			name:         "1 btc + 1 msat rounded down",
 			amount:       100000000001,
-			price:        10000,
-			expectedFiat: 10000,
+			price:        decimal.NewFromInt(10000),
+			expectedFiat: decimal.NewFromInt(10000),
 		},
 	}
 
@@ -228,7 +233,7 @@ func TestMSatToUsd(t *testing.T) {
 			t.Parallel()
 
 			amt := msatToUSD(test.price, test.amount)
-			if amt != test.expectedFiat {
+			if !amt.Equals(test.expectedFiat) {
 				t.Fatalf("expected: %v, got: %v",
 					test.expectedFiat, amt)
 			}

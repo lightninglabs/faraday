@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -24,7 +26,7 @@ var (
 // USDPrice represents the Bitcoin price in USD at a certain time.
 type USDPrice struct {
 	timestamp time.Time
-	price     float64
+	price     decimal.Decimal
 }
 
 // retryQuery calls an api until it succeeds, or we hit our maximum retries.

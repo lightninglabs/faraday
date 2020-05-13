@@ -367,8 +367,7 @@
         "fiat_values": {
           "type": "object",
           "additionalProperties": {
-            "type": "number",
-            "format": "float"
+            "type": "string"
           }
         }
       }

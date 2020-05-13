@@ -339,5 +339,5 @@ message FiatEstimateRequest {
 }
 
 message FiatEstimateResponse {
-    map<string, float> fiat_values = 1;
+    map<string, string> fiat_values = 1;
 }

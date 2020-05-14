@@ -6,6 +6,7 @@ import (
 
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/shopspring/decimal"
 )
 
 func parseFiatRequest(req *FiatEstimateRequest) (fiat.Granularity,
@@ -59,10 +60,10 @@ func parseFiatRequest(req *FiatEstimateRequest) (fiat.Granularity,
 	return granularity, requests, nil
 }
 
-func fiatEstimateResponse(prices map[string]float64) *FiatEstimateResponse {
-	fiatVals := make(map[string]float32, len(prices))
+func fiatEstimateResponse(prices map[string]decimal.Decimal) *FiatEstimateResponse {
+	fiatVals := make(map[string]string, len(prices))
 	for k, v := range prices {
-		fiatVals[k] = float32(v)
+		fiatVals[k] = v.String()
 	}
 
 	return &FiatEstimateResponse{

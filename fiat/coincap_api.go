@@ -8,10 +8,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/lightninglabs/faraday/utils"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -165,14 +165,14 @@ func parseCoinCapData(data []byte) ([]*USDPrice, error) {
 	// Convert each entry from the api to a usable record with a converted
 	// time and parsed price.
 	for i, entry := range priceEntries.Data {
-		floatPrice, err := strconv.ParseFloat(entry.Price, 64)
+		decPrice, err := decimal.NewFromString(entry.Price)
 		if err != nil {
 			return nil, err
 		}
 
 		usdRecords[i] = &USDPrice{
 			timestamp: time.Unix(0, entry.Timestamp),
-			price:     floatPrice,
+			price:     decPrice,
 		}
 	}
 

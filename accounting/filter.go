@@ -96,3 +96,61 @@ func filterForwardingEvents(startTime, endTime time.Time,
 
 	return filtered
 }
+
+// settledPayment contains a payment and the timestamp of the latest settled
+// htlc. Payments do not have a settle time, so we have to get our settle time
+// from examining each htlc.
+type settledPayment struct {
+	*lnrpc.Payment
+	settleTime time.Time
+}
+
+// filterPayments filters out unsuccessful payments and those which did not
+// occur within the range we specify. Since we now allow multi-path payments,
+// a single payment may have multiple htlcs resolved over a period of time.
+// We use the oldest settle time for payment to classify whether the payment
+// occurred within our desired time range, because payments are not considered
+// settled until all the htlcs are resolved.
+func filterPayments(startTime, endTime time.Time,
+	payments []*lnrpc.Payment) []settledPayment {
+
+	var filtered []settledPayment
+
+	for _, payment := range payments {
+		// If the payment did not succeed, we can skip it.
+		if payment.Status != lnrpc.Payment_SUCCEEDED {
+			continue
+		}
+
+		// We run through each htlc for this payment and get the latest
+		// resolution time for a successful htlc. This is the time we
+		// will use to determine whether this payment lies in the period
+		// we are looking at.
+		var latestTimeNs int64
+		for _, htlc := range payment.Htlcs {
+			if htlc.Status != lnrpc.HTLCAttempt_SUCCEEDED {
+				continue
+			}
+
+			if htlc.ResolveTimeNs > latestTimeNs {
+				latestTimeNs = htlc.ResolveTimeNs
+			}
+		}
+
+		// Skip the payment if the oldest settle time is not within the
+		// range we are looking at.
+		ts := time.Unix(0, latestTimeNs)
+		if !inRange(ts, startTime, endTime) {
+			continue
+		}
+
+		// Add a settled payment to our set of settled payments with its
+		// timestamp.
+		filtered = append(filtered, settledPayment{
+			Payment:    payment,
+			settleTime: ts,
+		})
+	}
+
+	return filtered
+}

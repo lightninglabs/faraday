@@ -129,3 +129,98 @@ func TestFilterInvoices(t *testing.T) {
 
 	require.Equal(t, expected, filtered)
 }
+
+// TestFilterPayments tests filtering of payments based on their htlc
+// timestamps.
+func TestFilterPayments(t *testing.T) {
+	// Fix current time for testing.
+	now := time.Now()
+
+	startTime := now.Add(time.Hour * -2)
+	endTime := now.Add(time.Hour * 2)
+
+	beforeStart := startTime.Add(time.Hour * -1)
+	inRange := startTime.Add(time.Hour)
+	afterEnd := endTime.Add(time.Hour)
+
+	// succeededAfterPeriod is a payment which had a htlc in our period,
+	// but only succeeded afterwards.
+	succeededAfterPeriod := &lnrpc.Payment{
+		Status: lnrpc.Payment_SUCCEEDED,
+		Htlcs: []*lnrpc.HTLCAttempt{
+			{
+				Status:        lnrpc.HTLCAttempt_FAILED,
+				ResolveTimeNs: inRange.UnixNano(),
+			},
+			{
+				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
+				ResolveTimeNs: afterEnd.UnixNano(),
+			},
+		},
+	}
+
+	// succeededInPeriod is a payment that had a failed htlc outside of our
+	// period, but was settled in relevant period.
+	succeededInPeriod := &lnrpc.Payment{
+		Status: lnrpc.Payment_SUCCEEDED,
+		Htlcs: []*lnrpc.HTLCAttempt{
+			{
+				Status:        lnrpc.HTLCAttempt_FAILED,
+				ResolveTimeNs: beforeStart.UnixNano(),
+			},
+			{
+				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
+				ResolveTimeNs: inRange.UnixNano(),
+			},
+		},
+	}
+
+	// succeededInAndAfterPeriod is a payment that had successful htlc in
+	// our period, but its last htlc was settled after our period.
+	succeededInAndAfterPeriod := &lnrpc.Payment{
+		Status: lnrpc.Payment_SUCCEEDED,
+		Htlcs: []*lnrpc.HTLCAttempt{
+			{
+				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
+				ResolveTimeNs: inRange.UnixNano(),
+			},
+			{
+				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
+				ResolveTimeNs: afterEnd.UnixNano(),
+			},
+		},
+	}
+
+	// inFlight has a htlc in the relevant period but it is not settled yet.
+	inFlight := &lnrpc.Payment{
+		Status: lnrpc.Payment_IN_FLIGHT,
+		Htlcs: []*lnrpc.HTLCAttempt{
+			{
+				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
+				ResolveTimeNs: inRange.UnixNano(),
+			},
+		},
+	}
+
+	payments := []*lnrpc.Payment{
+		succeededInPeriod,
+		succeededAfterPeriod,
+		succeededInAndAfterPeriod,
+		inFlight,
+	}
+
+	filtered := filterPayments(startTime, endTime, payments)
+
+	// We only expect the payment that had its last successful htlc in the
+	// relevant period to be included. Some rounding occurs when we go
+	// from the rpc payment unix nanoseconds to a golang time struct, so
+	// we round our settle time so that the two will be equal.
+	expected := []settledPayment{
+		{
+			Payment:    succeededInPeriod,
+			settleTime: time.Unix(0, inRange.UnixNano()),
+		},
+	}
+
+	require.Equal(t, filtered, expected)
+}

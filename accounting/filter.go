@@ -76,3 +76,23 @@ func filterInvoices(startTime, endTime time.Time,
 
 	return filtered
 }
+
+// filterForwardingEvents filters out forwarding events that are not in our
+// desired time range.
+func filterForwardingEvents(startTime, endTime time.Time,
+	events []*lnrpc.ForwardingEvent) []*lnrpc.ForwardingEvent {
+
+	var filtered []*lnrpc.ForwardingEvent
+
+	for _, fwd := range events {
+		ts := time.Unix(int64(fwd.Timestamp), 0)
+
+		if !inRange(ts, startTime, endTime) {
+			continue
+		}
+
+		filtered = append(filtered, fwd)
+	}
+
+	return filtered
+}

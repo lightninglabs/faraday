@@ -99,3 +99,33 @@ func TestFilterOnChain(t *testing.T) {
 	expected := []*lnrpc.Transaction{confirmedTx}
 	require.Equal(t, expected, filtered)
 }
+
+// TestFilterInvoices tests filtering out of invoices that are not settled.
+func TestFilterInvoices(t *testing.T) {
+	// Create two invoices within our desired time range, one that is
+	// settled and one that was cancelled.
+	settledInvoice := &lnrpc.Invoice{
+		SettleDate: inRangeTime,
+		State:      lnrpc.Invoice_SETTLED,
+	}
+
+	invoices := []*lnrpc.Invoice{
+		settledInvoice,
+		{
+			SettleDate: inRangeTime,
+			State:      lnrpc.Invoice_CANCELED,
+		},
+	}
+
+	start := time.Unix(startTime, 0)
+	end := time.Unix(endTime, 0)
+
+	filtered := filterInvoices(start, end, invoices)
+
+	// We only expect the settled invoice to be included.
+	expected := []*lnrpc.Invoice{
+		settledInvoice,
+	}
+
+	require.Equal(t, expected, filtered)
+}

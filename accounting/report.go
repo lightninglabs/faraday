@@ -137,4 +137,11 @@ const (
 	// EntryTypeCircularPaymentFee represents a the fees paid on an
 	// operational payment paid to ourselves to rebalance channels.
 	EntryTypeCircularPaymentFee
+
+	// EntryTypeForward represents a forward through our node.
+	EntryTypeForward
+
+	// EntryTypeForwardFee represents the fees we earned forwarding a
+	// payment.
+	EntryTypeForwardFee
 )

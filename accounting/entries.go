@@ -314,3 +314,40 @@ func paymentEntry(payment settledPayment, paidToSelf bool,
 
 	return []*HarmonyEntry{paymentEntry, feeEntry}, nil
 }
+
+func forwardNote(chanIn, chanOut, amtIn, amtOut uint64) string {
+	return fmt.Sprintf("Incoming: %v msat over %v, "+
+		"Outgoing: %v msat over: %v", amtIn, chanIn, amtOut, chanOut)
+}
+
+func forwardingEntry(forward *lnrpc.ForwardingEvent,
+	convert msatToFiat) ([]*HarmonyEntry, error) {
+
+	note := forwardNote(
+		forward.ChanIdIn, forward.ChanIdIn, forward.AmtInMsat,
+		forward.AmtOutMsat,
+	)
+
+	fwdEntry, err := newHarmonyEntry(
+		int64(forward.Timestamp), 0, EntryTypeForward,
+		"", "", note, false, convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// If we did not earn any fees, return the forwarding entry.
+	if forward.FeeMsat == 0 {
+		return []*HarmonyEntry{fwdEntry}, nil
+	}
+
+	feeEntry, err := newHarmonyEntry(
+		int64(forward.Timestamp), int64(forward.FeeMsat),
+		EntryTypeForwardFee, "", "", "", false, convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return []*HarmonyEntry{fwdEntry, feeEntry}, nil
+}

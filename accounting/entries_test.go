@@ -481,3 +481,7 @@ func TestInvoiceEntry(t *testing.T) {
 func TestPaymentEntry(t *testing.T) {
 	t.Fatal("TODO(carla): payment test")
 }
+
+func TestForwardingEntry(t *testing.T) {
+	t.Fatalf("TODO(Carla): add forawrds")
+}

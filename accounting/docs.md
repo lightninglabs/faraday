@@ -133,3 +133,18 @@ Circular payment fees represent the fees we paid to loop a circular payment to o
 - Reference: unique payment id: preimage: -1, note that -1 is a special marker for fees.
 - Note: the preimage for the payment, which serves as proof of payment.
 
+### Forward
+Forward represents a forward through or node. 
+
+- Amount: Zero, forwards do not change our balance except for fees, which are separated out.
+- TxID: not set for forwards
+- Reference: not set for forwards
+- Note: the channels that the forward passed through, and the amounts moved.
+
+### Forward Fee
+Forward fee entries represent the fees we earned from forwarding payments. 
+
+- Amount: The amount of fees we earned from the forward. 
+- TxID: not set for forwards
+- Reference: not set for forwards
+- Note: not set for forwards

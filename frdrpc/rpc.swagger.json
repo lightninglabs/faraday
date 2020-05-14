@@ -426,10 +426,15 @@
         "CHANNEL_CLOSE",
         "RECEIPT",
         "PAYMENT",
-        "FEE"
+        "FEE",
+        "CIRCULAR_RECEIPT",
+        "CIRCULAR_PAYMENT",
+        "CIRCULAR_PAYMENT_FEE",
+        "FORWARD",
+        "FORWARD_FEE"
       ],
       "default": "UNKNOWN",
-      "description": " - LOCAL_CHANNEL_OPEN: A channel opening transaction for a channel opened by our node.\n - REMOTE_CHANNEL_OPEN: A channel opening transaction for a channel opened by a remote node.\n - CHANNEL_OPEN_FEE: The on chain fee paid to open a channel.\n - CHANNEL_CLOSE: A channel closing transaction.\n - RECEIPT: Receipt of funds. On chain this reflects receives, off chain settlement\nof invoices.\n - PAYMENT: Payment of funds. On chain this reflects sends, off chain settlement\nof our payments.\n - FEE: Payment of fees."
+      "description": " - LOCAL_CHANNEL_OPEN: A channel opening transaction for a channel opened by our node.\n - REMOTE_CHANNEL_OPEN: A channel opening transaction for a channel opened by a remote node.\n - CHANNEL_OPEN_FEE: The on chain fee paid to open a channel.\n - CHANNEL_CLOSE: A channel closing transaction.\n - RECEIPT: Receipt of funds. On chain this reflects receives, off chain settlement\nof invoices.\n - PAYMENT: Payment of funds. On chain this reflects sends, off chain settlement\nof our payments.\n - FEE: Payment of fees.\n - CIRCULAR_RECEIPT: Receipt of a payment to ourselves.\n - CIRCULAR_PAYMENT: Payment to ourselves.\n - CIRCULAR_PAYMENT_FEE: Fees for a payment to ourselves.\n - FORWARD: A forward through our node.\n - FORWARD_FEE: Fees earned from forwarding."
     },
     "frdrpcFiatEstimateResponse": {
       "type": "object",

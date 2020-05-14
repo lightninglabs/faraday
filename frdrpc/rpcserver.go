@@ -140,6 +140,45 @@ func (c *Config) wrapGetChainTransactions(ctx context.Context) func() ([]*lnrpc.
 	}
 }
 
+func (c *Config) wrapListInvoices(ctx context.Context) ([]*lnrpc.Invoice, error) {
+	resp, err := c.LightningClient.ListInvoices(ctx, &lnrpc.ListInvoiceRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Invoices, nil
+}
+
+func (c *Config) wrapListPayments(ctx context.Context) ([]*lnrpc.Payment, error) {
+	// TODO(carla): include pagination.
+	resp, err := c.LightningClient.ListPayments(
+		ctx, &lnrpc.ListPaymentsRequest{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Payments, nil
+}
+
+func (c *Config) paidToSelf(ctx context.Context, paymentRequest string) (bool, error) {
+	resp, err := c.LightningClient.DecodePayReq(ctx, &lnrpc.PayReqString{
+		PayReq: paymentRequest,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// TODO(Carla): cache pubkey
+	info, err := c.LightningClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	if err != nil {
+		return false, err
+	}
+
+	// Return true if the invoice pays to our own pubkey.
+	return info.IdentityPubkey == resp.Destination, nil
+}
+
 // NewRPCServer returns a server which will listen for rpc requests on the
 // rpc listen address provided. Note that the server returned is not running,
 // and should be started using Start().

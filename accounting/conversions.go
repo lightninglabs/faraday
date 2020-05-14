@@ -24,6 +24,11 @@ func invertedSatsToMsats(sats int64) int64 {
 	return satsToMsat(sats) * -1
 }
 
+// invertMsat flips the sign value of a msat value.
+func invertMsat(msat int64) int64 {
+	return msat * -1
+}
+
 // getConversion is a helper function which queries coincap for a relevant set
 // of price data and returns a convert function which can be used to get
 // individual price points from this data.

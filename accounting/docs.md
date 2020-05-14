@@ -102,3 +102,34 @@ Circular receipts record instances where we have paid one of our own invoices.
 - TxID: the payment hash of the invoice
 - Reference: the preimage of the invoice
 - Note: Optionally set if the invoice had a memo attached, was overpaid, or was a keysend.
+
+### Payment
+Payments off chain represent payments made via the Lightning Network. 
+
+- Amount: The amount that we paid, excluding the off chain fees paid. 
+- TxID: payment hash
+- Reference: unique payment id: preimage
+- Note: the preimage for the payment, which serves as proof of payment.
+
+### Fee
+- Amount: The amount that was paid in off chain fees. 
+- TxID: payment hash
+- Reference: unique payment id: preimage: -1, note that -1 is a special marker for fees.
+- Note: The number of hltcs that the fee was spread over. 
+
+### Circular Payment
+Circular payments represent payments made to our own node to rebalance channels. These payments are paid from our node to one of our own invoices.
+
+- Amount: The amount that was rebalanced
+- TxID: payment hash
+- Reference: unique payment id: preimage
+- Note: the preimage for the payment, which serves as proof of payment.
+
+### Circular Payment Fee
+Circular payment fees represent the fees we paid to loop a circular payment to ourselves.
+
+- Amount: The amount that was paid in off chain fees. 
+- TxID: payment hash
+- Reference: unique payment id: preimage: -1, note that -1 is a special marker for fees.
+- Note: the preimage for the payment, which serves as proof of payment.
+

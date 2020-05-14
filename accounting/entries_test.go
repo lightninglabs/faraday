@@ -477,3 +477,7 @@ func TestInvoiceEntry(t *testing.T) {
 		})
 	}
 }
+
+func TestPaymentEntry(t *testing.T) {
+	t.Fatal("TODO(carla): payment test")
+}

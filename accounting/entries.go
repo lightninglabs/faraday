@@ -241,3 +241,76 @@ func invoiceEntry(invoice *lnrpc.Invoice, circularReceipt bool,
 		hash, preimage, note, false, convert,
 	)
 }
+
+// paymentReference produces a unique reference for a payment. Since payment
+// hash is not guaranteed to be unique, we use the payments unique sequence
+// number and its hash.
+func paymentReference(sequenceNumber uint64, hash string) string {
+	return fmt.Sprintf("%v:%v", sequenceNumber, hash)
+}
+
+// paymentNote creates a note for payments from our node.
+func paymentNote(preimage string) string {
+	return fmt.Sprintf("Preimage: %v", preimage)
+}
+
+// paymentFeeNote creates a note for a payment fee entry.
+func paymentFeeNote(htlcs []*lnrpc.HTLCAttempt) string {
+	return fmt.Sprintf("Settled with: %v htlcs", len(htlcs))
+}
+
+func paymentEntry(payment settledPayment, paidToSelf bool,
+	convert msatToFiat) ([]*HarmonyEntry, error) {
+
+	// It is possible to make a payment to ourselves as part of a circular
+	// rebalance which is operationally used to shift funds between
+	// channels. For these payment types, we lose balance from fees, but do
+	// not change our balance from the actual payment because it is paid
+	// back to ourselves.
+	var (
+		paymentType = EntryTypePayment
+		feeType     = EntryTypeFee
+	)
+
+	// If we made the payment to ourselves, we set special entry types,
+	// since the payment amount did not actually affect our balance.
+	if paidToSelf {
+		paymentType = EntryTypeCircularPayment
+		feeType = EntryTypeCircularPaymentFee
+	}
+
+	note := paymentNote(payment.PaymentPreimage)
+	ref := paymentReference(payment.PaymentIndex, payment.PaymentHash)
+
+	// Payment values are expressed as positive values over rpc, but they
+	// decrease our balance so we flip our value to a negative one.
+	amt := invertMsat(payment.ValueMsat)
+
+	paymentEntry, err := newHarmonyEntry(
+		payment.settleTime.Unix(), amt, paymentType,
+		payment.PaymentHash, ref, note, false, convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// If we paid no fees (possible for payments to our direct peer), then
+	// we just return the payment entry.
+	if payment.FeeMsat == 0 {
+		return []*HarmonyEntry{paymentEntry}, nil
+	}
+
+	feeNote := paymentFeeNote(payment.Htlcs)
+	feeRef := feeReference(ref)
+	feeAmt := invertMsat(payment.FeeMsat)
+
+	feeEntry, err := newHarmonyEntry(
+		payment.settleTime.Unix(), feeAmt, feeType,
+		"", feeRef, feeNote, false, convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return []*HarmonyEntry{paymentEntry, feeEntry}, nil
+}

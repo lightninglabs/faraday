@@ -129,4 +129,12 @@ const (
 	// ourselves. This occurs when circular payments are used to rebalance
 	// channels.
 	EntryTypeCircularReceipt
+
+	// EntryTypeCircularPayment represents an operational payment which
+	// we pay to ourselves to rebalance channels.
+	EntryTypeCircularPayment
+
+	// EntryTypeCircularPaymentFee represents a the fees paid on an
+	// operational payment paid to ourselves to rebalance channels.
+	EntryTypeCircularPaymentFee
 )

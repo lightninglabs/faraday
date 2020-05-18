@@ -12,7 +12,7 @@ import (
 // Main is the real entry point for faraday. It is required to ensure that
 // defers are properly executed when os.Exit() is called.
 func Main() error {
-	config, err := loadConfig()
+	config, err := LoadConfig()
 	if err != nil {
 		return fmt.Errorf("error loading config: %v", err)
 	}
@@ -40,6 +40,8 @@ func Main() error {
 		},
 	)
 
+	// Catch intercept signals, then start the server.
+	signal.Intercept()
 	if err := server.Start(); err != nil {
 		return err
 	}

@@ -18,7 +18,7 @@ const (
 	defaultRPCListen      = "localhost:8465"
 )
 
-type config struct {
+type Config struct {
 	// RPCServer is host:port that lnd's RPC server is listening on.
 	RPCServer string `long:"rpcserver" description:"host:port that LND is listening for RPC connections on"`
 
@@ -60,13 +60,9 @@ type config struct {
 	CORSOrigin string `long:"corsorigin" description:"The value to send in the Access-Control-Allow-Origin header. Header will be omitted if empty."`
 }
 
-// loadConfig starts with a skeleton default config, and reads in user provided
-// configuration from the command line. It does not provide a full set of
-// defaults or validate user input because validation and sensible default
-// setting are performed by the lndclient package.
-func loadConfig() (*config, error) {
-	// Start with a default config.
-	config := &config{
+// DefaultConfig returns all default values for the Config struct.
+func DefaultConfig() Config {
+	return Config{
 		RPCServer:        defaultRPCHostPort,
 		network:          defaultNetwork,
 		MacaroonFile:     defaultMacaroon,
@@ -74,9 +70,18 @@ func loadConfig() (*config, error) {
 		DebugLevel:       defaultDebugLevel,
 		RPCListen:        defaultRPCListen,
 	}
+}
+
+// LoadConfig starts with a skeleton default config, and reads in user provided
+// configuration from the command line. It does not provide a full set of
+// defaults or validate user input because validation and sensible default
+// setting are performed by the lndclient package.
+func LoadConfig() (*Config, error) {
+	// Start with a default config.
+	config := DefaultConfig()
 
 	// Parse command line options to obtain user specified values.
-	if _, err := flags.Parse(config); err != nil {
+	if _, err := flags.Parse(&config); err != nil {
 		return nil, err
 	}
 
@@ -102,5 +107,5 @@ func loadConfig() (*config, error) {
 		return nil, err
 	}
 
-	return config, nil
+	return &config, nil
 }

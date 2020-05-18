@@ -13,6 +13,7 @@ require (
 	github.com/urfave/cli v1.20.0
 	google.golang.org/genproto v0.0.0-20190927181202-20e1ac93f88c
 	google.golang.org/grpc v1.27.0
+	gopkg.in/macaroon.v2 v2.1.0
 )
 
 go 1.13

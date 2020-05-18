@@ -43,6 +43,10 @@ var (
 	// maxMsgRecvSize is the largest message our REST proxy will receive. We
 	// set this to 200MiB atm.
 	maxMsgRecvSize = grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 200)
+
+	// errServerAlreadyStarted is the error that is returned if the server
+	// is requested to start while it's already been started.
+	errServerAlreadyStarted = fmt.Errorf("server can only be started once")
 )
 
 // RPCServer implements the faraday service, serving requests over grpc.
@@ -122,7 +126,7 @@ func NewRPCServer(cfg *Config) *RPCServer {
 // Start starts the listener and server.
 func (s *RPCServer) Start() error {
 	if atomic.AddInt32(&s.started, 1) != 1 {
-		return nil
+		return errServerAlreadyStarted
 	}
 
 	// Start the gRPC RPCServer listening for HTTP/2 connections.
@@ -196,6 +200,19 @@ func (s *RPCServer) Start() error {
 	return nil
 }
 
+// StartAsSubserver is an alternative to Start where the RPC server does not
+// create its own gRPC server but registers to an existing one. The same goes
+// for REST (if enabled), instead of creating an own mux and HTTP server, we
+// register to an existing one.
+func (s *RPCServer) StartAsSubserver(lndClient lnrpc.LightningClient) error {
+	if atomic.AddInt32(&s.started, 1) != 1 {
+		return errServerAlreadyStarted
+	}
+
+	s.cfg.LightningClient = lndClient
+	return nil
+}
+
 // Stop stops the grpc listener and server.
 func (s *RPCServer) Stop() error {
 	if atomic.AddInt32(&s.stopped, 1) != 1 {
@@ -211,7 +228,9 @@ func (s *RPCServer) Stop() error {
 	}
 
 	// Stop the grpc server and wait for all go routines to terminate.
-	s.grpcServer.Stop()
+	if s.grpcServer != nil {
+		s.grpcServer.Stop()
+	}
 	s.wg.Wait()
 
 	return nil

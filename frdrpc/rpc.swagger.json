@@ -71,6 +71,61 @@
         ]
       }
     },
+    "/v1/faraday/nodereport": {
+      "get": {
+        "summary": "*\nGet a report of your node's activity over a period.",
+        "description": "Example request:\nhttp://localhost:8466/v1/faraday/nodereport",
+        "operationId": "NodeReport",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcNodeReportResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "start_time",
+            "description": "The unix time from which to produce the report, inclusive.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "end_time",
+            "description": "The unix time until which to produce the report, exclusive.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "granularity",
+            "description": "The level of aggregation for fiat estimates.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "MINUTE",
+              "FIVE_MINUTES",
+              "FIFTEEN_MINUTES",
+              "THIRTY_MINUTES",
+              "HOUR",
+              "SIX_HOURS",
+              "TWELVE_HOURS",
+              "DAY"
+            ],
+            "default": "UNKNOWN"
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
+      }
+    },
     "/v1/faraday/outliers/{rec_request.metric}": {
       "get": {
         "summary": "* frcli: `outliers`\nGet close recommendations for currently open channels based on whether it is\nan outlier.",
@@ -361,6 +416,21 @@
         }
       }
     },
+    "frdrpcEntryType": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN",
+        "LOCAL_CHANNEL_OPEN",
+        "REMOTE_CHANNEL_OPEN",
+        "CHANNEL_OPEN_FEE",
+        "CHANNEL_CLOSE",
+        "RECEIPT",
+        "PAYMENT",
+        "FEE"
+      ],
+      "default": "UNKNOWN",
+      "description": " - LOCAL_CHANNEL_OPEN: A channel opening transaction for a channel opened by our node.\n - REMOTE_CHANNEL_OPEN: A channel opening transaction for a channel opened by a remote node.\n - CHANNEL_OPEN_FEE: The on chain fee paid to open a channel.\n - CHANNEL_CLOSE: A channel closing transaction.\n - RECEIPT: Receipt of funds. On chain this reflects receives, off chain settlement\nof invoices.\n - PAYMENT: Payment of funds. On chain this reflects sends, off chain settlement\nof our payments.\n - FEE: Payment of fees."
+    },
     "frdrpcFiatEstimateResponse": {
       "type": "object",
       "properties": {
@@ -369,6 +439,18 @@
           "additionalProperties": {
             "type": "string"
           }
+        }
+      }
+    },
+    "frdrpcNodeReportResponse": {
+      "type": "object",
+      "properties": {
+        "reports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/frdrpcReportEntry"
+          },
+          "description": "On chain reports for the period queried."
         }
       }
     },
@@ -413,6 +495,55 @@
           "type": "boolean",
           "format": "boolean",
           "description": "A boolean indicating whether we recommend closing the channel."
+        }
+      }
+    },
+    "frdrpcReportEntry": {
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The unix timestamp of the event."
+        },
+        "on_chain": {
+          "type": "boolean",
+          "format": "boolean",
+          "description": "Whether the entry occurred on chain or off chain."
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The amount of the entry, expressed in millisatoshis."
+        },
+        "credit": {
+          "type": "boolean",
+          "format": "boolean",
+          "description": "Whether the entry is a credit or a debit."
+        },
+        "asset": {
+          "type": "string",
+          "description": "The asset affected by the entry."
+        },
+        "type": {
+          "$ref": "#/definitions/frdrpcEntryType",
+          "description": "The kind of activity that this entry represents."
+        },
+        "txid": {
+          "type": "string",
+          "description": "The transaction id of the entry."
+        },
+        "fiat": {
+          "type": "string",
+          "description": "The fiat amount of the entry's amount in USD."
+        },
+        "reference": {
+          "type": "string",
+          "description": "A unique identifier for the entry, if available."
+        },
+        "note": {
+          "type": "string",
+          "description": "An additional note for the entry, providing additional context."
         }
       }
     },

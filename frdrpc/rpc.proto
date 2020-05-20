@@ -69,6 +69,17 @@ service FaradayServer {
             get: "/v1/faraday/fiat"
         };
     }
+    /**
+    Get a report of your node's activity over a period.
+
+    Example request:
+    http://localhost:8466/v1/faraday/nodereport
+    */
+    rpc NodeReport (NodeReportRequest) returns (NodeReportResponse) {
+        option (google.api.http) = {
+            get: "/v1/faraday/nodereport"
+        };
+    }
 }
 
 message CloseRecommendationRequest {
@@ -340,4 +351,79 @@ message FiatEstimateRequest {
 
 message FiatEstimateResponse {
     map<string, string> fiat_values = 1;
+}
+
+message NodeReportRequest {
+    // The unix time from which to produce the report, inclusive.
+    uint64 start_time = 1;
+
+    // The unix time until which to produce the report, exclusive.
+    uint64 end_time = 2;
+
+    // The level of aggregation for fiat estimates.
+    FiatEstimateRequest.Granularity granularity = 3;
+}
+
+enum EntryType {
+    UNKNOWN = 0;
+
+    // A channel opening transaction for a channel opened by our node.
+    LOCAL_CHANNEL_OPEN = 1;
+
+    // A channel opening transaction for a channel opened by a remote node.
+    REMOTE_CHANNEL_OPEN = 2;
+
+    // The on chain fee paid to open a channel.
+    CHANNEL_OPEN_FEE = 3;
+
+    // A channel closing transaction.
+    CHANNEL_CLOSE = 4;
+
+    // Receipt of funds. On chain this reflects receives, off chain settlement
+    // of invoices.
+    RECEIPT = 5;
+
+    // Payment of funds. On chain this reflects sends, off chain settlement
+    // of our payments.
+    PAYMENT = 6;
+
+    // Payment of fees.
+    FEE = 7;
+}
+
+message ReportEntry {
+    // The unix timestamp of the event.
+    uint64 timestamp = 1;
+
+    // Whether the entry occurred on chain or off chain.
+    bool on_chain = 2;
+
+    // The amount of the entry, expressed in millisatoshis.
+    uint64 amount = 3;
+
+    // Whether the entry is a credit or a debit.
+    bool credit = 4;
+
+    // The asset affected by the entry.
+    string asset = 5;
+
+    // The kind of activity that this entry represents.
+    EntryType type = 6;
+
+    // The transaction id of the entry.
+    string txid = 7;
+
+    // The fiat amount of the entry's amount in USD.
+    string fiat = 8;
+
+    // A unique identifier for the entry, if available.
+    string reference = 9;
+
+    // An additional note for the entry, providing additional context.
+    string note = 10;
+}
+
+message NodeReportResponse {
+    // On chain reports for the period queried.
+    repeated ReportEntry reports = 1;
 }

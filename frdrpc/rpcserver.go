@@ -20,6 +20,7 @@ import (
 	"github.com/lightninglabs/faraday/fiat"
 
 	proxy "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -107,6 +108,35 @@ func (c *Config) wrapListChannels(ctx context.Context,
 		}
 
 		return resp.Channels, nil
+	}
+}
+
+func (c *Config) wrapClosedChannels(ctx context.Context) func() (
+	[]*lnrpc.ChannelCloseSummary, error) {
+
+	return func() ([]*lnrpc.ChannelCloseSummary, error) {
+		resp, err := c.LightningClient.ClosedChannels(
+			ctx, &lnrpc.ClosedChannelsRequest{},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return resp.Channels, nil
+	}
+}
+
+func (c *Config) wrapGetChainTransactions(ctx context.Context) func() ([]*lnrpc.Transaction, error) {
+	return func() (transactions []*lnrpc.Transaction, err error) {
+		resp, err := c.LightningClient.GetTransactions(
+			ctx, &lnrpc.GetTransactionsRequest{},
+		)
+		if err != nil {
+			return nil, err
+
+		}
+
+		return resp.Transactions, nil
 	}
 }
 
@@ -313,6 +343,23 @@ func (s *RPCServer) FiatEstimate(ctx context.Context,
 	}
 
 	return fiatEstimateResponse(prices), nil
+}
+
+// NodeReport returns an on chain report for the period requested.
+func (s *RPCServer) NodeReport(ctx context.Context,
+	req *NodeReportRequest) (*NodeReportResponse, error) {
+
+	cfg, err := parseNodeReportRequest(ctx, s.cfg, req)
+	if err != nil {
+		return nil, err
+	}
+
+	report, err := accounting.OnChainReport(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return rpcReportResponse(report)
 }
 
 // allowCORS wraps the given http.Handler with a function that adds the

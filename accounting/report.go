@@ -100,4 +100,12 @@ const (
 	// EntryTypeChannelOpenFee records the fees we paid on chain when
 	// opening a channel to a remote peer.
 	EntryTypeChannelOpenFee
+
+	// EntryTypeChannelClose represents a channel closing transaction. If
+	// we were paid out a balance by this transaction, the entry will
+	// contain that amount. Note that the on chain resolutions required to
+	// resolve a force close are not contained in this category. If we
+	// force closed, our own balance will also require further on chain
+	// resolution, so it will not be included.
+	EntryTypeChannelClose
 )

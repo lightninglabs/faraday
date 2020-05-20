@@ -43,3 +43,15 @@ peers.
 
 Known Omissions:
 - Remote peers may push balance to our node as part of the funding flow. This amount is not currently included in these reports. 
+
+### Channel Close 
+Channel close entries represent the on chain close of a channel. 
+
+- Amount: The amount that was paid out to us immediately on channel close. 
+- TxID: The on chain transaction ID for the channel close. 
+- Reference: The channel close transaction ID.
+- Note: A note indicating the type of channel close, and who initiated it. 
+
+Known Omissions: 
+- If our balance is encumbered behind a timelock, or in an unresolved htlc, it will not be paid out as part of this transaction and must be resolved by follow up on chain transactions. 
+- The fees paid to close channels that we initiated are not currently recorded, this is because balances are taken from the funding output rather than being supplied by the wallet.

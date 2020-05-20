@@ -44,6 +44,36 @@ var (
 	}
 
 	mockPrice = decimal.NewFromInt(10)
+
+	closeTx = "e730b07d6121b19dd717925de82b8c76dec38517ffd85701e6735a726f5f75c3"
+
+	closeBalanceSat int64 = 50000
+
+	channelClose = lnrpc.ChannelCloseSummary{
+		ChannelPoint:   openChannel.ChannelPoint,
+		ChanId:         openChannel.ChanId,
+		ClosingTxHash:  closeTx,
+		RemotePubkey:   remotePubkey,
+		SettledBalance: closeBalanceSat,
+		CloseInitiator: lnrpc.Initiator_INITIATOR_REMOTE,
+	}
+
+	closeTimestamp int64 = 1588159722
+
+	closeDestAddrs = []string{
+		"bcrt1qmj4f92gcf08j3640csv72xvwlca33ypv4yw2nc",
+		"bcrt1q0yv9p2ap55wsy95xgwrgrkmnt9jna03w06524c",
+	}
+
+	channelCloseTx = lnrpc.Transaction{
+		TxHash:    closeTx,
+		Amount:    closeBalanceSat,
+		TimeStamp: closeTimestamp,
+		// Total fees for closes will always reflect as 0 because they
+		// come from the 2-2 multisig funding output.
+		TotalFees:     0,
+		DestAddresses: closeDestAddrs,
+	}
 )
 
 // mockConvert is a mocked price function which returns mockPrice * amount.
@@ -152,6 +182,77 @@ func TestChannelOpenEntry(t *testing.T) {
 			if test.initiator {
 				expected = append(expected, feeEntry)
 			}
+
+			require.Equal(t, expected, entries)
+		})
+	}
+}
+
+// TestChannelCloseEntry tests creation of channel close entries.
+func TestChannelCloseEntry(t *testing.T) {
+	// getCloseEntry returns a close entry for the global close var with
+	// correct close type and amount.
+	getCloseEntry := func(closeType string,
+		closeBalance int64) *HarmonyEntry {
+
+		note := channelCloseNote(
+			channelID, closeType,
+			lnrpc.Initiator_INITIATOR_REMOTE.String(),
+		)
+
+		closeAmt := satsToMsat(closeBalance)
+		closeFiat, _ := mockConvert(closeAmt, 0)
+
+		return &HarmonyEntry{
+			Timestamp: time.Unix(closeTimestamp, 0),
+			Amount:    lnwire.MilliSatoshi(closeAmt),
+			FiatValue: closeFiat,
+			TxID:      closeTx,
+			Reference: closeTx,
+			Note:      note,
+			Type:      EntryTypeChannelClose,
+			OnChain:   true,
+			Credit:    true,
+		}
+	}
+
+	tests := []struct {
+		name      string
+		closeType lnrpc.ChannelCloseSummary_ClosureType
+		closeAmt  int64
+	}{
+		{
+			name:      "coop close, has balance",
+			closeType: lnrpc.ChannelCloseSummary_COOPERATIVE_CLOSE,
+			closeAmt:  closeBalanceSat,
+		},
+		{
+			name:      "force close, has no balance",
+			closeType: lnrpc.ChannelCloseSummary_LOCAL_FORCE_CLOSE,
+			closeAmt:  0,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			// Make copies of the global vars so we can change some
+			// fields.
+			closeChan := channelClose
+			closeTx := channelCloseTx
+
+			closeChan.CloseType = test.closeType
+			closeTx.Amount = test.closeAmt
+
+			entries, err := closedChannelEntries(
+				&closeChan, &closeTx, mockConvert,
+			)
+			require.NoError(t, err)
+
+			expected := []*HarmonyEntry{getCloseEntry(
+				test.closeType.String(), test.closeAmt,
+			)}
 
 			require.Equal(t, expected, entries)
 		})

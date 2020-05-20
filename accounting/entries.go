@@ -117,3 +117,37 @@ func openEntries(tx *lnrpc.Transaction, convert msatToFiat,
 
 	return []*HarmonyEntry{openEntry, feeEntry}, nil
 }
+
+// channelCloseNote creates a close note for a channel close entry type.
+func channelCloseNote(channelID uint64, closeType, initiated string) string {
+	return fmt.Sprintf("close channel: %v, close type: %v, closed by: %v",
+		channelID, closeType, initiated)
+}
+
+// closedChannelEntries produces the entries associated with a channel close.
+// Note that this entry only reflects the balance we were directly paid out
+// in the close transaction. It *does not* include any on chain resolutions, so
+// it is excluding htlcs that are resolved on chain, and will not reflect our
+// balance when we force close (because it is behind a timelock).
+func closedChannelEntries(channel *lnrpc.ChannelCloseSummary,
+	tx *lnrpc.Transaction, convert msatToFiat) ([]*HarmonyEntry, error) {
+
+	amtMsat := satsToMsat(tx.Amount)
+	note := channelCloseNote(
+		channel.ChanId, channel.CloseType.String(),
+		channel.CloseInitiator.String(),
+	)
+
+	closeEntry, err := newHarmonyEntry(
+		tx.TimeStamp, amtMsat, EntryTypeChannelClose,
+		channel.ClosingTxHash, channel.ClosingTxHash, note, true,
+		convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(carla): add channel close fee entry.
+
+	return []*HarmonyEntry{closeEntry}, nil
+}

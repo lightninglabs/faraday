@@ -29,17 +29,6 @@ func parseRevenueRequest(ctx context.Context, cfg *Config,
 func getRevenueConfig(ctx context.Context, cfg *Config,
 	start, end uint64) *revenue.Config {
 
-	closedChannels := func() ([]*lnrpc.ChannelCloseSummary, error) {
-		resp, err := cfg.LightningClient.ClosedChannels(
-			ctx, &lnrpc.ClosedChannelsRequest{},
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		return resp.Channels, nil
-	}
-
 	forwardingHistory := func(offset,
 		maxEvents uint32) ([]*lnrpc.ForwardingEvent, uint32, error) {
 		resp, err := cfg.LightningClient.ForwardingHistory(
@@ -59,7 +48,7 @@ func getRevenueConfig(ctx context.Context, cfg *Config,
 
 	return &revenue.Config{
 		ListChannels:      cfg.wrapListChannels(ctx, false),
-		ClosedChannels:    closedChannels,
+		ClosedChannels:    cfg.wrapClosedChannels(ctx),
 		ForwardingHistory: forwardingHistory,
 	}
 }

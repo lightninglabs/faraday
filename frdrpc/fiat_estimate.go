@@ -12,9 +12,32 @@ import (
 func parseFiatRequest(req *FiatEstimateRequest) (fiat.Granularity,
 	[]*fiat.PriceRequest, error) {
 
+	requests := make([]*fiat.PriceRequest, len(req.Requests))
+
+	for i, request := range req.Requests {
+		requests[i] = &fiat.PriceRequest{
+			Identifier: request.Id,
+			Value:      lnwire.MilliSatoshi(request.AmountMsat),
+			Timestamp:  time.Unix(request.Timestamp, 0),
+		}
+	}
+
+	granularity, err := granularityFromRPC(req.Granularity)
+	if err != nil {
+		return granularity, nil, err
+	}
+
+	return granularity, requests, nil
+}
+
+// granularityFromRPC gets a granularity enum value from a rpc request,
+// defaulting to a minute.
+func granularityFromRPC(req FiatEstimateRequest_Granularity) (fiat.Granularity,
+	error) {
+
 	granularity := fiat.GranularityMinute
 
-	switch req.Granularity {
+	switch req {
 	// If granularity is not set, allow it to default to one minute
 	case FiatEstimateRequest_UNKNOWN:
 
@@ -43,21 +66,10 @@ func parseFiatRequest(req *FiatEstimateRequest) (fiat.Granularity,
 		granularity = fiat.GranularityDay
 
 	default:
-		return granularity, nil, fmt.Errorf("unknown granularity: %v",
-			req.Granularity)
+		return granularity, fmt.Errorf("unknown granularity: %v", req)
 	}
 
-	requests := make([]*fiat.PriceRequest, len(req.Requests))
-
-	for i, request := range req.Requests {
-		requests[i] = &fiat.PriceRequest{
-			Identifier: request.Id,
-			Value:      lnwire.MilliSatoshi(request.AmountMsat),
-			Timestamp:  time.Unix(request.Timestamp, 0),
-		}
-	}
-
-	return granularity, requests, nil
+	return granularity, nil
 }
 
 func fiatEstimateResponse(prices map[string]decimal.Decimal) *FiatEstimateResponse {

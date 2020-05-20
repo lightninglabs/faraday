@@ -85,3 +85,19 @@ func newHarmonyEntry(ts int64, amountMsat int64, e EntryType, txid, reference,
 
 // EntryType indicates the lightning specific type of an entry.
 type EntryType int
+
+const (
+	_ EntryType = iota
+
+	// EntryTypeLocalChannelOpen represents the funding transaction we
+	// created to open a channel to a remote peer.
+	EntryTypeLocalChannelOpen
+
+	// EntryTypeRemoteChannelOpen represents the funding transaction that
+	// our peer created to open a channel to us.
+	EntryTypeRemoteChannelOpen
+
+	// EntryTypeChannelOpenFee records the fees we paid on chain when
+	// opening a channel to a remote peer.
+	EntryTypeChannelOpenFee
+)

@@ -10,6 +10,7 @@ require (
 	github.com/lightninglabs/protobuf-hex-display v1.3.3-0.20191212020323-b444784ce75d
 	github.com/lightningnetwork/lnd v0.10.0-beta.rc5
 	github.com/shopspring/decimal v1.2.0
+	github.com/stretchr/testify v1.3.0
 	github.com/urfave/cli v1.20.0
 	google.golang.org/genproto v0.0.0-20190927181202-20e1ac93f88c
 	google.golang.org/grpc v1.27.0

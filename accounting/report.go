@@ -45,5 +45,43 @@ type HarmonyEntry struct {
 	Credit bool
 }
 
+// newHarmonyEntry produces a harmony entry. If provided with a negative amount,
+// it will produce a record for a debit with the absolute value set in the
+// amount field. Likewise, the fiat price will be obtained from the positive
+// value. If passed a positive value, an entry for a credit will be made, and no
+// changes to the amount will be made. Zero value entries will be recorded as
+// a credit.
+// nolint:unparam
+func newHarmonyEntry(ts int64, amountMsat int64, e EntryType, txid, reference,
+	note string, onChain bool, convert msatToFiat) (*HarmonyEntry, error) {
+
+	var (
+		absAmt = amountMsat
+		credit = true
+	)
+
+	if absAmt < 0 {
+		absAmt *= -1
+		credit = false
+	}
+
+	fiat, err := convert(absAmt, ts)
+	if err != nil {
+		return nil, err
+	}
+
+	return &HarmonyEntry{
+		Timestamp: time.Unix(ts, 0),
+		Amount:    lnwire.MilliSatoshi(absAmt),
+		FiatValue: fiat,
+		TxID:      txid,
+		Reference: reference,
+		Note:      note,
+		Type:      e,
+		OnChain:   onChain,
+		Credit:    credit,
+	}, nil
+}
+
 // EntryType indicates the lightning specific type of an entry.
 type EntryType int

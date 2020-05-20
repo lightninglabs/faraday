@@ -74,6 +74,20 @@ var (
 		TotalFees:     0,
 		DestAddresses: closeDestAddrs,
 	}
+
+	onChainTxID            = "e75760156b04234535e6170f152697de28b73917c69dda53c60baabdae571457"
+	onChainAmtSat    int64 = 10000
+	onChainFeeSat    int64 = 1000
+	onChainTimestamp int64 = 1588160816
+	destAddr               = "bcrt1qz9rufsy0txtljfhk298y946wyy8yq7jzne6xku"
+
+	onChainTx = lnrpc.Transaction{
+		TxHash:        onChainTxID,
+		Amount:        onChainAmtSat,
+		TimeStamp:     onChainTimestamp,
+		TotalFees:     onChainFeeSat,
+		DestAddresses: []string{destAddr},
+	}
 )
 
 // mockConvert is a mocked price function which returns mockPrice * amount.
@@ -253,6 +267,122 @@ func TestChannelCloseEntry(t *testing.T) {
 			expected := []*HarmonyEntry{getCloseEntry(
 				test.closeType.String(), test.closeAmt,
 			)}
+
+			require.Equal(t, expected, entries)
+		})
+	}
+}
+
+// TestOnChainEntry tests creation of entries for receipts and payments, and the
+// generation of a fee entry where applicable.
+func TestOnChainEntry(t *testing.T) {
+	getOnChainEntry := func(isReceive bool, label string) *HarmonyEntry {
+		entryType := EntryTypePayment
+		if isReceive {
+			entryType = EntryTypeReceipt
+		}
+
+		amt := satsToMsat(onChainAmtSat)
+		fiat, _ := mockConvert(amt, 0)
+
+		return &HarmonyEntry{
+			Timestamp: time.Unix(onChainTimestamp, 0),
+			Amount:    lnwire.MilliSatoshi(amt),
+			FiatValue: fiat,
+			TxID:      onChainTxID,
+			Reference: onChainTxID,
+			Note:      label,
+			Type:      entryType,
+			OnChain:   true,
+			Credit:    isReceive,
+		}
+	}
+
+	feeAmt := satsToMsat(onChainFeeSat)
+	fiat, _ := mockConvert(feeAmt, 0)
+
+	// Fee entry is the fee entry we expect for this transaction.
+	feeEntry := &HarmonyEntry{
+		Timestamp: time.Unix(onChainTimestamp, 0),
+		Amount:    lnwire.MilliSatoshi(feeAmt),
+		FiatValue: fiat,
+		TxID:      onChainTxID,
+		Reference: feeReference(onChainTxID),
+		Note:      "",
+		Type:      EntryTypeFee,
+		OnChain:   true,
+		Credit:    false,
+	}
+
+	tests := []struct {
+		name string
+
+		// Whether the transaction paid us, or was our payment.
+		isReceive bool
+
+		// Whether the transaction has a fee attached.
+		hasFee bool
+
+		// txLabel is an optional label on the rpc transaction.
+		txLabel string
+	}{
+		{
+			name:      "receive with fee",
+			isReceive: true,
+			hasFee:    true,
+		},
+		{
+			name:      "receive without fee",
+			isReceive: true,
+			hasFee:    false,
+		},
+		{
+			name:      "payment without fee",
+			isReceive: true,
+			hasFee:    false,
+		},
+		{
+			name:      "payment with fee",
+			isReceive: true,
+			hasFee:    true,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			// Make a copy so that we can change fields.
+			chainTx := onChainTx
+
+			// If we are testing a payment, the amount should be
+			// negative.
+			if !test.isReceive {
+				chainTx.Amount *= -1
+			}
+
+			// If we should not have a fee present, remove it,
+			// also add the fee entry to our expected set of
+			// entries.
+			if !test.hasFee {
+				chainTx.TotalFees = 0
+			}
+
+			// Set the label as per the test.
+			chainTx.Label = test.txLabel
+
+			entries, err := onChainEntries(&chainTx, mockConvert)
+			require.NoError(t, err)
+
+			// We expect the have an single on chain entry at least.
+			onChainEntry := getOnChainEntry(
+				test.isReceive, test.txLabel,
+			)
+			expected := []*HarmonyEntry{onChainEntry}
+
+			if test.hasFee {
+				expected = append(expected, feeEntry)
+			}
 
 			require.Equal(t, expected, entries)
 		})

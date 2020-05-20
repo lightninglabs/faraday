@@ -151,3 +151,43 @@ func closedChannelEntries(channel *lnrpc.ChannelCloseSummary,
 
 	return []*HarmonyEntry{closeEntry}, nil
 }
+
+// onChainEntries produces relevant entries for an on chain transaction.
+func onChainEntries(tx *lnrpc.Transaction,
+	convert msatToFiat) ([]*HarmonyEntry, error) {
+
+	amtMsat := satsToMsat(tx.Amount)
+
+	entryType := EntryTypeReceipt
+	if amtMsat < 0 {
+		entryType = EntryTypePayment
+	}
+
+	txEntry, err := newHarmonyEntry(
+		tx.TimeStamp, amtMsat, entryType, tx.TxHash, tx.TxHash,
+		tx.Label, true, convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// If we did not pay any fees, we can just return a single entry.
+	if tx.TotalFees == 0 {
+		return []*HarmonyEntry{txEntry}, nil
+	}
+
+	// Total fees are expressed as a positive value in sats, we convert to
+	// msat here and make the value negative so that it reflects as a
+	// debit.
+	feeAmt := invertedSatsToMsats(tx.TotalFees)
+
+	feeEntry, err := newHarmonyEntry(
+		tx.TimeStamp, feeAmt, EntryTypeFee, tx.TxHash,
+		feeReference(tx.TxHash), "", true, convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return []*HarmonyEntry{txEntry, feeEntry}, nil
+}

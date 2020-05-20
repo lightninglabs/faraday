@@ -108,4 +108,20 @@ const (
 	// force closed, our own balance will also require further on chain
 	// resolution, so it will not be included.
 	EntryTypeChannelClose
+
+	// EntryTypeReceipt indicates that we have received a payment. Off
+	// chain, this receipt is an invoice that we were paid via lightning.
+	// On chain, this receipt is an on chain transaction paying into our
+	// wallet.
+	EntryTypeReceipt
+
+	// EntryTypePayment indicates that we have made a payment. Off chain,
+	// this payment is a lightning payment to an invoice. On chain, this
+	// receipt is an on chain transaction paying from our wallet.
+	EntryTypePayment
+
+	// EntryTypeFee represent fees paid for on chain transactions or off
+	// chain routing. Note that this entry type excludes fees for channel
+	// opens and closes.
+	EntryTypeFee
 )

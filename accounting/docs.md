@@ -55,3 +55,32 @@ Channel close entries represent the on chain close of a channel.
 Known Omissions: 
 - If our balance is encumbered behind a timelock, or in an unresolved htlc, it will not be paid out as part of this transaction and must be resolved by follow up on chain transactions. 
 - The fees paid to close channels that we initiated are not currently recorded, this is because balances are taken from the funding output rather than being supplied by the wallet.
+
+### Receipt
+A receipt is an on chain transaction which paid to our wallet which was not related to the opening/closing of channels.
+
+- Amount: The amount that was paid to an address controlled by our wallet.
+- TxID: The on chain transaction ID.
+- Reference: The on chain transaction ID.
+- Note: An optional label set on transaction publish (see [lnd transaction labels](https://github.com/lightningnetwork/lnd/blob/master/lnrpc/walletrpc/walletkit.proto#L136)). 
+
+Known Omissions:
+- This entry type will include on chain resolutions for channel closes that sweep balances back to our node.
+
+### Payment
+A payment is an on chain transaction which was paid from our wallet and was not related to the opening/closing of channels. 
+- Amount: The amount that was paid from an address controlled by our wallet.
+- TxID: The on chain transaction ID.
+- Reference: The on chain transaction ID.
+- Note: An optional label set on transaction publish (see [lnd transaction labels](https://github.com/lightningnetwork/lnd/blob/master/lnrpc/walletrpc/walletkit.proto#L136)). 
+
+Known Omissions:
+- This entry type will include on chain resolutions for channel closes that require on chain resolutions that spend from our balance. 
+
+### Fee
+A fee entry represents the on chain fees we paid for a transaction. 
+
+- Amount: The amount that was paid in fees from our wallet. 
+- TxID: The on chain transaction ID.
+- Reference: TransactionID:-1. 
+- Note: Note set for fees. 

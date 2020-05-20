@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/shopspring/decimal"
 )
 
 // Report contains a set of entries.
@@ -20,8 +21,9 @@ type HarmonyEntry struct {
 	// msat.
 	Amount lnwire.MilliSatoshi
 
-	// FiatValue is the fiat value of this entry's amount.
-	FiatValue float64
+	// FiatValue is the fiat value of this entry's amount. This value is
+	// expressed as a decimal so that we do not lose precision.
+	FiatValue decimal.Decimal
 
 	// TxID is the transaction ID of this entry.
 	TxID string

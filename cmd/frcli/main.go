@@ -43,6 +43,7 @@ func main() {
 		revenueReportCommand,
 		channelInsightsCommand,
 		fiatEstimateCommand,
+		onChainReportCommand,
 	}
 
 	if err := app.Run(os.Args); err != nil {

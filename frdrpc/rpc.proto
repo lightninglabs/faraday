@@ -389,6 +389,9 @@ enum EntryType {
 
     // Payment of fees.
     FEE = 7;
+
+    // Receipt of a payment to ourselves.
+    CIRCULAR_RECEIPT = 8;
 }
 
 message ReportEntry {

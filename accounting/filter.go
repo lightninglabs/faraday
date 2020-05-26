@@ -51,3 +51,29 @@ func filterOnChain(startTime, endTime time.Time,
 
 	return filtered
 }
+
+// filterInvoices filters out unsettled invoices and those that are outside of
+// our desired time range.
+func filterInvoices(startTime, endTime time.Time,
+	invoices []*lnrpc.Invoice) []*lnrpc.Invoice {
+
+	// nolint: prealloc
+	var filtered []*lnrpc.Invoice
+
+	for _, invoice := range invoices {
+		// If the invoice was not settled, we do not need to create an
+		// entry for it.
+		if invoice.State != lnrpc.Invoice_SETTLED {
+			continue
+		}
+
+		settleTs := time.Unix(invoice.SettleDate, 0)
+		if !inRange(settleTs, startTime, endTime) {
+			continue
+		}
+
+		filtered = append(filtered, invoice)
+	}
+
+	return filtered
+}

@@ -17,10 +17,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/lightninglabs/faraday/fiat"
-
 	proxy "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/lightninglabs/faraday/accounting"
+	"github.com/lightninglabs/faraday/fiat"
+	"github.com/lightninglabs/faraday/paginater"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -44,6 +44,15 @@ var (
 	// maxMsgRecvSize is the largest message our REST proxy will receive. We
 	// set this to 200MiB atm.
 	maxMsgRecvSize = grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 200)
+
+	// maxInvoiceQueries is the maximum number of invoices we request from
+	// lnd at a time.
+	maxInvoiceQueries = 1000
+
+	// maxPaymentQueries is the maximum number of invoices we request from
+	// lnd at a time. It is less than the number of invoices we request
+	// because payments have a lot of htlc data.
+	maxPaymentQueries = 500
 
 	// errServerAlreadyStarted is the error that is returned if the server
 	// is requested to start while it's already been started.
@@ -138,6 +147,86 @@ func (c *Config) wrapGetChainTransactions(ctx context.Context) func() ([]*lnrpc.
 
 		return resp.Transactions, nil
 	}
+}
+
+// wrapListInvoices makes paginated calls to lnd to get our full set of
+// invoices.
+func (c *Config) wrapListInvoices(ctx context.Context) ([]*lnrpc.Invoice, error) {
+	var invoices []*lnrpc.Invoice
+
+	query := func(offset, maxEvents uint64) (uint64, uint64, error) {
+		resp, err := c.LightningClient.ListInvoices(
+			ctx, &lnrpc.ListInvoiceRequest{
+				IndexOffset:    offset,
+				NumMaxInvoices: maxEvents,
+			},
+		)
+		if err != nil {
+			return 0, 0, err
+		}
+
+		invoices = append(invoices, resp.Invoices...)
+
+		return resp.LastIndexOffset, uint64(len(resp.Invoices)), nil
+	}
+
+	// Make paginated calls to the invoices API, starting at offset 0 and
+	// querying our max number of invoices each time.
+	if err := paginater.QueryPaginated(
+		ctx, query, 0, uint64(maxInvoiceQueries),
+	); err != nil {
+		return nil, err
+	}
+
+	return invoices, nil
+}
+
+// wrapListPayments makes a set of paginated calls to lnd to get our full set
+// of payments.
+func (c *Config) wrapListPayments(ctx context.Context) ([]*lnrpc.Payment, error) {
+	var payments []*lnrpc.Payment
+
+	query := func(offset, maxEvents uint64) (uint64, uint64, error) {
+		resp, err := c.LightningClient.ListPayments(
+			ctx, &lnrpc.ListPaymentsRequest{
+				IndexOffset: offset,
+				MaxPayments: maxEvents,
+			},
+		)
+		if err != nil {
+			return 0, 0, err
+		}
+
+		payments = append(payments, resp.Payments...)
+
+		return resp.LastIndexOffset, uint64(len(resp.Payments)), nil
+	}
+
+	// Make paginated calls to the payments API, starting at offset 0 and
+	// querying our max number of payments each time.
+	if err := paginater.QueryPaginated(
+		ctx, query, 0, uint64(maxPaymentQueries),
+	); err != nil {
+		return nil, err
+	}
+
+	return payments, nil
+}
+
+// paidToSelf returns a boolean that indicates whether a payment was made to
+// our own node.
+func (c *Config) paidToSelf(ctx context.Context, paymentRequest,
+	pubkey string) (bool, error) {
+
+	resp, err := c.LightningClient.DecodePayReq(ctx, &lnrpc.PayReqString{
+		PayReq: paymentRequest,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// Return true if the invoice pays to our own pubkey.
+	return pubkey == resp.Destination, nil
 }
 
 // NewRPCServer returns a server which will listen for rpc requests on the
@@ -349,17 +438,22 @@ func (s *RPCServer) FiatEstimate(ctx context.Context,
 func (s *RPCServer) NodeReport(ctx context.Context,
 	req *NodeReportRequest) (*NodeReportResponse, error) {
 
-	cfg, err := parseNodeReportRequest(ctx, s.cfg, req)
+	onChain, offChain, err := parseNodeReportRequest(ctx, s.cfg, req)
 	if err != nil {
 		return nil, err
 	}
 
-	report, err := accounting.OnChainReport(ctx, cfg)
+	onChainReport, err := accounting.OnChainReport(ctx, onChain)
 	if err != nil {
 		return nil, err
 	}
 
-	return rpcReportResponse(report)
+	offChainReport, err := accounting.OffChainReport(ctx, offChain)
+	if err != nil {
+		return nil, err
+	}
+
+	return rpcReportResponse(append(onChainReport, offChainReport...))
 }
 
 // allowCORS wraps the given http.Handler with a function that adds the

@@ -23,7 +23,7 @@ func channelOpenNote(initiator bool, remotePubkey string, capacity int64) string
 			capacity)
 	}
 
-	return fmt.Sprintf("initiated channel with remote peer: %v, "+
+	return fmt.Sprintf("initiated channel with remote peer: %v "+
 		"capacity: %v sats", remotePubkey, capacity)
 }
 

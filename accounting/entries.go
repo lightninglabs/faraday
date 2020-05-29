@@ -122,7 +122,7 @@ func openEntries(tx *lnrpc.Transaction, convert msatToFiat,
 
 // channelCloseNote creates a close note for a channel close entry type.
 func channelCloseNote(channelID uint64, closeType, initiated string) string {
-	return fmt.Sprintf("close channel: %v, close type: %v, closed by: %v",
+	return fmt.Sprintf("close channel: %v close type: %v closed by: %v",
 		channelID, closeType, initiated)
 }
 

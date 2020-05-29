@@ -19,7 +19,7 @@ Local channel open entry types represent channel opens that were initiated by
 our node. These entries are accompanied by a separate Channel Open Fees entry, 
 because the opening party pays on chain fees. 
 
-- Amount: The amount that we added to the channel, excluding on chain fees. 
+- Amount: The amount in millisatoshis that we added to the channel, excluding on chain fees. 
 - TxID: The on chain transaction ID for the channel open. 
 - Reference: The unique channel ID assigned to the channel. 
 - Note: A note with details of who opened the channel. 
@@ -27,7 +27,7 @@ because the opening party pays on chain fees.
 ### Channel Open Fees
 The fees paid to open a channel that we initiated. 
 
-- Amount: The amount of on chain fees paid.  
+- Amount: The amount in millisatoshis of on chain fees paid.  
 - TxID: The on chain transaction ID for the channel open. 
 - Reference: TransactionID:-1; note that this is a special marker for fees. 
 - Note: A note containing the pubkey of the peer that we opened the channel to. 
@@ -47,7 +47,7 @@ Known Omissions:
 ### Channel Close 
 Channel close entries represent the on chain close of a channel. 
 
-- Amount: The amount that was paid out to us immediately on channel close. 
+- Amount: The amount in millisatoshis that was paid out to us immediately on channel close. 
 - TxID: The on chain transaction ID for the channel close. 
 - Reference: The channel close transaction ID.
 - Note: A note indicating the type of channel close, and who initiated it. 
@@ -59,7 +59,7 @@ Known Omissions:
 ### Receipt
 A receipt is an on chain transaction which paid to our wallet which was not related to the opening/closing of channels.
 
-- Amount: The amount that was paid to an address controlled by our wallet.
+- Amount: The amount in millisatoshis that was paid to an address controlled by our wallet.
 - TxID: The on chain transaction ID.
 - Reference: The on chain transaction ID.
 - Note: An optional label set on transaction publish (see [lnd transaction labels](https://github.com/lightningnetwork/lnd/blob/master/lnrpc/walletrpc/walletkit.proto#L136)). 
@@ -69,7 +69,7 @@ Known Omissions:
 
 ### Payment
 A payment is an on chain transaction which was paid from our wallet and was not related to the opening/closing of channels. 
-- Amount: The amount that was paid from an address controlled by our wallet.
+- Amount: The amount in millisatoshis that was paid from an address controlled by our wallet.
 - TxID: The on chain transaction ID.
 - Reference: The on chain transaction ID.
 - Note: An optional label set on transaction publish (see [lnd transaction labels](https://github.com/lightningnetwork/lnd/blob/master/lnrpc/walletrpc/walletkit.proto#L136)). 
@@ -80,7 +80,7 @@ Known Omissions:
 ### Fee
 A fee entry represents the on chain fees we paid for a transaction. 
 
-- Amount: The amount that was paid in fees from our wallet. 
+- Amount: The amount in millisatoshis that was paid in fees from our wallet. 
 - TxID: The on chain transaction ID.
 - Reference: TransactionID:-1. 
 - Note: Note set for fees. 
@@ -90,7 +90,7 @@ A fee entry represents the on chain fees we paid for a transaction.
 ### Receipt
 Receipts off chain represent invoices that are paid via the Lightning Network.
 
-- Amount: The amount that we were paid, note that this may be greater than the original invoice value.
+- Amount: The amount in millisatoshis that we were paid, note that this may be greater than the original invoice value.
 - TxID: The payment hash of the invoice.
 - Reference: The preimage of the invoice.
 - Note: Optionally set if the invoice had a memo attached, was overpaid, or was a keysend.
@@ -98,7 +98,7 @@ Receipts off chain represent invoices that are paid via the Lightning Network.
 ### Circular Receipt
 Circular receipts record instances where we have paid one of our own invoices. 
 
-- Amount: The amount that we were paid, note that this may be greater than the original invoice value.
+- Amount: The amount in millisatoshis that we were paid, note that this may be greater than the original invoice value.
 - TxID: The payment hash of the invoice.
 - Reference: The preimage of the invoice.
 - Note: Optionally set if the invoice had a memo attached, was overpaid, or was a keysend.
@@ -117,7 +117,7 @@ Known Omissions:
 ### Forward Fee
 Forward fee entries represent the fees we earned from forwarding payments. 
 
-- Amount: The amount of fees we earned from the forward. 
+- Amount: The amount in millisatoshis of fees we earned from the forward. 
 - TxID: Timestamp: Incoming Channel ID: Outgoing Channel ID.
 - Reference: Not set for forwards.
 - Note: Not set for forwards.

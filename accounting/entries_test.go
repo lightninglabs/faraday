@@ -119,6 +119,24 @@ var (
 		Htlcs:          nil,
 		IsKeysend:      true,
 	}
+
+	forwardTs uint64 = 1590578022
+
+	forwardChanIn  uint64 = 130841883770880
+	forwardChanOut uint64 = 124244814004224
+
+	fwdInMsat  uint64 = 4000
+	fwdOutMsat uint64 = 3000
+	fwdFeeMsat uint64 = 1000
+
+	fwdEntry = &lnrpc.ForwardingEvent{
+		Timestamp:  forwardTs,
+		ChanIdIn:   forwardChanIn,
+		ChanIdOut:  forwardChanOut,
+		FeeMsat:    fwdFeeMsat,
+		AmtInMsat:  fwdInMsat,
+		AmtOutMsat: fwdOutMsat,
+	}
 )
 
 // mockConvert is a mocked price function which returns mockPrice * amount.
@@ -481,4 +499,44 @@ func TestInvoiceEntry(t *testing.T) {
 			require.Equal(t, expectedEntry, entry)
 		})
 	}
+}
+
+// TestForwardingEntry tests creation of a forwarding and forwarding fee entry.
+func TestForwardingEntry(t *testing.T) {
+	entries, err := forwardingEntry(fwdEntry, mockConvert)
+	require.NoError(t, err)
+
+	ts := time.Unix(int64(forwardTs), 0)
+	txid := forwardTxid(fwdEntry)
+	note := forwardNote(fwdInMsat, fwdOutMsat)
+
+	fwdFiat, _ := mockConvert(int64(0), 0)
+	fwdEntry := &HarmonyEntry{
+		Timestamp: ts,
+		Amount:    0,
+		FiatValue: fwdFiat,
+		TxID:      txid,
+		Reference: "",
+		Note:      note,
+		Type:      EntryTypeForward,
+		OnChain:   false,
+		Credit:    true,
+	}
+
+	feeFiat, _ := mockConvert(int64(fwdFeeMsat), 0)
+
+	feeEntry := &HarmonyEntry{
+		Timestamp: ts,
+		Amount:    lnwire.MilliSatoshi(fwdFeeMsat),
+		FiatValue: feeFiat,
+		TxID:      txid,
+		Reference: "",
+		Note:      "",
+		Type:      EntryTypeForwardFee,
+		OnChain:   false,
+		Credit:    true,
+	}
+
+	expectedEntries := []*HarmonyEntry{fwdEntry, feeEntry}
+	require.Equal(t, expectedEntries, entries)
 }

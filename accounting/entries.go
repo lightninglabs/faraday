@@ -241,3 +241,51 @@ func invoiceEntry(invoice *lnrpc.Invoice, circularReceipt bool,
 		hash, preimage, note, false, convert,
 	)
 }
+
+// forwardTxid provides a best effort txid using incoming and outgoing channel
+// ID paired with timestamp in an effort to make txid unique per htlc forwarded.
+// This is not used as a reference because we could theoretically have duplicate
+// timestamps.
+func forwardTxid(forward *lnrpc.ForwardingEvent) string {
+	return fmt.Sprintf("%v:%v:%v", forward.Timestamp, forward.ChanIdIn,
+		forward.ChanIdOut)
+}
+
+// forwardNote creates a note that indicates the amuonts that were forwarded in
+// and out of our node.
+func forwardNote(amtIn, amtOut uint64) string {
+	return fmt.Sprintf("incoming: %v msat outgoing: %v msat", amtIn, amtOut)
+}
+
+// forwardingEntry produces a forwarding entry with a zero amount which reflects
+// shifting of funds in our channels, and fees entry which reflects the fees we
+// earned form the forward.
+func forwardingEntry(forward *lnrpc.ForwardingEvent,
+	convert msatToFiat) ([]*HarmonyEntry, error) {
+
+	txid := forwardTxid(forward)
+	note := forwardNote(forward.AmtInMsat, forward.AmtOutMsat)
+
+	fwdEntry, err := newHarmonyEntry(
+		int64(forward.Timestamp), 0, EntryTypeForward, txid, "", note,
+		false, convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// If we did not earn any fees, return the forwarding entry.
+	if forward.FeeMsat == 0 {
+		return []*HarmonyEntry{fwdEntry}, nil
+	}
+
+	feeEntry, err := newHarmonyEntry(
+		int64(forward.Timestamp), int64(forward.FeeMsat),
+		EntryTypeForwardFee, txid, "", "", false, convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return []*HarmonyEntry{fwdEntry, feeEntry}, nil
+}

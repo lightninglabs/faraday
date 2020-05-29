@@ -102,3 +102,26 @@ Circular receipts record instances where we have paid one of our own invoices.
 - TxID: The payment hash of the invoice.
 - Reference: The preimage of the invoice.
 - Note: Optionally set if the invoice had a memo attached, was overpaid, or was a keysend.
+
+### Forwards
+A forward represents a payment that arrives at our node on an incoming channel and is forwarded out on an outgoing channel in exchange for fees. The forward itself does not changes our balance, since it just shifts funds over our channels. We include forwarding entries with zero balances for completeness. Forwarding fee entries reflect the increase in our holdings from the fee we are paid. 
+
+- Amount: Zero, forwards do not change our balance except for fees, which are separated out.
+- TxID:  Timestamp: Incoming Channel ID: Outgoing Channel ID.
+- Reference: Not set for forwards.
+- Note: The amounts that were forwarded in and out of our node. 
+
+Known Omissions: 
+- We use incoming and outgoing channel ID paired with timestamp as a best-effort version of a txid. Note that this is not strictly unique for a single htlc, it is theoretically possible for two htlcs to pass through the same channel with the same timestamp.
+
+### Forward Fee
+Forward fee entries represent the fees we earned from forwarding payments. 
+
+- Amount: The amount of fees we earned from the forward. 
+- TxID: Timestamp: Incoming Channel ID: Outgoing Channel ID.
+- Reference: Not set for forwards.
+- Note: Not set for forwards.
+
+Known Omissions: 
+- See the note on txids in the Forwards section. 
+

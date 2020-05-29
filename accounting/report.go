@@ -129,4 +129,11 @@ const (
 	// ourselves. This occurs when circular payments are used to rebalance
 	// channels.
 	EntryTypeCircularReceipt
+
+	// EntryTypeForward represents a forward through our node.
+	EntryTypeForward
+
+	// EntryTypeForwardFee represents the fees we earned forwarding a
+	// payment.
+	EntryTypeForwardFee
 )

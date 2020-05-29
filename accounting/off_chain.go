@@ -17,6 +17,9 @@ type OffChainConfig struct {
 	// ListPayments lists all our payments.
 	ListPayments func() ([]*lnrpc.Payment, error)
 
+	// ListForwards lists all our forwards over out relevant period.
+	ListForwards func() ([]*lnrpc.ForwardingEvent, error)
+
 	// PaidSelf checks the invoice that we paid and returns true if we paid
 	// ourselves. This indicates that the payment was part of a circular
 	// rebalance.
@@ -62,6 +65,13 @@ func OffChainReport(ctx context.Context, cfg *OffChainConfig) (Report, error) {
 		}
 	}
 
+	// Get all our forwards, we do not need to filter them because they
+	// are already supplied over the relevant range for our query.
+	forwards, err := cfg.ListForwards()
+	if err != nil {
+		return nil, err
+	}
+
 	getPrice, err := getConversion(
 		ctx, cfg.StartTime, cfg.EndTime, cfg.Granularity,
 	)
@@ -70,7 +80,7 @@ func OffChainReport(ctx context.Context, cfg *OffChainConfig) (Report, error) {
 	}
 
 	return offChainReport(
-		filteredInvoices, paymentsToSelf, getPrice,
+		filteredInvoices, paymentsToSelf, forwards, getPrice,
 	)
 }
 
@@ -80,7 +90,7 @@ func OffChainReport(ctx context.Context, cfg *OffChainConfig) (Report, error) {
 // that were made to ourselves for the sake of appropriately reporting the
 // invoices they paid.
 func offChainReport(invoices []*lnrpc.Invoice, circularPayments map[string]bool,
-	convert msatToFiat) (Report, error) {
+	forwards []*lnrpc.ForwardingEvent, convert msatToFiat) (Report, error) {
 
 	var reports Report
 
@@ -95,6 +105,15 @@ func offChainReport(invoices []*lnrpc.Invoice, circularPayments map[string]bool,
 		}
 
 		reports = append(reports, entry)
+	}
+
+	for _, forward := range forwards {
+		entries, err := forwardingEntry(forward, convert)
+		if err != nil {
+			return nil, err
+		}
+
+		reports = append(reports, entries...)
 	}
 
 	return reports, nil

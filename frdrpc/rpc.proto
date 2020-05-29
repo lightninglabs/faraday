@@ -392,6 +392,12 @@ enum EntryType {
 
     // Receipt of a payment to ourselves.
     CIRCULAR_RECEIPT = 8;
+
+    // A forward through our node.
+    FORWARD = 9;
+
+    // Fees earned from forwarding.
+    FORWARD_FEE = 10;
 }
 
 message ReportEntry {

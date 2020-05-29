@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	proxy "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/lightninglabs/faraday/accounting"
@@ -53,6 +54,11 @@ var (
 	// lnd at a time. It is less than the number of invoices we request
 	// because payments have a lot of htlc data.
 	maxPaymentQueries = 500
+
+	// maxForwardQueries is the maximum number of forwards we request from
+	// lnd at a time. It is more than the number of invoices we request
+	// because forwards have less data.
+	maxForwardQueries = 2000
 
 	// errServerAlreadyStarted is the error that is returned if the server
 	// is requested to start while it's already been started.
@@ -211,6 +217,42 @@ func (c *Config) wrapListPayments(ctx context.Context) ([]*lnrpc.Payment, error)
 	}
 
 	return payments, nil
+}
+
+// wrapListForwards makes paginated calls to our forwarding events api.
+func (c *Config) wrapListForwards(ctx context.Context, startTime,
+	endTime time.Time) ([]*lnrpc.ForwardingEvent, error) {
+
+	var forwards []*lnrpc.ForwardingEvent
+
+	query := func(offset, maxEvents uint64) (uint64, uint64, error) {
+		resp, err := c.LightningClient.ForwardingHistory(
+			ctx, &lnrpc.ForwardingHistoryRequest{
+				StartTime:    uint64(startTime.Unix()),
+				EndTime:      uint64(endTime.Unix()),
+				IndexOffset:  uint32(offset),
+				NumMaxEvents: uint32(maxEvents),
+			},
+		)
+		if err != nil {
+			return 0, 0, err
+		}
+
+		forwards = append(forwards, resp.ForwardingEvents...)
+
+		return uint64(resp.LastOffsetIndex),
+			uint64(len(resp.ForwardingEvents)), nil
+	}
+
+	// Make paginated calls to the forwards API, starting at offset 0 and
+	// querying our max number of payments each time.
+	if err := paginater.QueryPaginated(
+		ctx, query, 0, uint64(maxForwardQueries),
+	); err != nil {
+		return nil, err
+	}
+
+	return forwards, nil
 }
 
 // paidToSelf returns a boolean that indicates whether a payment was made to

@@ -47,6 +47,9 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		ListPayments: func() ([]*lnrpc.Payment, error) {
 			return cfg.wrapListPayments(ctx)
 		},
+		ListForwards: func() ([]*lnrpc.ForwardingEvent, error) {
+			return cfg.wrapListForwards(ctx, start, end)
+		},
 		PaidSelf: func(payReq string) (bool, error) {
 			return cfg.paidToSelf(ctx, payReq, info.IdentityPubkey)
 		},
@@ -113,6 +116,12 @@ func rpcEntryType(t accounting.EntryType) (EntryType, error) {
 
 	case accounting.EntryTypeCircularReceipt:
 		return EntryType_CIRCULAR_RECEIPT, nil
+
+	case accounting.EntryTypeForward:
+		return EntryType_FORWARD, nil
+
+	case accounting.EntryTypeForwardFee:
+		return EntryType_FORWARD_FEE, nil
 
 	default:
 		return 0, fmt.Errorf("unknown entrytype: %v", t)

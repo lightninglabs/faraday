@@ -121,6 +121,12 @@ func rpcEntryType(t accounting.EntryType) (EntryType, error) {
 	case accounting.EntryTypeForwardFee:
 		return EntryType_FORWARD_FEE, nil
 
+	case accounting.EntryTypeCircularPayment:
+		return EntryType_CIRCULAR_PAYMENT, nil
+
+	case accounting.EntryTypeCircularPaymentFee:
+		return EntryType_CIRCULAR_FEE, nil
+
 	default:
 		return 0, fmt.Errorf("unknown entrytype: %v", t)
 	}

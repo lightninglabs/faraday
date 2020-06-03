@@ -76,6 +76,7 @@ A payment is an on chain transaction which was paid from our wallet and was not 
 
 Known Omissions:
 - This entry type will include on chain resolutions for channel closes that require on chain resolutions that spend from our balance. 
+- The current accounting package does not support accounting for payments with duplicate payment hashes, which were allowed in previous versions of lnd. Duplicate payments should be deleted or a time range that does not include them should be specified. 
 
 ### Fee
 A fee entry represents the on chain fees we paid for a transaction. 

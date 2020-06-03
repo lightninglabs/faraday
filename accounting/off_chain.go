@@ -21,6 +21,14 @@ var (
 	// lnd reflect multiple attempts to pay the same invoice.
 	errDifferentDuplicates = errors.New("duplicate payments paid to " +
 		"different sources")
+
+	// errDuplicatesNotSupported is returned when we see payments with
+	// duplicate payment hashes. This was allowed in legacy versions of lnd,
+	// but is not supported for accounting purposes. Nodes with duplicates
+	// will be required to delete the duplicates or query over a range that
+	// excludes them.
+	errDuplicatesNotSupported = errors.New("duplicate payments not " +
+		"supported, query more recent timestamp to exclude duplicates")
 )
 
 // OffChainConfig contains all the functionality required to produce an off
@@ -87,6 +95,11 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice msatToFiat) (Report,
 		return nil, err
 	}
 
+	filteredPayments := filterPayments(cfg.StartTime, cfg.EndTime, payments)
+	if err := sanityCheckDuplicates(filteredPayments); err != nil {
+		return nil, err
+	}
+
 	// Get all our forwards, we do not need to filter them because they
 	// are already supplied over the relevant range for our query.
 	forwards, err := cfg.ListForwards()
@@ -95,7 +108,8 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice msatToFiat) (Report,
 	}
 
 	return offChainReport(
-		filteredInvoices, paymentsToSelf, forwards, getPrice,
+		filteredInvoices, filteredPayments, paymentsToSelf, forwards,
+		getPrice,
 	)
 }
 
@@ -104,8 +118,10 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice msatToFiat) (Report,
 // date range, with the exception of payments to self which tracks payments
 // that were made to ourselves for the sake of appropriately reporting the
 // invoices they paid.
-func offChainReport(invoices []*lnrpc.Invoice, circularPayments map[string]bool,
-	forwards []*lnrpc.ForwardingEvent, convert msatToFiat) (Report, error) {
+
+func offChainReport(invoices []*lnrpc.Invoice, payments []settledPayment,
+	circularPayments map[string]bool, forwards []*lnrpc.ForwardingEvent,
+	convert msatToFiat) (Report, error) {
 
 	var reports Report
 
@@ -122,6 +138,19 @@ func offChainReport(invoices []*lnrpc.Invoice, circularPayments map[string]bool,
 		}
 
 		reports = append(reports, entry)
+	}
+
+	for _, payment := range payments {
+		// If the payment's payment request is in our set of circular
+		// payments, we know that this payment was made to ourselves.
+		toSelf := circularPayments[payment.PaymentHash]
+
+		entries, err := paymentEntry(payment, toSelf, convert)
+		if err != nil {
+			return nil, err
+		}
+
+		reports = append(reports, entries...)
 	}
 
 	for _, forward := range forwards {
@@ -193,4 +222,21 @@ func getCircularPayments(ourPubkey string,
 	}
 
 	return paymentsToSelf, nil
+}
+
+// sanityCheckDuplicates checks that we have no payments with duplicate payment
+// hashes. We do not support accounting for duplicate payments.
+func sanityCheckDuplicates(payments []settledPayment) error {
+	uniqueHashes := make(map[string]bool, len(payments))
+
+	for _, payment := range payments {
+		_, ok := uniqueHashes[payment.PaymentHash]
+		if ok {
+			return errDuplicatesNotSupported
+		}
+
+		uniqueHashes[payment.PaymentHash] = true
+	}
+
+	return nil
 }

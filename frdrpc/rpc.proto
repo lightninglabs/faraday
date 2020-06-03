@@ -398,6 +398,12 @@ enum EntryType {
 
     // Fees earned from forwarding.
     FORWARD_FEE = 10;
+
+    // Sending of a payment to ourselves.
+    CIRCULAR_PAYMENT = 11;
+
+    // The fees paid to send an off chain payment to ourselves.
+    CIRCULAR_FEE = 12;
 }
 
 message ReportEntry {

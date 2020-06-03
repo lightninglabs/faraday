@@ -2,7 +2,9 @@ package accounting
 
 import (
 	"testing"
+	"time"
 
+	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/stretchr/testify/require"
 )
@@ -12,6 +14,7 @@ var (
 	otherPubkey = "0349f7019b9c48bc456f011d17538a242f763bbc5759362f200854154113318727"
 
 	paymentHash1 = "673507764b0ad03443d07e7446b884d6d908aa783ee5e2704fbabc09ada79a79"
+	paymentHash2 = "a5530c5930b9eb7ea4284bcff39da52c6bca3103fc790749eb632911edc7143b"
 )
 
 // TestGetCircularPayments tests detection of payments that are made to
@@ -176,6 +179,75 @@ func TestGetCircularPayments(t *testing.T) {
 			)
 			require.Equal(t, test.err, err)
 			require.Equal(t, test.circular, circular)
+		})
+	}
+}
+
+// TestOffChainReport tests creation of our off chain report for a given set of
+// payments, invoices and forwards. It uses a mocked price function so that the
+// test does not make live price API calls.
+func TestOffChainReport(t *testing.T) {
+	tests := []struct {
+		name string
+
+		// Payments is the set of payments our ListPayments call should
+		// return.
+		payments []*lnrpc.Payment
+
+		// err is the error we expect to be returned.
+		err error
+	}{
+		{
+			name: "No duplicate payments",
+			payments: []*lnrpc.Payment{
+				{
+					PaymentHash: paymentHash1,
+				},
+				{
+					PaymentHash: paymentHash2,
+				},
+			},
+		},
+		{
+			name: "Duplicate payments both to ourself",
+			payments: []*lnrpc.Payment{
+				{
+					PaymentHash: paymentHash1,
+				},
+				{
+					PaymentHash: paymentHash1,
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Create a config that returns our test set of
+			// payments.
+			cfg := &OffChainConfig{
+				ListInvoices: func() ([]*lnrpc.Invoice, error) {
+					return nil, nil
+				},
+				ListPayments: func() ([]*lnrpc.Payment, error) {
+					return test.payments, nil
+				},
+				ListForwards: func() ([]*lnrpc.ForwardingEvent,
+					error) {
+
+					return nil, nil
+				},
+				Granularity: fiat.GranularityHour,
+				StartTime:   time.Unix(startTime, 0),
+				EndTime:     time.Unix(endTime, 0),
+			}
+
+			_, err := offChainReportWithPrices(cfg, mockConvert)
+			require.Equal(t, test.err, err)
 		})
 	}
 }

@@ -50,9 +50,7 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		ListForwards: func() ([]*lnrpc.ForwardingEvent, error) {
 			return cfg.wrapListForwards(ctx, start, end)
 		},
-		PaidSelf: func(payReq string) (bool, error) {
-			return cfg.paidToSelf(ctx, payReq, info.IdentityPubkey)
-		},
+		OwnPubKey:   info.IdentityPubkey,
 		StartTime:   start,
 		EndTime:     end,
 		Granularity: granularity,

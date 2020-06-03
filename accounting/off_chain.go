@@ -38,7 +38,24 @@ type OffChainConfig struct {
 	Granularity fiat.Granularity
 }
 
+// OffChainReport gets a report of off chain activity using live price data.
 func OffChainReport(ctx context.Context, cfg *OffChainConfig) (Report, error) {
+	getPrice, err := getConversion(
+		ctx, cfg.StartTime, cfg.EndTime, cfg.Granularity,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return offChainReportWithPrices(cfg, getPrice)
+}
+
+// offChainReportWithPrices produces off chain reports using the getPrice
+// function provided. This allows testing of our report creation without calling
+// the actual price API.
+func offChainReportWithPrices(cfg *OffChainConfig, getPrice msatToFiat) (Report,
+	error) {
+
 	invoices, err := cfg.ListInvoices()
 	if err != nil {
 		return nil, err
@@ -68,13 +85,6 @@ func OffChainReport(ctx context.Context, cfg *OffChainConfig) (Report, error) {
 	// Get all our forwards, we do not need to filter them because they
 	// are already supplied over the relevant range for our query.
 	forwards, err := cfg.ListForwards()
-	if err != nil {
-		return nil, err
-	}
-
-	getPrice, err := getConversion(
-		ctx, cfg.StartTime, cfg.EndTime, cfg.Granularity,
-	)
 	if err != nil {
 		return nil, err
 	}

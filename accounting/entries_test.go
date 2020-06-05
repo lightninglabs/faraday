@@ -120,6 +120,33 @@ var (
 		IsKeysend:      true,
 	}
 
+	paymentTime = 1590399649
+
+	paymentHash = "11f414479f0a0c2762492c71c58dded5dce99d56d65c3fa523f73513605bebb3"
+
+	paymentPreimage = "adfef20b24152accd4ed9a05257fb77203d90a8bbbe6d4069a75c5320f0538d9"
+
+	paymentMsat = 30000
+
+	paymentFeeMsat = 45
+
+	paymentIndex = 33
+
+	payment = &lnrpc.Payment{
+		PaymentHash:     paymentHash,
+		PaymentPreimage: paymentPreimage,
+		ValueMsat:       int64(paymentMsat),
+		Status:          lnrpc.Payment_SUCCEEDED,
+		FeeMsat:         int64(paymentFeeMsat),
+		Htlcs:           []*lnrpc.HTLCAttempt{{}},
+		PaymentIndex:    uint64(paymentIndex),
+	}
+
+	settledPmt = settledPayment{
+		Payment:    payment,
+		settleTime: time.Unix(int64(paymentTime), 0),
+	}
+
 	forwardTs uint64 = 1590578022
 
 	forwardChanIn  uint64 = 130841883770880
@@ -497,6 +524,82 @@ func TestInvoiceEntry(t *testing.T) {
 
 			expectedEntry := getEntry(test.circular)
 			require.Equal(t, expectedEntry, entry)
+		})
+	}
+}
+
+// TestPaymentEntry tests creation of payment entries for circular rebalances
+// and regular payments.
+func TestPaymentEntry(t *testing.T) {
+	// getEntries is a helper function which returns our expected entries
+	// based on whether we are testing a payment to ourselves or not.
+	getEntries := func(toSelf bool) []*HarmonyEntry {
+		mockFiat, _ := mockConvert(int64(paymentMsat), 0)
+		paymentRef := paymentReference(
+			uint64(paymentIndex), paymentHash,
+		)
+
+		paymentEntry := &HarmonyEntry{
+			Timestamp: time.Unix(int64(paymentTime), 0),
+			Amount:    lnwire.MilliSatoshi(paymentMsat),
+			FiatValue: mockFiat,
+			TxID:      paymentHash,
+			Reference: paymentRef,
+			Note:      paymentNote(paymentPreimage),
+			Type:      EntryTypePayment,
+			OnChain:   false,
+			Credit:    false,
+		}
+
+		feeFiat, _ := mockConvert(int64(paymentFeeMsat), 0)
+		feeEntry := &HarmonyEntry{
+			Timestamp: time.Unix(int64(paymentTime), 0),
+			Amount:    lnwire.MilliSatoshi(paymentFeeMsat),
+			FiatValue: feeFiat,
+			TxID:      paymentHash,
+			Reference: feeReference(paymentRef),
+			Note:      paymentFeeNote(payment.Htlcs),
+			Type:      EntryTypeFee,
+			OnChain:   false,
+			Credit:    false,
+		}
+
+		if toSelf {
+			paymentEntry.Type = EntryTypeCircularPayment
+			feeEntry.Type = EntryTypeCircularPaymentFee
+		}
+
+		return []*HarmonyEntry{paymentEntry, feeEntry}
+	}
+
+	tests := []struct {
+		name   string
+		toSelf bool
+	}{
+		{
+			name:   "regular payment",
+			toSelf: false,
+		},
+		{
+			name:   "to self",
+			toSelf: true,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			entries, err := paymentEntry(
+				settledPmt, test.toSelf, mockConvert,
+			)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			expectedEntries := getEntries(test.toSelf)
+
+			require.Equal(t, expectedEntries, entries)
 		})
 	}
 }

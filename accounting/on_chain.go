@@ -35,11 +35,27 @@ type OnChainConfig struct {
 	Granularity fiat.Granularity
 }
 
-// OnChainReport produces a report of our on chain activity for a period.
-// Note that this report relies on transactions returned by GetTransactions in
-// lnd. If a transaction is not included in this response (eg, a remote party
-// opening a channel to us), it will not be included.
+// OnChainReport produces a report of our on chain activity for a period using
+// live price data. Note that this report relies on transactions returned by
+// GetTransactions in lnd. If a transaction is not included in this response
+// (eg, a remote party opening a channel to us), it will not be included.
 func OnChainReport(ctx context.Context, cfg *OnChainConfig) (Report, error) {
+	// Retrieve a function which can be used to query individual prices.
+	getPrice, err := getConversion(
+		ctx, cfg.StartTime, cfg.EndTime, cfg.Granularity,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return onChainReportWithPrices(cfg, getPrice)
+}
+
+// onChainReportWithPrices produces off chain reports using the getPrice
+// function provided. This allows testing of our report creation without calling
+// the actual price API.
+func onChainReportWithPrices(cfg *OnChainConfig, getPrice msatToFiat) (Report,
+	error) {
 	onChainTxns, err := cfg.OnChainTransactions()
 	if err != nil {
 		return nil, err
@@ -98,14 +114,6 @@ func OnChainReport(ctx context.Context, cfg *OnChainConfig) (Report, error) {
 			return nil, err
 		}
 		channelOpens[outpoint.Hash.String()] = closedChannel
-	}
-
-	// Retrieve a function which can be used to query individual prices.
-	getPrice, err := getConversion(
-		ctx, cfg.StartTime, cfg.EndTime, cfg.Granularity,
-	)
-	if err != nil {
-		return nil, err
 	}
 
 	return onChainReport(

@@ -255,22 +255,6 @@ func (c *Config) wrapListForwards(ctx context.Context, startTime,
 	return forwards, nil
 }
 
-// paidToSelf returns a boolean that indicates whether a payment was made to
-// our own node.
-func (c *Config) paidToSelf(ctx context.Context, paymentRequest,
-	pubkey string) (bool, error) {
-
-	resp, err := c.LightningClient.DecodePayReq(ctx, &lnrpc.PayReqString{
-		PayReq: paymentRequest,
-	})
-	if err != nil {
-		return false, err
-	}
-
-	// Return true if the invoice pays to our own pubkey.
-	return pubkey == resp.Destination, nil
-}
-
 // NewRPCServer returns a server which will listen for rpc requests on the
 // rpc listen address provided. Note that the server returned is not running,
 // and should be started using Start().

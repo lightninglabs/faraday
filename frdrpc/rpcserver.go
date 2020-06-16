@@ -22,6 +22,7 @@ import (
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/paginater"
+	"github.com/lightninglabs/faraday/ratelimit"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -89,6 +90,9 @@ type RPCServer struct {
 
 	restCancel func()
 	wg         sync.WaitGroup
+
+	ctx       context.Context
+	cancelCtx func()
 }
 
 // Config provides closures and settings required to run the rpc server.
@@ -347,6 +351,16 @@ func (s *RPCServer) Start() error {
 		}
 	}()
 
+	s.ctx, s.cancelCtx = context.WithCancel(context.Background())
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		err := ratelimit.Run(s.ctx, s.cfg.RouterClient)
+		if err != nil {
+			log.Errorf("Rate limiter failed: %v", err)
+		}
+	}()
+
 	return nil
 }
 
@@ -367,6 +381,10 @@ func (s *RPCServer) StartAsSubserver(lndClient lnrpc.LightningClient) error {
 func (s *RPCServer) Stop() error {
 	if atomic.AddInt32(&s.stopped, 1) != 1 {
 		return nil
+	}
+
+	if s.cancelCtx != nil {
+		s.cancelCtx()
 	}
 
 	if s.restServer != nil {

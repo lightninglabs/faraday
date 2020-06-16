@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/lightninglabs/faraday/frdrpc"
-	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/signal"

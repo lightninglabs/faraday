@@ -25,6 +25,7 @@ import (
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"google.golang.org/grpc"
 )
 
@@ -94,6 +95,10 @@ type RPCServer struct {
 type Config struct {
 	// LightningClient is a client which can be used to query lnd.
 	LightningClient lnrpc.LightningClient
+
+	// RouterClient is a client which can be used to access routing
+	// functionality in lnd.
+	RouterClient routerrpc.RouterClient
 
 	// RPCListen is the address:port that the gRPC server should listen on.
 	RPCListen string

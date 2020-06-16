@@ -7,6 +7,7 @@ import (
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/signal"
 )
 
@@ -35,6 +36,7 @@ func Main() error {
 	server := frdrpc.NewRPCServer(
 		&frdrpc.Config{
 			LightningClient: lnrpc.NewLightningClient(conn),
+			RouterClient:    routerrpc.NewRouterClient(conn),
 			RPCListen:       config.RPCListen,
 			RESTListen:      config.RESTListen,
 			CORSOrigin:      config.CORSOrigin,

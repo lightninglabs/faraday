@@ -6,6 +6,7 @@ import (
 
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/signal"
 )
 
@@ -18,7 +19,7 @@ func Main() error {
 	}
 
 	// NewBasicClient get a lightning rpc client with
-	client, err := lndclient.NewBasicClient(
+	conn, err := lndclient.NewBasicConn(
 		config.RPCServer,
 		config.TLSCertPath,
 		config.MacaroonDir,
@@ -33,7 +34,7 @@ func Main() error {
 	// Instantiate the faraday gRPC server.
 	server := frdrpc.NewRPCServer(
 		&frdrpc.Config{
-			LightningClient: client,
+			LightningClient: lnrpc.NewLightningClient(conn),
 			RPCListen:       config.RPCListen,
 			RESTListen:      config.RESTListen,
 			CORSOrigin:      config.CORSOrigin,

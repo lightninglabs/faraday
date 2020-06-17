@@ -73,32 +73,32 @@ func TestFilterOnChain(t *testing.T) {
 	// Create three test transactions, one confirmed but outside of our
 	// range, one confirmed and in our range and one in our range but not
 	// confirmed.
-	confirmedTxOutOfRange := &lnrpc.Transaction{
-		TimeStamp:        startTime - 10,
-		NumConfirmations: 1,
+	confirmedTxOutOfRange := lndclient.Transaction{
+		Timestamp:     time.Unix(startTime-10, 0),
+		Confirmations: 1,
 	}
 
-	confirmedTx := &lnrpc.Transaction{
-		TimeStamp:        inRangeTime,
-		NumConfirmations: 1,
+	confirmedTx := lndclient.Transaction{
+		Timestamp:     time.Unix(inRangeTime, 0),
+		Confirmations: 1,
 	}
 
-	noConfTx := &lnrpc.Transaction{
-		TimeStamp:        inRangeTime,
-		NumConfirmations: 0,
+	noConfTx := lndclient.Transaction{
+		Timestamp:     time.Unix(inRangeTime, 0),
+		Confirmations: 0,
 	}
 
 	start := time.Unix(startTime, 0)
 	end := time.Unix(endTime, 0)
 
-	unfiltered := []*lnrpc.Transaction{
+	unfiltered := []lndclient.Transaction{
 		confirmedTx, noConfTx, confirmedTxOutOfRange,
 	}
 	filtered := filterOnChain(start, end, unfiltered)
 
 	// We only expect our confirmed transaction in the time range we
 	// specified to be included.
-	expected := []*lnrpc.Transaction{confirmedTx}
+	expected := []lndclient.Transaction{confirmedTx}
 	require.Equal(t, expected, filtered)
 }
 

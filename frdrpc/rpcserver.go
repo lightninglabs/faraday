@@ -25,7 +25,6 @@ import (
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightninglabs/loop/lndclient"
-	"github.com/lightningnetwork/lnd/lnrpc"
 	"google.golang.org/grpc"
 )
 
@@ -135,20 +134,6 @@ func (c *Config) wrapListChannels(ctx context.Context,
 		}
 
 		return publicChannels, nil
-	}
-}
-
-func (c *Config) wrapGetChainTransactions(ctx context.Context) func() ([]*lnrpc.Transaction, error) {
-	return func() (transactions []*lnrpc.Transaction, err error) {
-		resp, err := c.LightningClient.GetTransactions(
-			ctx, &lnrpc.GetTransactionsRequest{},
-		)
-		if err != nil {
-			return nil, err
-
-		}
-
-		return resp.Transactions, nil
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/shopspring/decimal"
@@ -14,13 +15,13 @@ import (
 type msatToFiat func(amount, timestamp int64) (decimal.Decimal, error)
 
 // satsToMsat converts an amount expressed in sats to msat.
-func satsToMsat(sats int64) int64 {
-	return sats * 1000
+func satsToMsat(sats btcutil.Amount) int64 {
+	return int64(sats) * 1000
 }
 
 // satsToMsat converts an amount expressed in sats to msat, flipping the
 // sign on the value.
-func invertedSatsToMsats(sats int64) int64 {
+func invertedSatsToMsats(sats btcutil.Amount) int64 {
 	return satsToMsat(sats) * -1
 }
 

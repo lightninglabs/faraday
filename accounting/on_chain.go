@@ -7,7 +7,6 @@ import (
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/utils"
 	"github.com/lightninglabs/loop/lndclient"
-	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
 // OnChainConfig contains all the functionality required to produce an on chain
@@ -21,7 +20,7 @@ type OnChainConfig struct {
 
 	// OnChainTransactions provides a list of all on chain transactions
 	// relevant to our wallet over a block range.
-	OnChainTransactions func() ([]*lnrpc.Transaction, error)
+	OnChainTransactions func() ([]lndclient.Transaction, error)
 
 	// StartTime is the time from which the report should be created,
 	// inclusive.
@@ -123,13 +122,13 @@ func onChainReportWithPrices(cfg *OnChainConfig, getPrice msatToFiat) (Report,
 }
 
 // onChainReport produces an on chain transaction report.
-func onChainReport(txns []*lnrpc.Transaction, priceFunc msatToFiat,
+func onChainReport(txns []lndclient.Transaction, priceFunc msatToFiat,
 	currentlyOpenChannels map[string]lndclient.ChannelInfo,
 	channelOpenTransactions,
 	channelCloseTransactions map[string]lndclient.ClosedChannel) (
 	Report, error) {
 
-	txMap := make(map[string]*lnrpc.Transaction, len(txns))
+	txMap := make(map[string]lndclient.Transaction, len(txns))
 	for _, tx := range txns {
 		txMap[tx.TxHash] = tx
 	}

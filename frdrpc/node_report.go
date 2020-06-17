@@ -30,10 +30,12 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		ClosedChannels: func() ([]lndclient.ClosedChannel, error) {
 			return cfg.Lnd.Client.ClosedChannels(ctx)
 		},
-		OnChainTransactions: cfg.wrapGetChainTransactions(ctx),
-		StartTime:           start,
-		EndTime:             end,
-		Granularity:         granularity,
+		OnChainTransactions: func() ([]lndclient.Transaction, error) {
+			return cfg.Lnd.Client.ListTransactions(ctx)
+		},
+		StartTime:   start,
+		EndTime:     end,
+		Granularity: granularity,
 	}
 
 	// We lookup our pubkey once so that our paid to self function does

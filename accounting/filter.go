@@ -30,21 +30,19 @@ func inRange(timestamp, startTime, endTime time.Time) bool {
 // which lie within [startTime, endTime). Unconfirmed transactions are also
 // excluded from this set.
 func filterOnChain(startTime, endTime time.Time,
-	txns []*lnrpc.Transaction) []*lnrpc.Transaction {
+	txns []lndclient.Transaction) []lndclient.Transaction {
 
 	// nolint: prealloc
-	var filtered []*lnrpc.Transaction
+	var filtered []lndclient.Transaction
 
 	for _, tx := range txns {
-		timestamp := time.Unix(tx.TimeStamp, 0)
-
 		// Unconfirmed transactions are listed with 0 confirmations,
 		// they have no timestamp so we skip them.
-		if tx.NumConfirmations == 0 {
+		if tx.Confirmations == 0 {
 			continue
 		}
 
-		if !inRange(timestamp, startTime, endTime) {
+		if !inRange(tx.Timestamp, startTime, endTime) {
 			continue
 		}
 

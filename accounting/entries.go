@@ -39,7 +39,7 @@ func channelOpenFeeNote(channelID uint64) string {
 
 // channelOpenEntries produces the relevant set of entries for a currently open
 // channel.
-func channelOpenEntries(channel lndclient.ChannelInfo, tx *lnrpc.Transaction,
+func channelOpenEntries(channel lndclient.ChannelInfo, tx lndclient.Transaction,
 	convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	var (
@@ -64,7 +64,7 @@ func channelOpenEntries(channel lndclient.ChannelInfo, tx *lnrpc.Transaction,
 // already been closed, we need to produce channel opening records from the
 // close summary.
 func openChannelFromCloseSummary(channel lndclient.ClosedChannel,
-	tx *lnrpc.Transaction, convert msatToFiat) ([]*HarmonyEntry, error) {
+	tx lndclient.Transaction, convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	// If the transaction has a negative amount, we can infer that this
 	// transaction was a local channel open, because a remote party opening
@@ -87,7 +87,7 @@ func openChannelFromCloseSummary(channel lndclient.ClosedChannel,
 // fields. This is required because we create channel open entries from already
 // open channels using lnrpc.Channel and from closed channels using
 // lnrpc.ChannelCloseSummary.
-func openEntries(tx *lnrpc.Transaction, convert msatToFiat, amtMsat int64,
+func openEntries(tx lndclient.Transaction, convert msatToFiat, amtMsat int64,
 	capacity btcutil.Amount, entryType EntryType, remote string,
 	channelID uint64, initiator bool) ([]*HarmonyEntry, error) {
 
@@ -95,7 +95,7 @@ func openEntries(tx *lnrpc.Transaction, convert msatToFiat, amtMsat int64,
 	note := channelOpenNote(initiator, remote, capacity)
 
 	openEntry, err := newHarmonyEntry(
-		tx.TimeStamp, amtMsat, entryType, tx.TxHash, ref, note,
+		tx.Timestamp.Unix(), amtMsat, entryType, tx.TxHash, ref, note,
 		true, convert,
 	)
 	if err != nil {
@@ -112,11 +112,11 @@ func openEntries(tx *lnrpc.Transaction, convert msatToFiat, amtMsat int64,
 	// Transactions record fees in absolute amounts in sats, so we need
 	// to convert fees to msat and filp it to a negative value so it
 	// records as a debit.
-	feeMsat := invertedSatsToMsats(tx.TotalFees)
+	feeMsat := invertedSatsToMsats(tx.Fee)
 
 	note = channelOpenFeeNote(channelID)
 	feeEntry, err := newHarmonyEntry(
-		tx.TimeStamp, feeMsat, EntryTypeChannelOpenFee,
+		tx.Timestamp.Unix(), feeMsat, EntryTypeChannelOpenFee,
 		tx.TxHash, feeReference(tx.TxHash), note, true, convert,
 	)
 	if err != nil {
@@ -138,7 +138,7 @@ func channelCloseNote(channelID uint64, closeType, initiated string) string {
 // it is excluding htlcs that are resolved on chain, and will not reflect our
 // balance when we force close (because it is behind a timelock).
 func closedChannelEntries(channel lndclient.ClosedChannel,
-	tx *lnrpc.Transaction, convert msatToFiat) ([]*HarmonyEntry, error) {
+	tx lndclient.Transaction, convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	amtMsat := satsToMsat(tx.Amount)
 	note := channelCloseNote(
@@ -147,7 +147,7 @@ func closedChannelEntries(channel lndclient.ClosedChannel,
 	)
 
 	closeEntry, err := newHarmonyEntry(
-		tx.TimeStamp, amtMsat, EntryTypeChannelClose,
+		tx.Timestamp.Unix(), amtMsat, EntryTypeChannelClose,
 		channel.ClosingTxHash, channel.ClosingTxHash, note, true,
 		convert,
 	)
@@ -161,7 +161,7 @@ func closedChannelEntries(channel lndclient.ClosedChannel,
 }
 
 // onChainEntries produces relevant entries for an on chain transaction.
-func onChainEntries(tx *lnrpc.Transaction,
+func onChainEntries(tx lndclient.Transaction,
 	convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	amtMsat := satsToMsat(tx.Amount)
@@ -172,7 +172,7 @@ func onChainEntries(tx *lnrpc.Transaction,
 	}
 
 	txEntry, err := newHarmonyEntry(
-		tx.TimeStamp, amtMsat, entryType, tx.TxHash, tx.TxHash,
+		tx.Timestamp.Unix(), amtMsat, entryType, tx.TxHash, tx.TxHash,
 		tx.Label, true, convert,
 	)
 	if err != nil {
@@ -180,17 +180,17 @@ func onChainEntries(tx *lnrpc.Transaction,
 	}
 
 	// If we did not pay any fees, we can just return a single entry.
-	if tx.TotalFees == 0 {
+	if tx.Fee == 0 {
 		return []*HarmonyEntry{txEntry}, nil
 	}
 
 	// Total fees are expressed as a positive value in sats, we convert to
 	// msat here and make the value negative so that it reflects as a
 	// debit.
-	feeAmt := invertedSatsToMsats(tx.TotalFees)
+	feeAmt := invertedSatsToMsats(tx.Fee)
 
 	feeEntry, err := newHarmonyEntry(
-		tx.TimeStamp, feeAmt, EntryTypeFee, tx.TxHash,
+		tx.Timestamp.Unix(), feeAmt, EntryTypeFee, tx.TxHash,
 		feeReference(tx.TxHash), "", true, convert,
 	)
 	if err != nil {

@@ -20,77 +20,64 @@ var (
 	remotePubkey               = "02f6a7664ca2a2178b422a058af651075de2e5bdfff028ac8e1fcd96153cba636b"
 	remoteVertex, _            = route.NewVertexFromStr(remotePubkey)
 	channelID           uint64 = 124244814004224
-	channelCapacitySats int64  = 500000
-	channelFeesSats     int64  = 10000
-	destAddresses              = []string{
-		"bcrt1qmwfx3a3y28dlhap9uh0kx0uc7qwwkhc06ajw6n",
-		"bcrt1qkhdqm0g4f73splxrluwegvus7rv9ve88x45ejm",
-	}
+	channelCapacitySats        = btcutil.Amount(500000)
+	channelFeesSats            = btcutil.Amount(10000)
 
 	openChannel = lndclient.ChannelInfo{
 		PubKeyBytes:  remoteVertex,
 		ChannelPoint: fmt.Sprintf("%v:%v", openChannelTx, 1),
 		ChannelID:    channelID,
-		Capacity:     btcutil.Amount(channelCapacitySats),
+		Capacity:     channelCapacitySats,
 		Initiator:    false,
 	}
 
-	transactionTimestamp int64 = 1588145604
+	transactionTimestamp = time.Unix(1588145604, 0)
 
-	openChannelTransaction = lnrpc.Transaction{
+	openChannelTransaction = lndclient.Transaction{
 		TxHash: openChannelTx,
 		// Amounts are reported with negative values in getTransactions.
-		Amount:           channelCapacitySats * -1,
-		NumConfirmations: 2,
-		TotalFees:        channelFeesSats,
-		DestAddresses:    destAddresses,
-		TimeStamp:        transactionTimestamp,
+		Amount:        channelCapacitySats * -1,
+		Confirmations: 2,
+		Fee:           channelFeesSats,
+		Timestamp:     transactionTimestamp,
 	}
 
 	mockPrice = decimal.NewFromInt(10)
 
 	closeTx = "e730b07d6121b19dd717925de82b8c76dec38517ffd85701e6735a726f5f75c3"
 
-	closeBalanceSat int64 = 50000
+	closeBalanceSat = btcutil.Amount(50000)
 
 	channelClose = lndclient.ClosedChannel{
 		ChannelPoint:   openChannel.ChannelPoint,
 		ChannelID:      openChannel.ChannelID,
 		ClosingTxHash:  closeTx,
 		PubKeyBytes:    remoteVertex,
-		SettledBalance: btcutil.Amount(closeBalanceSat),
+		SettledBalance: closeBalanceSat,
 		CloseInitiator: lndclient.InitiatorLocal,
 	}
 
-	closeTimestamp int64 = 1588159722
+	closeTimestamp = time.Unix(1588159722, 0)
 
-	closeDestAddrs = []string{
-		"bcrt1qmj4f92gcf08j3640csv72xvwlca33ypv4yw2nc",
-		"bcrt1q0yv9p2ap55wsy95xgwrgrkmnt9jna03w06524c",
-	}
-
-	channelCloseTx = lnrpc.Transaction{
+	channelCloseTx = lndclient.Transaction{
 		TxHash:    closeTx,
 		Amount:    closeBalanceSat,
-		TimeStamp: closeTimestamp,
+		Timestamp: closeTimestamp,
 		// Total fees for closes will always reflect as 0 because they
 		// come from the 2-2 multisig funding output.
-		TotalFees:     0,
-		DestAddresses: closeDestAddrs,
+		Fee: 0,
 	}
 
-	onChainTxID            = "e75760156b04234535e6170f152697de28b73917c69dda53c60baabdae571457"
-	onChainAmtSat    int64 = 10000
-	onChainFeeSat    int64 = 1000
-	onChainTimestamp int64 = 1588160816
-	destAddr               = "bcrt1qz9rufsy0txtljfhk298y946wyy8yq7jzne6xku"
+	onChainTxID      = "e75760156b04234535e6170f152697de28b73917c69dda53c60baabdae571457"
+	onChainAmtSat    = btcutil.Amount(10000)
+	onChainFeeSat    = btcutil.Amount(1000)
+	onChainTimestamp = time.Unix(1588160816, 0)
 
-	onChainTx = lnrpc.Transaction{
-		TxHash:        onChainTxID,
-		Amount:        onChainAmtSat,
-		TimeStamp:     onChainTimestamp,
-		TotalFees:     onChainFeeSat,
-		DestAddresses: []string{destAddr},
+	onChainTx = lndclient.Transaction{
+		TxHash:    onChainTxID,
+		Amount:    onChainAmtSat,
+		Timestamp: onChainTimestamp,
+		Fee:       onChainFeeSat,
 	}
 
 	paymentRequest = "lnbcrt10n1p0t6nmypp547evsfyrakg0nmyw59ud9cegkt99yccn5nnp4suq3ac4qyzzgevsdqqcqzpgsp54hvffpajcyddm20k3ptu53930425hpnv8m06nh5jrd6qhq53anrq9qy9qsqphhzyenspf7kfwvm3wyu04fa8cjkmvndyexlnrmh52huwa4tntppjmak703gfln76rvswmsx2cz3utsypzfx40dltesy8nj64ttgemgqtwfnj9"
@@ -197,12 +184,11 @@ func TestChannelOpenEntry(t *testing.T) {
 		mockFiat, _ := mockConvert(amt, 0)
 
 		note := channelOpenNote(
-			initiator, remotePubkey,
-			btcutil.Amount(channelCapacitySats),
+			initiator, remotePubkey, channelCapacitySats,
 		)
 
 		return &HarmonyEntry{
-			Timestamp: time.Unix(transactionTimestamp, 0),
+			Timestamp: transactionTimestamp,
 			Amount:    lnwire.MilliSatoshi(amt),
 			FiatValue: mockFiat,
 			TxID:      openChannelTx,
@@ -219,7 +205,7 @@ func TestChannelOpenEntry(t *testing.T) {
 	mockFee, _ := mockConvert(feeAmt, 0)
 	// Fee entry is the expected fee entry for locally initiated channels.
 	feeEntry := &HarmonyEntry{
-		Timestamp: time.Unix(transactionTimestamp, 0),
+		Timestamp: transactionTimestamp,
 		Amount:    lnwire.MilliSatoshi(feeAmt),
 		FiatValue: mockFee,
 		TxID:      openChannelTx,
@@ -264,7 +250,7 @@ func TestChannelOpenEntry(t *testing.T) {
 
 			// Get our entries.
 			entries, err := channelOpenEntries(
-				channel, &tx, mockConvert,
+				channel, tx, mockConvert,
 			)
 			require.Equal(t, test.expectedErr, err)
 
@@ -288,7 +274,7 @@ func TestChannelCloseEntry(t *testing.T) {
 	// getCloseEntry returns a close entry for the global close var with
 	// correct close type and amount.
 	getCloseEntry := func(closeType, closeInitiator string,
-		closeBalance int64) *HarmonyEntry {
+		closeBalance btcutil.Amount) *HarmonyEntry {
 
 		note := channelCloseNote(channelID, closeType, closeInitiator)
 
@@ -296,7 +282,7 @@ func TestChannelCloseEntry(t *testing.T) {
 		closeFiat, _ := mockConvert(closeAmt, 0)
 
 		return &HarmonyEntry{
-			Timestamp: time.Unix(closeTimestamp, 0),
+			Timestamp: closeTimestamp,
 			Amount:    lnwire.MilliSatoshi(closeAmt),
 			FiatValue: closeFiat,
 			TxID:      closeTx,
@@ -311,7 +297,7 @@ func TestChannelCloseEntry(t *testing.T) {
 	tests := []struct {
 		name      string
 		closeType lndclient.CloseType
-		closeAmt  int64
+		closeAmt  btcutil.Amount
 	}{
 		{
 			name:      "coop close, has balance",
@@ -338,7 +324,7 @@ func TestChannelCloseEntry(t *testing.T) {
 			closeTx.Amount = test.closeAmt
 
 			entries, err := closedChannelEntries(
-				closeChan, &closeTx, mockConvert,
+				closeChan, closeTx, mockConvert,
 			)
 			require.NoError(t, err)
 
@@ -366,7 +352,7 @@ func TestOnChainEntry(t *testing.T) {
 		fiat, _ := mockConvert(amt, 0)
 
 		return &HarmonyEntry{
-			Timestamp: time.Unix(onChainTimestamp, 0),
+			Timestamp: onChainTimestamp,
 			Amount:    lnwire.MilliSatoshi(amt),
 			FiatValue: fiat,
 			TxID:      onChainTxID,
@@ -383,7 +369,7 @@ func TestOnChainEntry(t *testing.T) {
 
 	// Fee entry is the fee entry we expect for this transaction.
 	feeEntry := &HarmonyEntry{
-		Timestamp: time.Unix(onChainTimestamp, 0),
+		Timestamp: onChainTimestamp,
 		Amount:    lnwire.MilliSatoshi(feeAmt),
 		FiatValue: fiat,
 		TxID:      onChainTxID,
@@ -445,13 +431,13 @@ func TestOnChainEntry(t *testing.T) {
 			// also add the fee entry to our expected set of
 			// entries.
 			if !test.hasFee {
-				chainTx.TotalFees = 0
+				chainTx.Fee = 0
 			}
 
 			// Set the label as per the test.
 			chainTx.Label = test.txLabel
 
-			entries, err := onChainEntries(&chainTx, mockConvert)
+			entries, err := onChainEntries(chainTx, mockConvert)
 			require.NoError(t, err)
 
 			// We expect the have an single on chain entry at least.

@@ -2,12 +2,12 @@ package accounting
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"time"
 
 	"github.com/lightninglabs/faraday/fiat"
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightningnetwork/lnd/lntypes"
 )
 
 var (
@@ -35,13 +35,13 @@ var (
 // chain report.
 type OffChainConfig struct {
 	// ListInvoices lists all our invoices.
-	ListInvoices func() ([]*lnrpc.Invoice, error)
+	ListInvoices func() ([]lndclient.Invoice, error)
 
 	// ListPayments lists all our payments.
-	ListPayments func() ([]*lnrpc.Payment, error)
+	ListPayments func() ([]lndclient.Payment, error)
 
 	// ListForwards lists all our forwards over out relevant period.
-	ListForwards func() ([]*lnrpc.ForwardingEvent, error)
+	ListForwards func() ([]lndclient.ForwardingEvent, error)
 
 	// OwnPubKey is our node's public key. We use this value to identify
 	// payments that are made to our own node.
@@ -119,18 +119,16 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice msatToFiat) (Report,
 // that were made to ourselves for the sake of appropriately reporting the
 // invoices they paid.
 
-func offChainReport(invoices []*lnrpc.Invoice, payments []settledPayment,
-	circularPayments map[string]bool, forwards []*lnrpc.ForwardingEvent,
+func offChainReport(invoices []lndclient.Invoice, payments []settledPayment,
+	circularPayments map[string]bool, forwards []lndclient.ForwardingEvent,
 	convert msatToFiat) (Report, error) {
 
 	var reports Report
 
 	for _, invoice := range invoices {
-		hash := hex.EncodeToString(invoice.RHash)
-
 		// If the invoice's payment hash is in our set of circular
 		// payments, we know that this payment was made to ourselves.
-		toSelf := circularPayments[hash]
+		toSelf := circularPayments[invoice.Hash.String()]
 
 		entry, err := invoiceEntry(invoice, toSelf, convert)
 		if err != nil {
@@ -143,7 +141,7 @@ func offChainReport(invoices []*lnrpc.Invoice, payments []settledPayment,
 	for _, payment := range payments {
 		// If the payment's payment request is in our set of circular
 		// payments, we know that this payment was made to ourselves.
-		toSelf := circularPayments[payment.PaymentHash]
+		toSelf := circularPayments[payment.Hash.String()]
 
 		entries, err := paymentEntry(payment, toSelf, convert)
 		if err != nil {
@@ -179,7 +177,7 @@ func offChainReport(invoices []*lnrpc.Invoice, payments []settledPayment,
 // the payments (resulting in bugs) and is not expected, because duplicate
 // payments are expected to reflect multiple attempts of the same payment.
 func getCircularPayments(ourPubkey string,
-	payments []*lnrpc.Payment) (map[string]bool, error) {
+	payments []lndclient.Payment) (map[string]bool, error) {
 
 	// Run through all payments and get those that were made to our own
 	// node. We identify these payments by payment hash so that we can
@@ -211,13 +209,13 @@ func getCircularPayments(ourPubkey string,
 		// Before we add our entry to the map, we sanity check that if
 		// it has any duplicates, the value in the map is the same as
 		// the value we are about to add.
-		duplicateToSelf, ok := paymentsToSelf[payment.PaymentHash]
+		duplicateToSelf, ok := paymentsToSelf[payment.Hash.String()]
 		if ok && duplicateToSelf != toSelf {
 			return nil, errDifferentDuplicates
 		}
 
 		if toSelf {
-			paymentsToSelf[payment.PaymentHash] = toSelf
+			paymentsToSelf[payment.Hash.String()] = toSelf
 		}
 	}
 
@@ -227,15 +225,15 @@ func getCircularPayments(ourPubkey string,
 // sanityCheckDuplicates checks that we have no payments with duplicate payment
 // hashes. We do not support accounting for duplicate payments.
 func sanityCheckDuplicates(payments []settledPayment) error {
-	uniqueHashes := make(map[string]bool, len(payments))
+	uniqueHashes := make(map[lntypes.Hash]bool, len(payments))
 
 	for _, payment := range payments {
-		_, ok := uniqueHashes[payment.PaymentHash]
+		_, ok := uniqueHashes[payment.Hash]
 		if ok {
 			return errDuplicatesNotSupported
 		}
 
-		uniqueHashes[payment.PaymentHash] = true
+		uniqueHashes[payment.Hash] = true
 	}
 
 	return nil

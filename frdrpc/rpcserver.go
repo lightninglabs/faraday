@@ -24,7 +24,7 @@ import (
 	"github.com/lightninglabs/faraday/paginater"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightninglabs/loop/lndclient"
 	"google.golang.org/grpc"
 )
 
@@ -92,8 +92,8 @@ type RPCServer struct {
 
 // Config provides closures and settings required to run the rpc server.
 type Config struct {
-	// LightningClient is a client which can be used to query lnd.
-	LightningClient lnrpc.LightningClient
+	// Lnd is a client which can be used to query lnd.
+	Lnd lndclient.LndServices
 
 	// RPCListen is the address:port that the gRPC server should listen on.
 	RPCListen string
@@ -109,62 +109,44 @@ type Config struct {
 // wrapListChannels wraps the listchannels call to lnd, with a publicOnly bool
 // that can be used to toggle whether private channels are included.
 func (c *Config) wrapListChannels(ctx context.Context,
-	publicOnly bool) func() ([]*lnrpc.Channel, error) {
+	publicOnly bool) func() ([]lndclient.ChannelInfo, error) {
 
-	return func() (channels []*lnrpc.Channel, e error) {
-		resp, err := c.LightningClient.ListChannels(
-			ctx,
-			&lnrpc.ListChannelsRequest{
-				PublicOnly: publicOnly,
-			},
-		)
+	return func() ([]lndclient.ChannelInfo, error) {
+		resp, err := c.Lnd.Client.ListChannels(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		return resp.Channels, nil
-	}
-}
-
-func (c *Config) wrapClosedChannels(ctx context.Context) func() (
-	[]*lnrpc.ChannelCloseSummary, error) {
-
-	return func() ([]*lnrpc.ChannelCloseSummary, error) {
-		resp, err := c.LightningClient.ClosedChannels(
-			ctx, &lnrpc.ClosedChannelsRequest{},
-		)
-		if err != nil {
-			return nil, err
+		// If we want all channels, we can just return now.
+		if !publicOnly {
+			return resp, err
 		}
 
-		return resp.Channels, nil
-	}
-}
+		// If we only want public channels, we skip over all private
+		// channels and return a list of public only.
+		var publicChannels []lndclient.ChannelInfo
+		for _, channel := range resp {
+			if channel.Private {
+				continue
+			}
 
-func (c *Config) wrapGetChainTransactions(ctx context.Context) func() ([]*lnrpc.Transaction, error) {
-	return func() (transactions []*lnrpc.Transaction, err error) {
-		resp, err := c.LightningClient.GetTransactions(
-			ctx, &lnrpc.GetTransactionsRequest{},
-		)
-		if err != nil {
-			return nil, err
-
+			publicChannels = append(publicChannels, channel)
 		}
 
-		return resp.Transactions, nil
+		return publicChannels, nil
 	}
 }
 
 // wrapListInvoices makes paginated calls to lnd to get our full set of
 // invoices.
-func (c *Config) wrapListInvoices(ctx context.Context) ([]*lnrpc.Invoice, error) {
-	var invoices []*lnrpc.Invoice
+func (c *Config) wrapListInvoices(ctx context.Context) ([]lndclient.Invoice, error) {
+	var invoices []lndclient.Invoice
 
-	query := func(offset, maxEvents uint64) (uint64, uint64, error) {
-		resp, err := c.LightningClient.ListInvoices(
-			ctx, &lnrpc.ListInvoiceRequest{
-				IndexOffset:    offset,
-				NumMaxInvoices: maxEvents,
+	query := func(offset, maxInvoices uint64) (uint64, uint64, error) {
+		resp, err := c.Lnd.Client.ListInvoices(
+			ctx, lndclient.ListInvoicesRequest{
+				Offset:      offset,
+				MaxInvoices: maxInvoices,
 			},
 		)
 		if err != nil {
@@ -189,13 +171,15 @@ func (c *Config) wrapListInvoices(ctx context.Context) ([]*lnrpc.Invoice, error)
 
 // wrapListPayments makes a set of paginated calls to lnd to get our full set
 // of payments.
-func (c *Config) wrapListPayments(ctx context.Context) ([]*lnrpc.Payment, error) {
-	var payments []*lnrpc.Payment
+func (c *Config) wrapListPayments(ctx context.Context) ([]lndclient.Payment,
+	error) {
+
+	var payments []lndclient.Payment
 
 	query := func(offset, maxEvents uint64) (uint64, uint64, error) {
-		resp, err := c.LightningClient.ListPayments(
-			ctx, &lnrpc.ListPaymentsRequest{
-				IndexOffset: offset,
+		resp, err := c.Lnd.Client.ListPayments(
+			ctx, lndclient.ListPaymentsRequest{
+				Offset:      offset,
 				MaxPayments: maxEvents,
 			},
 		)
@@ -221,27 +205,27 @@ func (c *Config) wrapListPayments(ctx context.Context) ([]*lnrpc.Payment, error)
 
 // wrapListForwards makes paginated calls to our forwarding events api.
 func (c *Config) wrapListForwards(ctx context.Context, startTime,
-	endTime time.Time) ([]*lnrpc.ForwardingEvent, error) {
+	endTime time.Time) ([]lndclient.ForwardingEvent, error) {
 
-	var forwards []*lnrpc.ForwardingEvent
+	var forwards []lndclient.ForwardingEvent
 
 	query := func(offset, maxEvents uint64) (uint64, uint64, error) {
-		resp, err := c.LightningClient.ForwardingHistory(
-			ctx, &lnrpc.ForwardingHistoryRequest{
-				StartTime:    uint64(startTime.Unix()),
-				EndTime:      uint64(endTime.Unix()),
-				IndexOffset:  uint32(offset),
-				NumMaxEvents: uint32(maxEvents),
+		resp, err := c.Lnd.Client.ForwardingHistory(
+			ctx, lndclient.ForwardingHistoryRequest{
+				StartTime: startTime,
+				EndTime:   endTime,
+				Offset:    uint32(offset),
+				MaxEvents: uint32(maxEvents),
 			},
 		)
 		if err != nil {
 			return 0, 0, err
 		}
 
-		forwards = append(forwards, resp.ForwardingEvents...)
+		forwards = append(forwards, resp.Events...)
 
-		return uint64(resp.LastOffsetIndex),
-			uint64(len(resp.ForwardingEvents)), nil
+		return uint64(resp.LastIndexOffset),
+			uint64(len(resp.Events)), nil
 	}
 
 	// Make paginated calls to the forwards API, starting at offset 0 and
@@ -349,12 +333,12 @@ func (s *RPCServer) Start() error {
 // create its own gRPC server but registers to an existing one. The same goes
 // for REST (if enabled), instead of creating an own mux and HTTP server, we
 // register to an existing one.
-func (s *RPCServer) StartAsSubserver(lndClient lnrpc.LightningClient) error {
+func (s *RPCServer) StartAsSubserver(lndClient lndclient.LndServices) error {
 	if atomic.AddInt32(&s.started, 1) != 1 {
 		return errServerAlreadyStarted
 	}
 
-	s.cfg.LightningClient = lndClient
+	s.cfg.Lnd = lndClient
 	return nil
 }
 

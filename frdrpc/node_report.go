@@ -2,10 +2,11 @@ package frdrpc
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/lightninglabs/faraday/accounting"
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightninglabs/loop/lndclient"
 )
 
 // parseNodeReportRequest parses a report request and returns the config
@@ -25,32 +26,36 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 	}
 
 	onChain := &accounting.OnChainConfig{
-		OpenChannels:        cfg.wrapListChannels(ctx, false),
-		ClosedChannels:      cfg.wrapClosedChannels(ctx),
-		OnChainTransactions: cfg.wrapGetChainTransactions(ctx),
-		StartTime:           start,
-		EndTime:             end,
-		Granularity:         granularity,
+		OpenChannels: cfg.wrapListChannels(ctx, false),
+		ClosedChannels: func() ([]lndclient.ClosedChannel, error) {
+			return cfg.Lnd.Client.ClosedChannels(ctx)
+		},
+		OnChainTransactions: func() ([]lndclient.Transaction, error) {
+			return cfg.Lnd.Client.ListTransactions(ctx)
+		},
+		StartTime:   start,
+		EndTime:     end,
+		Granularity: granularity,
 	}
 
 	// We lookup our pubkey once so that our paid to self function does
 	// not need to do a lookup for every payment it checks.
-	info, err := cfg.LightningClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	info, err := cfg.Lnd.Client.GetInfo(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	offChain := &accounting.OffChainConfig{
-		ListInvoices: func() ([]*lnrpc.Invoice, error) {
+		ListInvoices: func() ([]lndclient.Invoice, error) {
 			return cfg.wrapListInvoices(ctx)
 		},
-		ListPayments: func() ([]*lnrpc.Payment, error) {
+		ListPayments: func() ([]lndclient.Payment, error) {
 			return cfg.wrapListPayments(ctx)
 		},
-		ListForwards: func() ([]*lnrpc.ForwardingEvent, error) {
+		ListForwards: func() ([]lndclient.ForwardingEvent, error) {
 			return cfg.wrapListForwards(ctx, start, end)
 		},
-		OwnPubKey:   info.IdentityPubkey,
+		OwnPubKey:   hex.EncodeToString(info.IdentityPubkey[:]),
 		StartTime:   start,
 		EndTime:     end,
 		Granularity: granularity,

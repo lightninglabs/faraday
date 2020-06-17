@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/lightninglabs/faraday/paginater"
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
 
@@ -15,16 +15,16 @@ const maxQueryEvents uint64 = 500
 // Config contains all the functions required to calculate revenue.
 type Config struct {
 	// ListChannels returns all open, public channels.
-	ListChannels func() ([]*lnrpc.Channel, error)
+	ListChannels func() ([]lndclient.ChannelInfo, error)
 
 	// ClosedChannels returns all closed channels.
-	ClosedChannels func() ([]*lnrpc.ChannelCloseSummary, error)
+	ClosedChannels func() ([]lndclient.ClosedChannel, error)
 
 	// ForwardingHistory returns paginated forwarding history results.
 	// The period that these results queried over determines the period
 	// that the report is generated for.
 	ForwardingHistory func(offset, maxEvents uint32) (
-		[]*lnrpc.ForwardingEvent, uint32, error)
+		*lndclient.ForwardingHistoryResponse, error)
 }
 
 // GetRevenueReport produces a revenue report over the period specified.
@@ -47,13 +47,13 @@ func GetRevenueReport(cfg *Config) (*Report, error) {
 	// string.
 	channelIDs := make(map[lnwire.ShortChannelID]string)
 	for _, channel := range channels {
-		channelIDs[lnwire.NewShortChanIDFromInt(channel.ChanId)] =
-			channel.ChannelPoint
+		id := lnwire.NewShortChanIDFromInt(channel.ChannelID)
+		channelIDs[id] = channel.ChannelPoint
 	}
 
 	for _, closedChannel := range closedChannels {
-		channelIDs[lnwire.NewShortChanIDFromInt(closedChannel.ChanId)] =
-			closedChannel.ChannelPoint
+		id := lnwire.NewShortChanIDFromInt(closedChannel.ChannelID)
+		channelIDs[id] = closedChannel.ChannelPoint
 	}
 
 	events, err := getEvents(channelIDs, cfg.ForwardingHistory)
@@ -68,9 +68,9 @@ func GetRevenueReport(cfg *Config) (*Report, error) {
 // forwarding events for the period provided. It takes a map of shortChannelIDs
 // to outpoints which is used to convert forwarding events short ids to
 // outpoint strings.
-func getEvents(channelIDs map[lnwire.ShortChannelID]string,
-	queryForwards func(offset, maxEvents uint32) ([]*lnrpc.ForwardingEvent,
-		uint32, error)) ([]revenueEvent, error) {
+func getEvents(channelIDs map[lnwire.ShortChannelID]string, queryForwards func(
+	offset, maxEvents uint32) (*lndclient.ForwardingHistoryResponse,
+	error)) ([]revenueEvent, error) {
 
 	var events []revenueEvent
 
@@ -79,7 +79,7 @@ func getEvents(channelIDs map[lnwire.ShortChannelID]string,
 	// We use this function with our generic paginater to build up a set of
 	// forwarding events from the paginated api.
 	query := func(offset, maxEvents uint64) (uint64, uint64, error) {
-		fwdEvents, newOffset, err := queryForwards(
+		resp, err := queryForwards(
 			uint32(offset), uint32(maxQueryEvents),
 		)
 		if err != nil {
@@ -90,12 +90,12 @@ func getEvents(channelIDs map[lnwire.ShortChannelID]string,
 		// and create a revenue event. Return an error if the short
 		// channel id's outpoint cannot be found, because we expect all
 		// known short channel ids to be provided.
-		for _, fwd := range fwdEvents {
+		for _, fwd := range resp.Events {
 			shortChanIn := lnwire.NewShortChanIDFromInt(
-				fwd.ChanIdIn,
+				fwd.ChannelIn,
 			)
 			shortChanOut := lnwire.NewShortChanIDFromInt(
-				fwd.ChanIdOut,
+				fwd.ChannelOut,
 			)
 
 			incoming, ok := channelIDs[shortChanIn]
@@ -103,8 +103,8 @@ func getEvents(channelIDs map[lnwire.ShortChannelID]string,
 				log.Errorf("cannot find channel "+
 					"incoming outpoint for forward: %v(%v "+
 					"msat) -> %v(%v msat)", shortChanIn,
-					fwd.AmtInMsat, shortChanOut,
-					fwd.AmtOutMsat)
+					fwd.AmountMsatIn, shortChanOut,
+					fwd.AmountMsatOut)
 
 				continue
 			}
@@ -114,8 +114,8 @@ func getEvents(channelIDs map[lnwire.ShortChannelID]string,
 				log.Errorf("cannot find channel "+
 					"outgoing outpoint for forward: %v(%v "+
 					"msat) -> %v(%v msat)", shortChanIn,
-					fwd.AmtInMsat, shortChanOut,
-					fwd.AmtOutMsat)
+					fwd.AmountMsatIn, shortChanOut,
+					fwd.AmountMsatOut)
 
 				continue
 			}
@@ -123,12 +123,12 @@ func getEvents(channelIDs map[lnwire.ShortChannelID]string,
 			events = append(events, revenueEvent{
 				incomingChannel: incoming,
 				outgoingChannel: outgoing,
-				incomingAmt:     lnwire.MilliSatoshi(fwd.AmtInMsat),
-				outgoingAmt:     lnwire.MilliSatoshi(fwd.AmtOutMsat),
+				incomingAmt:     fwd.AmountMsatIn,
+				outgoingAmt:     fwd.AmountMsatOut,
 			})
 		}
 
-		return uint64(newOffset), uint64(len(fwdEvents)), nil
+		return offset, uint64(len(resp.Events)), nil
 	}
 
 	// Pass our query which accumulates events to our generic paginated

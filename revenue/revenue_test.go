@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/stretchr/testify/require"
 )
@@ -17,14 +17,14 @@ func TestGetRevenueReport(t *testing.T) {
 		// failures.
 		testErr = errors.New("error thrown by mock")
 
-		chan1 = &lnrpc.Channel{
+		chan1 = lndclient.ChannelInfo{
 			ChannelPoint: "a:1",
-			ChanId:       123,
+			ChannelID:    123,
 		}
 
-		chan2 = &lnrpc.Channel{
+		chan2 = lndclient.ChannelInfo{
 			ChannelPoint: "a:2",
-			ChanId:       321,
+			ChannelID:    321,
 		}
 	)
 
@@ -33,9 +33,9 @@ func TestGetRevenueReport(t *testing.T) {
 		listChanErr    error
 		closedChanErr  error
 		forwardHistErr error
-		openChannels   []*lnrpc.Channel
-		closedChannels []*lnrpc.ChannelCloseSummary
-		fwdHistory     []*lnrpc.ForwardingEvent
+		openChannels   []lndclient.ChannelInfo
+		closedChannels []lndclient.ClosedChannel
+		fwdHistory     []lndclient.ForwardingEvent
 		expectedReport *Report
 		expectErr      error
 	}{
@@ -56,9 +56,9 @@ func TestGetRevenueReport(t *testing.T) {
 		},
 		{
 			name: "cannot find channel",
-			fwdHistory: []*lnrpc.ForwardingEvent{
+			fwdHistory: []lndclient.ForwardingEvent{
 				{
-					ChanIdIn: 123,
+					ChannelIn: 123,
 				},
 			},
 			expectErr: nil,
@@ -68,17 +68,17 @@ func TestGetRevenueReport(t *testing.T) {
 		},
 		{
 			name:         "open and closed channel",
-			openChannels: []*lnrpc.Channel{chan1},
-			closedChannels: []*lnrpc.ChannelCloseSummary{{
+			openChannels: []lndclient.ChannelInfo{chan1},
+			closedChannels: []lndclient.ClosedChannel{{
 				ChannelPoint: chan2.ChannelPoint,
-				ChanId:       chan2.ChanId,
+				ChannelID:    chan2.ChannelID,
 			}},
-			fwdHistory: []*lnrpc.ForwardingEvent{
+			fwdHistory: []lndclient.ForwardingEvent{
 				{
-					ChanIdIn:   chan1.ChanId,
-					ChanIdOut:  chan2.ChanId,
-					AmtOutMsat: 100,
-					AmtInMsat:  150,
+					ChannelIn:     chan1.ChannelID,
+					ChannelOut:    chan2.ChannelID,
+					AmountMsatOut: 100,
+					AmountMsatIn:  150,
 				},
 			},
 			expectedReport: &Report{
@@ -109,16 +109,19 @@ func TestGetRevenueReport(t *testing.T) {
 			// Create a config which returns the tests's specified
 			// responses and errors.
 			cfg := &Config{
-				ListChannels: func() ([]*lnrpc.Channel, error) {
+				ListChannels: func() ([]lndclient.ChannelInfo, error) {
 					return test.openChannels, test.listChanErr
 				},
-				ClosedChannels: func() ([]*lnrpc.ChannelCloseSummary, error) {
+				ClosedChannels: func() ([]lndclient.ClosedChannel, error) {
 					return test.closedChannels, test.closedChanErr
 				},
 				ForwardingHistory: func(offset,
-					max uint32) ([]*lnrpc.ForwardingEvent, uint32, error) {
+					max uint32) (*lndclient.ForwardingHistoryResponse, error) {
 
-					return test.fwdHistory, offset, test.forwardHistErr
+					return &lndclient.ForwardingHistoryResponse{
+						LastIndexOffset: offset,
+						Events:          test.fwdHistory,
+					}, test.forwardHistErr
 				},
 			}
 
@@ -146,20 +149,23 @@ func TestGetEvents(t *testing.T) {
 	chanOutID := lnwire.NewShortChanIDFromInt(321)
 
 	// mockedEvents is the set of events our mock returns.
-	mockedEvents := []*lnrpc.ForwardingEvent{
+	mockedEvents := []lndclient.ForwardingEvent{
 		{
-			ChanIdIn:   chanInID.ToUint64(),
-			ChanIdOut:  chanOutID.ToUint64(),
-			AmtOutMsat: 2000,
-			AmtInMsat:  4000,
+			ChannelIn:     chanInID.ToUint64(),
+			ChannelOut:    chanOutID.ToUint64(),
+			AmountMsatOut: 2000,
+			AmountMsatIn:  4000,
 		},
 	}
 
 	// mockQuery returns our set of mocked events.
-	mockQuery := func(_, _ uint32) ([]*lnrpc.ForwardingEvent, uint32,
+	mockQuery := func(_, _ uint32) (*lndclient.ForwardingHistoryResponse,
 		error) {
 
-		return mockedEvents, 0, nil
+		return &lndclient.ForwardingHistoryResponse{
+			LastIndexOffset: 0,
+			Events:          mockedEvents,
+		}, nil
 	}
 
 	// channelIDFound is a map that will successfully lookup an outpoint for

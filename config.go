@@ -11,7 +11,6 @@ import (
 const (
 	defaultRPCPort        = "10009"
 	defaultRPCHostPort    = "localhost:" + defaultRPCPort
-	defaultMacaroon       = "admin.macaroon"
 	defaultNetwork        = "mainnet"
 	defaultMinimumMonitor = time.Hour * 24 * 7 * 4 // four weeks in hours
 	defaultDebugLevel     = "info"
@@ -24,9 +23,6 @@ type Config struct {
 
 	// MacaroonDir is the directory containing macaroons.
 	MacaroonDir string `long:"macaroondir" description:"Dir containing macaroons"`
-
-	// MacaroonFile is the file name of the macaroon to use.
-	MacaroonFile string `long:"macaroonfile" description:"Macaroon file to use."`
 
 	// TLSCertPath is the path to the tls cert that faraday should use.
 	TLSCertPath string `long:"tlscertpath" description:"Path to TLS cert"`
@@ -65,7 +61,6 @@ func DefaultConfig() Config {
 	return Config{
 		RPCServer:        defaultRPCHostPort,
 		network:          defaultNetwork,
-		MacaroonFile:     defaultMacaroon,
 		MinimumMonitored: defaultMinimumMonitor,
 		DebugLevel:       defaultDebugLevel,
 		RPCListen:        defaultRPCListen,

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/faraday/revenue"
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
 
@@ -46,29 +46,29 @@ func TestGetChannels(t *testing.T) {
 		},
 	}
 
-	hourInSeconds := int64(time.Hour.Seconds())
+	chanID := channelHeight1000.ToUint64()
 
 	tests := []struct {
 		name             string
-		channels         []*lnrpc.Channel
+		channels         []lndclient.ChannelInfo
 		currentHeight    uint32
 		revenue          *revenue.Report
 		expectedInsights []*ChannelInfo
 	}{
 		{
 			name:             "no channels",
-			channels:         []*lnrpc.Channel{},
+			channels:         []lndclient.ChannelInfo{},
 			currentHeight:    2000,
 			revenue:          noRevenue,
 			expectedInsights: []*ChannelInfo{},
 		}, {
 			name: "one confirmation",
-			channels: []*lnrpc.Channel{
+			channels: []lndclient.ChannelInfo{
 				{
 					ChannelPoint: "a:1",
-					Lifetime:     hourInSeconds,
-					Uptime:       hourInSeconds / 2,
-					ChanId:       channelHeight1000.ToUint64(),
+					LifeTime:     time.Hour,
+					Uptime:       time.Hour / 2,
+					ChannelID:    chanID,
 				},
 			},
 			currentHeight: 1000,
@@ -85,12 +85,12 @@ func TestGetChannels(t *testing.T) {
 		},
 		{
 			name: "two confirmations",
-			channels: []*lnrpc.Channel{
+			channels: []lndclient.ChannelInfo{
 				{
 					ChannelPoint: "a:1",
-					Lifetime:     hourInSeconds,
-					Uptime:       hourInSeconds / 2,
-					ChanId:       channelHeight1000.ToUint64(),
+					LifeTime:     time.Hour,
+					Uptime:       time.Hour / 2,
+					ChannelID:    chanID,
 				},
 			},
 			currentHeight: 1001,
@@ -118,7 +118,7 @@ func TestGetChannels(t *testing.T) {
 
 			insights, err := GetChannels(&Config{
 				OpenChannels: func() (
-					channels []*lnrpc.Channel, err error) {
+					[]lndclient.ChannelInfo, error) {
 
 					return test.channels, nil
 				},

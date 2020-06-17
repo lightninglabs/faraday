@@ -1,11 +1,14 @@
 package accounting
 
 import (
-	"encoding/hex"
 	"fmt"
 	"strings"
 
+	"github.com/btcsuite/btcutil"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lntypes"
+	"github.com/lightningnetwork/lnd/lnwire"
 )
 
 // feeReference returns a special unique reference for the fee paid on a
@@ -16,7 +19,9 @@ func feeReference(reference string) string {
 }
 
 // channelOpenNote creates a note for a channel open entry type.
-func channelOpenNote(initiator bool, remotePubkey string, capacity int64) string {
+func channelOpenNote(initiator bool, remotePubkey string,
+	capacity btcutil.Amount) string {
+
 	if !initiator {
 		return fmt.Sprintf("remote peer %v initated channel open "+
 			"with capacity: %v sat", remotePubkey,
@@ -34,7 +39,7 @@ func channelOpenFeeNote(channelID uint64) string {
 
 // channelOpenEntries produces the relevant set of entries for a currently open
 // channel.
-func channelOpenEntries(channel *lnrpc.Channel, tx *lnrpc.Transaction,
+func channelOpenEntries(channel lndclient.ChannelInfo, tx lndclient.Transaction,
 	convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	var (
@@ -49,7 +54,8 @@ func channelOpenEntries(channel *lnrpc.Channel, tx *lnrpc.Transaction,
 
 	return openEntries(
 		tx, convert, amtMsat, channel.Capacity, entryType,
-		channel.RemotePubkey, channel.ChanId, channel.Initiator,
+		channel.PubKeyBytes.String(), channel.ChannelID,
+		channel.Initiator,
 	)
 }
 
@@ -57,8 +63,8 @@ func channelOpenEntries(channel *lnrpc.Channel, tx *lnrpc.Transaction,
 // and closed within the period we are reporting on. Since the channel has
 // already been closed, we need to produce channel opening records from the
 // close summary.
-func openChannelFromCloseSummary(channel *lnrpc.ChannelCloseSummary,
-	tx *lnrpc.Transaction, convert msatToFiat) ([]*HarmonyEntry, error) {
+func openChannelFromCloseSummary(channel lndclient.ClosedChannel,
+	tx lndclient.Transaction, convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	// If the transaction has a negative amount, we can infer that this
 	// transaction was a local channel open, because a remote party opening
@@ -73,7 +79,7 @@ func openChannelFromCloseSummary(channel *lnrpc.ChannelCloseSummary,
 
 	return openEntries(
 		tx, convert, amtMsat, channel.Capacity, entryType,
-		channel.RemotePubkey, channel.ChanId, initiator,
+		channel.PubKeyBytes.String(), channel.ChannelID, initiator,
 	)
 }
 
@@ -81,15 +87,15 @@ func openChannelFromCloseSummary(channel *lnrpc.ChannelCloseSummary,
 // fields. This is required because we create channel open entries from already
 // open channels using lnrpc.Channel and from closed channels using
 // lnrpc.ChannelCloseSummary.
-func openEntries(tx *lnrpc.Transaction, convert msatToFiat,
-	amtMsat, capacity int64, entryType EntryType, remote string,
+func openEntries(tx lndclient.Transaction, convert msatToFiat, amtMsat int64,
+	capacity btcutil.Amount, entryType EntryType, remote string,
 	channelID uint64, initiator bool) ([]*HarmonyEntry, error) {
 
 	ref := fmt.Sprintf("%v", channelID)
 	note := channelOpenNote(initiator, remote, capacity)
 
 	openEntry, err := newHarmonyEntry(
-		tx.TimeStamp, amtMsat, entryType, tx.TxHash, ref, note,
+		tx.Timestamp, amtMsat, entryType, tx.TxHash, ref, note,
 		true, convert,
 	)
 	if err != nil {
@@ -106,11 +112,11 @@ func openEntries(tx *lnrpc.Transaction, convert msatToFiat,
 	// Transactions record fees in absolute amounts in sats, so we need
 	// to convert fees to msat and filp it to a negative value so it
 	// records as a debit.
-	feeMsat := invertedSatsToMsats(tx.TotalFees)
+	feeMsat := invertedSatsToMsats(tx.Fee)
 
 	note = channelOpenFeeNote(channelID)
 	feeEntry, err := newHarmonyEntry(
-		tx.TimeStamp, feeMsat, EntryTypeChannelOpenFee,
+		tx.Timestamp, feeMsat, EntryTypeChannelOpenFee,
 		tx.TxHash, feeReference(tx.TxHash), note, true, convert,
 	)
 	if err != nil {
@@ -131,17 +137,17 @@ func channelCloseNote(channelID uint64, closeType, initiated string) string {
 // in the close transaction. It *does not* include any on chain resolutions, so
 // it is excluding htlcs that are resolved on chain, and will not reflect our
 // balance when we force close (because it is behind a timelock).
-func closedChannelEntries(channel *lnrpc.ChannelCloseSummary,
-	tx *lnrpc.Transaction, convert msatToFiat) ([]*HarmonyEntry, error) {
+func closedChannelEntries(channel lndclient.ClosedChannel,
+	tx lndclient.Transaction, convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	amtMsat := satsToMsat(tx.Amount)
 	note := channelCloseNote(
-		channel.ChanId, channel.CloseType.String(),
+		channel.ChannelID, channel.CloseType.String(),
 		channel.CloseInitiator.String(),
 	)
 
 	closeEntry, err := newHarmonyEntry(
-		tx.TimeStamp, amtMsat, EntryTypeChannelClose,
+		tx.Timestamp, amtMsat, EntryTypeChannelClose,
 		channel.ClosingTxHash, channel.ClosingTxHash, note, true,
 		convert,
 	)
@@ -155,7 +161,7 @@ func closedChannelEntries(channel *lnrpc.ChannelCloseSummary,
 }
 
 // onChainEntries produces relevant entries for an on chain transaction.
-func onChainEntries(tx *lnrpc.Transaction,
+func onChainEntries(tx lndclient.Transaction,
 	convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	amtMsat := satsToMsat(tx.Amount)
@@ -166,7 +172,7 @@ func onChainEntries(tx *lnrpc.Transaction,
 	}
 
 	txEntry, err := newHarmonyEntry(
-		tx.TimeStamp, amtMsat, entryType, tx.TxHash, tx.TxHash,
+		tx.Timestamp, amtMsat, entryType, tx.TxHash, tx.TxHash,
 		tx.Label, true, convert,
 	)
 	if err != nil {
@@ -174,17 +180,17 @@ func onChainEntries(tx *lnrpc.Transaction,
 	}
 
 	// If we did not pay any fees, we can just return a single entry.
-	if tx.TotalFees == 0 {
+	if tx.Fee == 0 {
 		return []*HarmonyEntry{txEntry}, nil
 	}
 
 	// Total fees are expressed as a positive value in sats, we convert to
 	// msat here and make the value negative so that it reflects as a
 	// debit.
-	feeAmt := invertedSatsToMsats(tx.TotalFees)
+	feeAmt := invertedSatsToMsats(tx.Fee)
 
 	feeEntry, err := newHarmonyEntry(
-		tx.TimeStamp, feeAmt, EntryTypeFee, tx.TxHash,
+		tx.Timestamp, feeAmt, EntryTypeFee, tx.TxHash,
 		feeReference(tx.TxHash), "", true, convert,
 	)
 	if err != nil {
@@ -196,7 +202,9 @@ func onChainEntries(tx *lnrpc.Transaction,
 
 // invoiceNote creates an optional note for an invoice if it had a memo, was
 // overpaid, or both.
-func invoiceNote(memo string, amt, amtPaid int64, keysend bool) string {
+func invoiceNote(memo string, amt, amtPaid lnwire.MilliSatoshi,
+	keysend bool) string {
+
 	var notes []string
 
 	if memo != "" {
@@ -220,7 +228,7 @@ func invoiceNote(memo string, amt, amtPaid int64, keysend bool) string {
 }
 
 // invoiceEntry creates an entry for an invoice.
-func invoiceEntry(invoice *lnrpc.Invoice, circularReceipt bool,
+func invoiceEntry(invoice lndclient.Invoice, circularReceipt bool,
 	convert msatToFiat) (*HarmonyEntry, error) {
 
 	eventType := EntryTypeReceipt
@@ -229,28 +237,26 @@ func invoiceEntry(invoice *lnrpc.Invoice, circularReceipt bool,
 	}
 
 	note := invoiceNote(
-		invoice.Memo, invoice.ValueMsat, invoice.AmtPaidMsat,
+		invoice.Memo, invoice.Amount, invoice.AmountPaid,
 		invoice.IsKeysend,
 	)
 
-	preimage := hex.EncodeToString(invoice.RPreimage)
-	hash := hex.EncodeToString(invoice.RHash)
-
 	return newHarmonyEntry(
-		invoice.SettleDate, invoice.AmtPaidMsat, eventType,
-		hash, preimage, note, false, convert,
+		invoice.SettleDate, int64(invoice.AmountPaid), eventType,
+		invoice.Hash.String(), invoice.Preimage.String(), note, false,
+		convert,
 	)
 }
 
 // paymentReference produces a unique reference for a payment. Since payment
 // hash is not guaranteed to be unique, we use the payments unique sequence
 // number and its hash.
-func paymentReference(sequenceNumber uint64, paymentHash string) string {
+func paymentReference(sequenceNumber uint64, paymentHash lntypes.Hash) string {
 	return fmt.Sprintf("%v:%v", sequenceNumber, paymentHash)
 }
 
 // paymentNote creates a note for payments from our node.
-func paymentNote(preimage string) string {
+func paymentNote(preimage lntypes.Preimage) string {
 	return fmt.Sprintf("Preimage: %v", preimage)
 }
 
@@ -281,16 +287,18 @@ func paymentEntry(payment settledPayment, paidToSelf bool,
 		feeType = EntryTypeCircularPaymentFee
 	}
 
-	note := paymentNote(payment.PaymentPreimage)
-	ref := paymentReference(payment.PaymentIndex, payment.PaymentHash)
+	// Create a note for our payment. Since we have already checked that our
+	// payment is settled, we will not have a nil preimage.
+	note := paymentNote(*payment.Preimage)
+	ref := paymentReference(payment.SequenceNumber, payment.Hash)
 
 	// Payment values are expressed as positive values over rpc, but they
 	// decrease our balance so we flip our value to a negative one.
-	amt := invertMsat(payment.ValueMsat)
+	amt := invertMsat(int64(payment.Amount))
 
 	paymentEntry, err := newHarmonyEntry(
-		payment.settleTime.Unix(), amt, paymentType,
-		payment.PaymentHash, ref, note, false, convert,
+		payment.settleTime, amt, paymentType,
+		payment.Hash.String(), ref, note, false, convert,
 	)
 	if err != nil {
 		return nil, err
@@ -298,17 +306,17 @@ func paymentEntry(payment settledPayment, paidToSelf bool,
 
 	// If we paid no fees (possible for payments to our direct peer), then
 	// we just return the payment entry.
-	if payment.FeeMsat == 0 {
+	if payment.Fee == 0 {
 		return []*HarmonyEntry{paymentEntry}, nil
 	}
 
 	feeNote := paymentFeeNote(payment.Htlcs)
 	feeRef := feeReference(ref)
-	feeAmt := invertMsat(payment.FeeMsat)
+	feeAmt := invertMsat(int64(payment.Fee))
 
 	feeEntry, err := newHarmonyEntry(
-		payment.settleTime.Unix(), feeAmt, feeType,
-		payment.PaymentHash, feeRef, feeNote, false, convert,
+		payment.settleTime, feeAmt, feeType,
+		payment.Hash.String(), feeRef, feeNote, false, convert,
 	)
 	if err != nil {
 		return nil, err
@@ -320,28 +328,28 @@ func paymentEntry(payment settledPayment, paidToSelf bool,
 // ID paired with timestamp in an effort to make txid unique per htlc forwarded.
 // This is not used as a reference because we could theoretically have duplicate
 // timestamps.
-func forwardTxid(forward *lnrpc.ForwardingEvent) string {
-	return fmt.Sprintf("%v:%v:%v", forward.Timestamp, forward.ChanIdIn,
-		forward.ChanIdOut)
+func forwardTxid(forward lndclient.ForwardingEvent) string {
+	return fmt.Sprintf("%v:%v:%v", forward.Timestamp, forward.ChannelIn,
+		forward.ChannelOut)
 }
 
 // forwardNote creates a note that indicates the amuonts that were forwarded in
 // and out of our node.
-func forwardNote(amtIn, amtOut uint64) string {
+func forwardNote(amtIn, amtOut lnwire.MilliSatoshi) string {
 	return fmt.Sprintf("incoming: %v msat outgoing: %v msat", amtIn, amtOut)
 }
 
 // forwardingEntry produces a forwarding entry with a zero amount which reflects
 // shifting of funds in our channels, and fees entry which reflects the fees we
 // earned form the forward.
-func forwardingEntry(forward *lnrpc.ForwardingEvent,
+func forwardingEntry(forward lndclient.ForwardingEvent,
 	convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	txid := forwardTxid(forward)
-	note := forwardNote(forward.AmtInMsat, forward.AmtOutMsat)
+	note := forwardNote(forward.AmountMsatIn, forward.AmountMsatOut)
 
 	fwdEntry, err := newHarmonyEntry(
-		int64(forward.Timestamp), 0, EntryTypeForward, txid, "", note,
+		forward.Timestamp, 0, EntryTypeForward, txid, "", note,
 		false, convert,
 	)
 	if err != nil {
@@ -354,7 +362,7 @@ func forwardingEntry(forward *lnrpc.ForwardingEvent,
 	}
 
 	feeEntry, err := newHarmonyEntry(
-		int64(forward.Timestamp), int64(forward.FeeMsat),
+		forward.Timestamp, int64(forward.FeeMsat),
 		EntryTypeForwardFee, txid, "", "", false, convert,
 	)
 	if err != nil {

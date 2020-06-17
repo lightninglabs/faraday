@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightningnetwork/lnd/channeldb"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/stretchr/testify/require"
 )
@@ -71,54 +73,56 @@ func TestFilterOnChain(t *testing.T) {
 	// Create three test transactions, one confirmed but outside of our
 	// range, one confirmed and in our range and one in our range but not
 	// confirmed.
-	confirmedTxOutOfRange := &lnrpc.Transaction{
-		TimeStamp:        startTime - 10,
-		NumConfirmations: 1,
+	confirmedTxOutOfRange := lndclient.Transaction{
+		Timestamp:     time.Unix(startTime-10, 0),
+		Confirmations: 1,
 	}
 
-	confirmedTx := &lnrpc.Transaction{
-		TimeStamp:        inRangeTime,
-		NumConfirmations: 1,
+	confirmedTx := lndclient.Transaction{
+		Timestamp:     time.Unix(inRangeTime, 0),
+		Confirmations: 1,
 	}
 
-	noConfTx := &lnrpc.Transaction{
-		TimeStamp:        inRangeTime,
-		NumConfirmations: 0,
+	noConfTx := lndclient.Transaction{
+		Timestamp:     time.Unix(inRangeTime, 0),
+		Confirmations: 0,
 	}
 
 	start := time.Unix(startTime, 0)
 	end := time.Unix(endTime, 0)
 
-	unfiltered := []*lnrpc.Transaction{
+	unfiltered := []lndclient.Transaction{
 		confirmedTx, noConfTx, confirmedTxOutOfRange,
 	}
 	filtered := filterOnChain(start, end, unfiltered)
 
 	// We only expect our confirmed transaction in the time range we
 	// specified to be included.
-	expected := []*lnrpc.Transaction{confirmedTx}
+	expected := []lndclient.Transaction{confirmedTx}
 	require.Equal(t, expected, filtered)
 }
 
 // TestFilterInvoices tests filtering out of invoices that are not settled.
 func TestFilterInvoices(t *testing.T) {
+	inRange := time.Unix(inRangeTime, 0)
+
 	// Create two invoices within our desired time range, one that is
 	// settled and one that was cancelled and an invoice outside of our
 	// time range that is settled.
-	settledInvoice := &lnrpc.Invoice{
-		SettleDate: inRangeTime,
-		State:      lnrpc.Invoice_SETTLED,
+	settledInvoice := lndclient.Invoice{
+		SettleDate: inRange,
+		State:      channeldb.ContractSettled,
 	}
 
-	invoices := []*lnrpc.Invoice{
+	invoices := []lndclient.Invoice{
 		settledInvoice,
 		{
-			SettleDate: inRangeTime,
-			State:      lnrpc.Invoice_CANCELED,
+			SettleDate: inRange,
+			State:      channeldb.ContractCanceled,
 		},
 		{
-			SettleDate: startTime - 1,
-			State:      lnrpc.Invoice_SETTLED,
+			SettleDate: time.Unix(startTime-1, 0),
+			State:      channeldb.ContractSettled,
 		},
 	}
 
@@ -128,7 +132,7 @@ func TestFilterInvoices(t *testing.T) {
 	filtered := filterInvoices(start, end, invoices)
 
 	// We only expect the settled invoice to be included.
-	expected := []*lnrpc.Invoice{
+	expected := []lndclient.Invoice{
 		settledInvoice,
 	}
 
@@ -150,8 +154,10 @@ func TestFilterPayments(t *testing.T) {
 
 	// succeededAfterPeriod is a payment which had a htlc in our period,
 	// but only succeeded afterwards.
-	succeededAfterPeriod := &lnrpc.Payment{
-		Status: lnrpc.Payment_SUCCEEDED,
+	succeededAfterPeriod := lndclient.Payment{
+		Status: &lndclient.PaymentStatus{
+			State: lnrpc.Payment_SUCCEEDED,
+		},
 		Htlcs: []*lnrpc.HTLCAttempt{
 			{
 				Status:        lnrpc.HTLCAttempt_FAILED,
@@ -166,8 +172,10 @@ func TestFilterPayments(t *testing.T) {
 
 	// succeededInPeriod is a payment that had a failed htlc outside of our
 	// period, but was settled in relevant period.
-	succeededInPeriod := &lnrpc.Payment{
-		Status: lnrpc.Payment_SUCCEEDED,
+	succeededInPeriod := lndclient.Payment{
+		Status: &lndclient.PaymentStatus{
+			State: lnrpc.Payment_SUCCEEDED,
+		},
 		Htlcs: []*lnrpc.HTLCAttempt{
 			{
 				Status:        lnrpc.HTLCAttempt_FAILED,
@@ -182,8 +190,10 @@ func TestFilterPayments(t *testing.T) {
 
 	// succeededInAndAfterPeriod is a payment that had successful htlc in
 	// our period, but its last htlc was settled after our period.
-	succeededInAndAfterPeriod := &lnrpc.Payment{
-		Status: lnrpc.Payment_SUCCEEDED,
+	succeededInAndAfterPeriod := lndclient.Payment{
+		Status: &lndclient.PaymentStatus{
+			State: lnrpc.Payment_SUCCEEDED,
+		},
 		Htlcs: []*lnrpc.HTLCAttempt{
 			{
 				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
@@ -197,8 +207,10 @@ func TestFilterPayments(t *testing.T) {
 	}
 
 	// inFlight has a htlc in the relevant period but it is not settled yet.
-	inFlight := &lnrpc.Payment{
-		Status: lnrpc.Payment_IN_FLIGHT,
+	inFlight := lndclient.Payment{
+		Status: &lndclient.PaymentStatus{
+			State: lnrpc.Payment_IN_FLIGHT,
+		},
 		Htlcs: []*lnrpc.HTLCAttempt{
 			{
 				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
@@ -207,7 +219,7 @@ func TestFilterPayments(t *testing.T) {
 		},
 	}
 
-	payments := []*lnrpc.Payment{
+	payments := []lndclient.Payment{
 		succeededInPeriod,
 		succeededAfterPeriod,
 		succeededInAndAfterPeriod,

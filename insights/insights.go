@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/faraday/revenue"
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
 
@@ -47,7 +47,7 @@ type ChannelInfo struct {
 type Config struct {
 	// OpenChannels is a function which returns all of our currently open,
 	// public and private channels.
-	OpenChannels func() ([]*lnrpc.Channel, error)
+	OpenChannels func() ([]lndclient.ChannelInfo, error)
 
 	// CurrentHeight is a function which returns the current block
 	// currentHeight.
@@ -74,7 +74,7 @@ func GetChannels(cfg *Config) ([]*ChannelInfo, error) {
 	for _, channel := range channels {
 		// Get the short channel ID so we can calculate the number of
 		// blocks the channel has been open for.
-		shortID := lnwire.NewShortChanIDFromInt(channel.ChanId)
+		shortID := lnwire.NewShortChanIDFromInt(channel.ChannelID)
 
 		// Calculate the number of confirmations the channel has. We
 		// do not need to check whether channel height >= current
@@ -84,14 +84,11 @@ func GetChannels(cfg *Config) ([]*ChannelInfo, error) {
 		// current height to reflect this.
 		confirmations := (height + 1) - shortID.BlockHeight
 
-		monitored := time.Second * time.Duration(channel.Lifetime)
-		uptime := time.Second * time.Duration(channel.Uptime)
-
 		// Create a channel insight for the channel.
 		channelInsight := &ChannelInfo{
 			ChannelPoint:  channel.ChannelPoint,
-			MonitoredFor:  monitored,
-			Uptime:        uptime,
+			MonitoredFor:  channel.LifeTime,
+			Uptime:        channel.Uptime,
 			Confirmations: confirmations,
 			Private:       channel.Private,
 		}

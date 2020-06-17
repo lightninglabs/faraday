@@ -51,9 +51,9 @@ type HarmonyEntry struct {
 // value. If passed a positive value, an entry for a credit will be made, and no
 // changes to the amount will be made. Zero value entries will be recorded as
 // a credit.
-// nolint:unparam
-func newHarmonyEntry(ts int64, amountMsat int64, e EntryType, txid, reference,
-	note string, onChain bool, convert msatToFiat) (*HarmonyEntry, error) {
+func newHarmonyEntry(ts time.Time, amountMsat int64, e EntryType, txid,
+	reference, note string, onChain bool, convert msatToFiat) (*HarmonyEntry,
+	error) {
 
 	var (
 		absAmt = amountMsat
@@ -71,7 +71,7 @@ func newHarmonyEntry(ts int64, amountMsat int64, e EntryType, txid, reference,
 	}
 
 	return &HarmonyEntry{
-		Timestamp: time.Unix(ts, 0),
+		Timestamp: ts,
 		Amount:    lnwire.MilliSatoshi(absAmt),
 		FiatValue: fiat,
 		TxID:      txid,

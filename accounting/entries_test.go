@@ -1,93 +1,83 @@
 package accounting
 
 import (
-	"encoding/hex"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
-
+	"github.com/btcsuite/btcutil"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/lightningnetwork/lnd/routing/route"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
 var (
 	openChannelTx              = "44183bc482d5b7be031739ce39b6c91562edd882ba5a9e3647341262328a2228"
 	remotePubkey               = "02f6a7664ca2a2178b422a058af651075de2e5bdfff028ac8e1fcd96153cba636b"
+	remoteVertex, _            = route.NewVertexFromStr(remotePubkey)
 	channelID           uint64 = 124244814004224
-	channelCapacitySats int64  = 500000
-	channelFeesSats     int64  = 10000
-	destAddresses              = []string{
-		"bcrt1qmwfx3a3y28dlhap9uh0kx0uc7qwwkhc06ajw6n",
-		"bcrt1qkhdqm0g4f73splxrluwegvus7rv9ve88x45ejm",
-	}
+	channelCapacitySats        = btcutil.Amount(500000)
+	channelFeesSats            = btcutil.Amount(10000)
 
-	openChannel = lnrpc.Channel{
-		RemotePubkey: remotePubkey,
+	openChannel = lndclient.ChannelInfo{
+		PubKeyBytes:  remoteVertex,
 		ChannelPoint: fmt.Sprintf("%v:%v", openChannelTx, 1),
-		ChanId:       channelID,
+		ChannelID:    channelID,
 		Capacity:     channelCapacitySats,
 		Initiator:    false,
 	}
 
-	transactionTimestamp int64 = 1588145604
+	transactionTimestamp = time.Unix(1588145604, 0)
 
-	openChannelTransaction = lnrpc.Transaction{
+	openChannelTransaction = lndclient.Transaction{
 		TxHash: openChannelTx,
 		// Amounts are reported with negative values in getTransactions.
-		Amount:           channelCapacitySats * -1,
-		NumConfirmations: 2,
-		TotalFees:        channelFeesSats,
-		DestAddresses:    destAddresses,
-		TimeStamp:        transactionTimestamp,
+		Amount:        channelCapacitySats * -1,
+		Confirmations: 2,
+		Fee:           channelFeesSats,
+		Timestamp:     transactionTimestamp,
 	}
 
 	mockPrice = decimal.NewFromInt(10)
 
 	closeTx = "e730b07d6121b19dd717925de82b8c76dec38517ffd85701e6735a726f5f75c3"
 
-	closeBalanceSat int64 = 50000
+	closeBalanceSat = btcutil.Amount(50000)
 
-	channelClose = lnrpc.ChannelCloseSummary{
+	channelClose = lndclient.ClosedChannel{
 		ChannelPoint:   openChannel.ChannelPoint,
-		ChanId:         openChannel.ChanId,
+		ChannelID:      openChannel.ChannelID,
 		ClosingTxHash:  closeTx,
-		RemotePubkey:   remotePubkey,
+		PubKeyBytes:    remoteVertex,
 		SettledBalance: closeBalanceSat,
-		CloseInitiator: lnrpc.Initiator_INITIATOR_REMOTE,
+		CloseInitiator: lndclient.InitiatorLocal,
 	}
 
-	closeTimestamp int64 = 1588159722
+	closeTimestamp = time.Unix(1588159722, 0)
 
-	closeDestAddrs = []string{
-		"bcrt1qmj4f92gcf08j3640csv72xvwlca33ypv4yw2nc",
-		"bcrt1q0yv9p2ap55wsy95xgwrgrkmnt9jna03w06524c",
-	}
-
-	channelCloseTx = lnrpc.Transaction{
+	channelCloseTx = lndclient.Transaction{
 		TxHash:    closeTx,
 		Amount:    closeBalanceSat,
-		TimeStamp: closeTimestamp,
+		Timestamp: closeTimestamp,
 		// Total fees for closes will always reflect as 0 because they
 		// come from the 2-2 multisig funding output.
-		TotalFees:     0,
-		DestAddresses: closeDestAddrs,
+		Fee: 0,
 	}
 
-	onChainTxID            = "e75760156b04234535e6170f152697de28b73917c69dda53c60baabdae571457"
-	onChainAmtSat    int64 = 10000
-	onChainFeeSat    int64 = 1000
-	onChainTimestamp int64 = 1588160816
-	destAddr               = "bcrt1qz9rufsy0txtljfhk298y946wyy8yq7jzne6xku"
+	onChainTxID      = "e75760156b04234535e6170f152697de28b73917c69dda53c60baabdae571457"
+	onChainAmtSat    = btcutil.Amount(10000)
+	onChainFeeSat    = btcutil.Amount(1000)
+	onChainTimestamp = time.Unix(1588160816, 0)
 
-	onChainTx = lnrpc.Transaction{
-		TxHash:        onChainTxID,
-		Amount:        onChainAmtSat,
-		TimeStamp:     onChainTimestamp,
-		TotalFees:     onChainFeeSat,
-		DestAddresses: []string{destAddr},
+	onChainTx = lndclient.Transaction{
+		TxHash:    onChainTxID,
+		Amount:    onChainAmtSat,
+		Timestamp: onChainTimestamp,
+		Fee:       onChainFeeSat,
 	}
 
 	paymentRequest = "lnbcrt10n1p0t6nmypp547evsfyrakg0nmyw59ud9cegkt99yccn5nnp4suq3ac4qyzzgevsdqqcqzpgsp54hvffpajcyddm20k3ptu53930425hpnv8m06nh5jrd6qhq53anrq9qy9qsqphhzyenspf7kfwvm3wyu04fa8cjkmvndyexlnrmh52huwa4tntppjmak703gfln76rvswmsx2cz3utsypzfx40dltesy8nj64ttgemgqtwfnj9"
@@ -98,33 +88,32 @@ var (
 
 	invoiceOverpaidAmt = lnwire.MilliSatoshi(400)
 
-	invoiceSettleTime int64 = 1588159722
+	invoiceSettleTime = time.Unix(1588159722, 0)
 
 	invoicePreimage = "b5f0c5ac0c873a05702d0aa63a518ecdb8f3ba786be2c4f64a5b10581da976ae"
-	preimage, _     = hex.DecodeString(invoicePreimage)
+	preimage, _     = lntypes.MakePreimageFromStr(invoicePreimage)
 
 	invoiceHash = "afb2c82483ed90f9ec8ea178d2e328b2ca526313a4e61ac3808f715010424659"
-	hash, _     = hex.DecodeString(invoiceHash)
+	hash, _     = lntypes.MakeHashFromStr(invoiceHash)
 
-	invoice = &lnrpc.Invoice{
+	invoice = lndclient.Invoice{
 		Memo:           invoiceMemo,
-		RPreimage:      preimage,
-		RHash:          hash,
-		ValueMsat:      int64(invoiceAmt),
-		CreationDate:   0,
+		Preimage:       &preimage,
+		Hash:           hash,
+		Amount:         invoiceAmt,
 		SettleDate:     invoiceSettleTime,
 		PaymentRequest: paymentRequest,
-		AmtPaidSat:     0,
-		AmtPaidMsat:    int64(invoiceOverpaidAmt),
-		Htlcs:          nil,
+		AmountPaid:     invoiceOverpaidAmt,
 		IsKeysend:      true,
 	}
 
-	paymentTime = 1590399649
+	paymentTime = time.Unix(1590399649, 0)
 
 	paymentHash = "11f414479f0a0c2762492c71c58dded5dce99d56d65c3fa523f73513605bebb3"
+	pmtHash, _  = lntypes.MakeHashFromStr(paymentHash)
 
 	paymentPreimage = "adfef20b24152accd4ed9a05257fb77203d90a8bbbe6d4069a75c5320f0538d9"
+	pmtPreimage, _  = lntypes.MakePreimageFromStr(paymentPreimage)
 
 	paymentMsat = 30000
 
@@ -132,42 +121,44 @@ var (
 
 	paymentIndex = 33
 
-	payment = &lnrpc.Payment{
-		PaymentHash:     paymentHash,
-		PaymentPreimage: paymentPreimage,
-		ValueMsat:       int64(paymentMsat),
-		Status:          lnrpc.Payment_SUCCEEDED,
-		FeeMsat:         int64(paymentFeeMsat),
-		Htlcs:           []*lnrpc.HTLCAttempt{{}},
-		PaymentIndex:    uint64(paymentIndex),
+	payment = lndclient.Payment{
+		Hash:     pmtHash,
+		Preimage: &pmtPreimage,
+		Amount:   lnwire.MilliSatoshi(paymentMsat),
+		Status: &lndclient.PaymentStatus{
+			State: lnrpc.Payment_SUCCEEDED,
+		},
+		Fee:            lnwire.MilliSatoshi(paymentFeeMsat),
+		Htlcs:          []*lnrpc.HTLCAttempt{{}},
+		SequenceNumber: uint64(paymentIndex),
 	}
 
 	settledPmt = settledPayment{
 		Payment:    payment,
-		settleTime: time.Unix(int64(paymentTime), 0),
+		settleTime: paymentTime,
 	}
 
-	forwardTs uint64 = 1590578022
+	forwardTs = time.Unix(1590578022, 0)
 
 	forwardChanIn  uint64 = 130841883770880
 	forwardChanOut uint64 = 124244814004224
 
-	fwdInMsat  uint64 = 4000
-	fwdOutMsat uint64 = 3000
-	fwdFeeMsat uint64 = 1000
+	fwdInMsat  = lnwire.MilliSatoshi(4000)
+	fwdOutMsat = lnwire.MilliSatoshi(3000)
+	fwdFeeMsat = lnwire.MilliSatoshi(1000)
 
-	fwdEntry = &lnrpc.ForwardingEvent{
-		Timestamp:  forwardTs,
-		ChanIdIn:   forwardChanIn,
-		ChanIdOut:  forwardChanOut,
-		FeeMsat:    fwdFeeMsat,
-		AmtInMsat:  fwdInMsat,
-		AmtOutMsat: fwdOutMsat,
+	fwdEntry = lndclient.ForwardingEvent{
+		Timestamp:     forwardTs,
+		ChannelIn:     forwardChanIn,
+		ChannelOut:    forwardChanOut,
+		FeeMsat:       fwdFeeMsat,
+		AmountMsatIn:  fwdInMsat,
+		AmountMsatOut: fwdOutMsat,
 	}
 )
 
 // mockConvert is a mocked price function which returns mockPrice * amount.
-func mockConvert(amt, _ int64) (decimal.Decimal, error) {
+func mockConvert(amt int64, _ time.Time) (decimal.Decimal, error) {
 	amtDecimal := decimal.NewFromInt(amt)
 	return mockPrice.Mul(amtDecimal), nil
 }
@@ -190,14 +181,14 @@ func TestChannelOpenEntry(t *testing.T) {
 			entryType = EntryTypeRemoteChannelOpen
 		}
 
-		mockFiat, _ := mockConvert(amt, 0)
+		mockFiat, _ := mockConvert(amt, transactionTimestamp)
 
 		note := channelOpenNote(
 			initiator, remotePubkey, channelCapacitySats,
 		)
 
 		return &HarmonyEntry{
-			Timestamp: time.Unix(transactionTimestamp, 0),
+			Timestamp: transactionTimestamp,
 			Amount:    lnwire.MilliSatoshi(amt),
 			FiatValue: mockFiat,
 			TxID:      openChannelTx,
@@ -211,10 +202,10 @@ func TestChannelOpenEntry(t *testing.T) {
 	}
 
 	feeAmt := satsToMsat(channelFeesSats)
-	mockFee, _ := mockConvert(feeAmt, 0)
+	mockFee, _ := mockConvert(feeAmt, transactionTimestamp)
 	// Fee entry is the expected fee entry for locally initiated channels.
 	feeEntry := &HarmonyEntry{
-		Timestamp: time.Unix(transactionTimestamp, 0),
+		Timestamp: transactionTimestamp,
 		Amount:    lnwire.MilliSatoshi(feeAmt),
 		FiatValue: mockFee,
 		TxID:      openChannelTx,
@@ -259,7 +250,7 @@ func TestChannelOpenEntry(t *testing.T) {
 
 			// Get our entries.
 			entries, err := channelOpenEntries(
-				&channel, &tx, mockConvert,
+				channel, tx, mockConvert,
 			)
 			require.Equal(t, test.expectedErr, err)
 
@@ -282,19 +273,16 @@ func TestChannelOpenEntry(t *testing.T) {
 func TestChannelCloseEntry(t *testing.T) {
 	// getCloseEntry returns a close entry for the global close var with
 	// correct close type and amount.
-	getCloseEntry := func(closeType string,
-		closeBalance int64) *HarmonyEntry {
+	getCloseEntry := func(closeType, closeInitiator string,
+		closeBalance btcutil.Amount) *HarmonyEntry {
 
-		note := channelCloseNote(
-			channelID, closeType,
-			lnrpc.Initiator_INITIATOR_REMOTE.String(),
-		)
+		note := channelCloseNote(channelID, closeType, closeInitiator)
 
 		closeAmt := satsToMsat(closeBalance)
-		closeFiat, _ := mockConvert(closeAmt, 0)
+		closeFiat, _ := mockConvert(closeAmt, closeTimestamp)
 
 		return &HarmonyEntry{
-			Timestamp: time.Unix(closeTimestamp, 0),
+			Timestamp: closeTimestamp,
 			Amount:    lnwire.MilliSatoshi(closeAmt),
 			FiatValue: closeFiat,
 			TxID:      closeTx,
@@ -308,17 +296,17 @@ func TestChannelCloseEntry(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		closeType lnrpc.ChannelCloseSummary_ClosureType
-		closeAmt  int64
+		closeType lndclient.CloseType
+		closeAmt  btcutil.Amount
 	}{
 		{
 			name:      "coop close, has balance",
-			closeType: lnrpc.ChannelCloseSummary_COOPERATIVE_CLOSE,
+			closeType: lndclient.CloseTypeCooperative,
 			closeAmt:  closeBalanceSat,
 		},
 		{
 			name:      "force close, has no balance",
-			closeType: lnrpc.ChannelCloseSummary_LOCAL_FORCE_CLOSE,
+			closeType: lndclient.CloseTypeLocalForce,
 			closeAmt:  0,
 		},
 	}
@@ -336,12 +324,14 @@ func TestChannelCloseEntry(t *testing.T) {
 			closeTx.Amount = test.closeAmt
 
 			entries, err := closedChannelEntries(
-				&closeChan, &closeTx, mockConvert,
+				closeChan, closeTx, mockConvert,
 			)
 			require.NoError(t, err)
 
 			expected := []*HarmonyEntry{getCloseEntry(
-				test.closeType.String(), test.closeAmt,
+				test.closeType.String(),
+				closeChan.CloseInitiator.String(),
+				test.closeAmt,
 			)}
 
 			require.Equal(t, expected, entries)
@@ -359,10 +349,10 @@ func TestOnChainEntry(t *testing.T) {
 		}
 
 		amt := satsToMsat(onChainAmtSat)
-		fiat, _ := mockConvert(amt, 0)
+		fiat, _ := mockConvert(amt, onChainTimestamp)
 
 		return &HarmonyEntry{
-			Timestamp: time.Unix(onChainTimestamp, 0),
+			Timestamp: onChainTimestamp,
 			Amount:    lnwire.MilliSatoshi(amt),
 			FiatValue: fiat,
 			TxID:      onChainTxID,
@@ -375,11 +365,11 @@ func TestOnChainEntry(t *testing.T) {
 	}
 
 	feeAmt := satsToMsat(onChainFeeSat)
-	fiat, _ := mockConvert(feeAmt, 0)
+	fiat, _ := mockConvert(feeAmt, onChainTimestamp)
 
 	// Fee entry is the fee entry we expect for this transaction.
 	feeEntry := &HarmonyEntry{
-		Timestamp: time.Unix(onChainTimestamp, 0),
+		Timestamp: onChainTimestamp,
 		Amount:    lnwire.MilliSatoshi(feeAmt),
 		FiatValue: fiat,
 		TxID:      onChainTxID,
@@ -441,13 +431,13 @@ func TestOnChainEntry(t *testing.T) {
 			// also add the fee entry to our expected set of
 			// entries.
 			if !test.hasFee {
-				chainTx.TotalFees = 0
+				chainTx.Fee = 0
 			}
 
 			// Set the label as per the test.
 			chainTx.Label = test.txLabel
 
-			entries, err := onChainEntries(&chainTx, mockConvert)
+			entries, err := onChainEntries(chainTx, mockConvert)
 			require.NoError(t, err)
 
 			// We expect the have an single on chain entry at least.
@@ -470,14 +460,16 @@ func TestOnChainEntry(t *testing.T) {
 func TestInvoiceEntry(t *testing.T) {
 	getEntry := func(circular bool) *HarmonyEntry {
 		note := invoiceNote(
-			invoice.Memo, invoice.ValueMsat, invoice.AmtPaidMsat,
+			invoice.Memo, invoice.Amount, invoice.AmountPaid,
 			invoice.IsKeysend,
 		)
 
-		fiat, _ := mockConvert(int64(invoiceOverpaidAmt), 0)
+		fiat, _ := mockConvert(
+			int64(invoiceOverpaidAmt), invoiceSettleTime,
+		)
 
 		expectedEntry := &HarmonyEntry{
-			Timestamp: time.Unix(invoiceSettleTime, 0),
+			Timestamp: invoiceSettleTime,
 			Amount:    invoiceOverpaidAmt,
 			FiatValue: fiat,
 			TxID:      invoiceHash,
@@ -534,26 +526,26 @@ func TestPaymentEntry(t *testing.T) {
 	// getEntries is a helper function which returns our expected entries
 	// based on whether we are testing a payment to ourselves or not.
 	getEntries := func(toSelf bool) []*HarmonyEntry {
-		mockFiat, _ := mockConvert(int64(paymentMsat), 0)
+		mockFiat, _ := mockConvert(int64(paymentMsat), paymentTime)
 		paymentRef := paymentReference(
-			uint64(paymentIndex), paymentHash,
+			uint64(paymentIndex), pmtHash,
 		)
 
 		paymentEntry := &HarmonyEntry{
-			Timestamp: time.Unix(int64(paymentTime), 0),
+			Timestamp: paymentTime,
 			Amount:    lnwire.MilliSatoshi(paymentMsat),
 			FiatValue: mockFiat,
 			TxID:      paymentHash,
 			Reference: paymentRef,
-			Note:      paymentNote(paymentPreimage),
+			Note:      paymentNote(pmtPreimage),
 			Type:      EntryTypePayment,
 			OnChain:   false,
 			Credit:    false,
 		}
 
-		feeFiat, _ := mockConvert(int64(paymentFeeMsat), 0)
+		feeFiat, _ := mockConvert(int64(paymentFeeMsat), paymentTime)
 		feeEntry := &HarmonyEntry{
-			Timestamp: time.Unix(int64(paymentTime), 0),
+			Timestamp: paymentTime,
 			Amount:    lnwire.MilliSatoshi(paymentFeeMsat),
 			FiatValue: feeFiat,
 			TxID:      paymentHash,
@@ -609,13 +601,12 @@ func TestForwardingEntry(t *testing.T) {
 	entries, err := forwardingEntry(fwdEntry, mockConvert)
 	require.NoError(t, err)
 
-	ts := time.Unix(int64(forwardTs), 0)
 	txid := forwardTxid(fwdEntry)
 	note := forwardNote(fwdInMsat, fwdOutMsat)
 
-	fwdFiat, _ := mockConvert(int64(0), 0)
+	fwdFiat, _ := mockConvert(int64(0), forwardTs)
 	fwdEntry := &HarmonyEntry{
-		Timestamp: ts,
+		Timestamp: forwardTs,
 		Amount:    0,
 		FiatValue: fwdFiat,
 		TxID:      txid,
@@ -626,11 +617,11 @@ func TestForwardingEntry(t *testing.T) {
 		Credit:    true,
 	}
 
-	feeFiat, _ := mockConvert(int64(fwdFeeMsat), 0)
+	feeFiat, _ := mockConvert(int64(fwdFeeMsat), forwardTs)
 
 	feeEntry := &HarmonyEntry{
-		Timestamp: ts,
-		Amount:    lnwire.MilliSatoshi(fwdFeeMsat),
+		Timestamp: forwardTs,
+		Amount:    fwdFeeMsat,
 		FiatValue: feeFiat,
 		TxID:      txid,
 		Reference: "",

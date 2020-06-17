@@ -3,6 +3,8 @@ package accounting
 import (
 	"time"
 
+	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightningnetwork/lnd/channeldb"
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
@@ -28,21 +30,19 @@ func inRange(timestamp, startTime, endTime time.Time) bool {
 // which lie within [startTime, endTime). Unconfirmed transactions are also
 // excluded from this set.
 func filterOnChain(startTime, endTime time.Time,
-	txns []*lnrpc.Transaction) []*lnrpc.Transaction {
+	txns []lndclient.Transaction) []lndclient.Transaction {
 
 	// nolint: prealloc
-	var filtered []*lnrpc.Transaction
+	var filtered []lndclient.Transaction
 
 	for _, tx := range txns {
-		timestamp := time.Unix(tx.TimeStamp, 0)
-
 		// Unconfirmed transactions are listed with 0 confirmations,
 		// they have no timestamp so we skip them.
-		if tx.NumConfirmations == 0 {
+		if tx.Confirmations == 0 {
 			continue
 		}
 
-		if !inRange(timestamp, startTime, endTime) {
+		if !inRange(tx.Timestamp, startTime, endTime) {
 			continue
 		}
 
@@ -55,20 +55,19 @@ func filterOnChain(startTime, endTime time.Time,
 // filterInvoices filters out unsettled invoices and those that are outside of
 // our desired time range.
 func filterInvoices(startTime, endTime time.Time,
-	invoices []*lnrpc.Invoice) []*lnrpc.Invoice {
+	invoices []lndclient.Invoice) []lndclient.Invoice {
 
 	// nolint: prealloc
-	var filtered []*lnrpc.Invoice
+	var filtered []lndclient.Invoice
 
 	for _, invoice := range invoices {
 		// If the invoice was not settled, we do not need to create an
 		// entry for it.
-		if invoice.State != lnrpc.Invoice_SETTLED {
+		if invoice.State != channeldb.ContractSettled {
 			continue
 		}
 
-		settleTs := time.Unix(invoice.SettleDate, 0)
-		if !inRange(settleTs, startTime, endTime) {
+		if !inRange(invoice.SettleDate, startTime, endTime) {
 			continue
 		}
 
@@ -82,7 +81,7 @@ func filterInvoices(startTime, endTime time.Time,
 // htlc. Payments do not have a settle time, so we have to get our settle time
 // from examining each htlc.
 type settledPayment struct {
-	*lnrpc.Payment
+	lndclient.Payment
 	settleTime time.Time
 }
 
@@ -93,14 +92,14 @@ type settledPayment struct {
 // payment occurred within our desired time range, because payments are not
 // considered settled until all the htlcs are resolved.
 func filterPayments(startTime, endTime time.Time,
-	payments []*lnrpc.Payment) []settledPayment {
+	payments []lndclient.Payment) []settledPayment {
 
 	// nolint: prealloc
 	var filtered []settledPayment
 
 	for _, payment := range payments {
 		// If the payment did not succeed, we can skip it.
-		if payment.Status != lnrpc.Payment_SUCCEEDED {
+		if payment.Status.State != lnrpc.Payment_SUCCEEDED {
 			continue
 		}
 

@@ -12,7 +12,7 @@ import (
 
 // msatToFiat is a function which converts a timestamped millisatoshi balance to
 // a fiat value.
-type msatToFiat func(amount, timestamp int64) (decimal.Decimal, error)
+type msatToFiat func(amount int64, timestamp time.Time) (decimal.Decimal, error)
 
 // satsToMsat converts an amount expressed in sats to msat.
 func satsToMsat(sats btcutil.Amount) int64 {
@@ -48,10 +48,10 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 
 	// Create a wrapper function which can be used to get individual price
 	// points from our set of price data as we create our report.
-	return func(amtMsat, ts int64) (decimal.Decimal, error) {
+	return func(amtMsat int64, ts time.Time) (decimal.Decimal, error) {
 		return fiat.GetPrice(prices, &fiat.PriceRequest{
 			Value:     lnwire.MilliSatoshi(amtMsat),
-			Timestamp: time.Unix(ts, 0),
+			Timestamp: ts,
 		})
 	}, nil
 }

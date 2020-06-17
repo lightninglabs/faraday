@@ -95,7 +95,7 @@ func openEntries(tx lndclient.Transaction, convert msatToFiat, amtMsat int64,
 	note := channelOpenNote(initiator, remote, capacity)
 
 	openEntry, err := newHarmonyEntry(
-		tx.Timestamp.Unix(), amtMsat, entryType, tx.TxHash, ref, note,
+		tx.Timestamp, amtMsat, entryType, tx.TxHash, ref, note,
 		true, convert,
 	)
 	if err != nil {
@@ -116,7 +116,7 @@ func openEntries(tx lndclient.Transaction, convert msatToFiat, amtMsat int64,
 
 	note = channelOpenFeeNote(channelID)
 	feeEntry, err := newHarmonyEntry(
-		tx.Timestamp.Unix(), feeMsat, EntryTypeChannelOpenFee,
+		tx.Timestamp, feeMsat, EntryTypeChannelOpenFee,
 		tx.TxHash, feeReference(tx.TxHash), note, true, convert,
 	)
 	if err != nil {
@@ -147,7 +147,7 @@ func closedChannelEntries(channel lndclient.ClosedChannel,
 	)
 
 	closeEntry, err := newHarmonyEntry(
-		tx.Timestamp.Unix(), amtMsat, EntryTypeChannelClose,
+		tx.Timestamp, amtMsat, EntryTypeChannelClose,
 		channel.ClosingTxHash, channel.ClosingTxHash, note, true,
 		convert,
 	)
@@ -172,7 +172,7 @@ func onChainEntries(tx lndclient.Transaction,
 	}
 
 	txEntry, err := newHarmonyEntry(
-		tx.Timestamp.Unix(), amtMsat, entryType, tx.TxHash, tx.TxHash,
+		tx.Timestamp, amtMsat, entryType, tx.TxHash, tx.TxHash,
 		tx.Label, true, convert,
 	)
 	if err != nil {
@@ -190,7 +190,7 @@ func onChainEntries(tx lndclient.Transaction,
 	feeAmt := invertedSatsToMsats(tx.Fee)
 
 	feeEntry, err := newHarmonyEntry(
-		tx.Timestamp.Unix(), feeAmt, EntryTypeFee, tx.TxHash,
+		tx.Timestamp, feeAmt, EntryTypeFee, tx.TxHash,
 		feeReference(tx.TxHash), "", true, convert,
 	)
 	if err != nil {
@@ -242,7 +242,7 @@ func invoiceEntry(invoice lndclient.Invoice, circularReceipt bool,
 	)
 
 	return newHarmonyEntry(
-		invoice.SettleDate.Unix(), int64(invoice.AmountPaid), eventType,
+		invoice.SettleDate, int64(invoice.AmountPaid), eventType,
 		invoice.Hash.String(), invoice.Preimage.String(), note, false,
 		convert,
 	)
@@ -297,7 +297,7 @@ func paymentEntry(payment settledPayment, paidToSelf bool,
 	amt := invertMsat(int64(payment.Amount))
 
 	paymentEntry, err := newHarmonyEntry(
-		payment.settleTime.Unix(), amt, paymentType,
+		payment.settleTime, amt, paymentType,
 		payment.Hash.String(), ref, note, false, convert,
 	)
 	if err != nil {
@@ -315,7 +315,7 @@ func paymentEntry(payment settledPayment, paidToSelf bool,
 	feeAmt := invertMsat(int64(payment.Fee))
 
 	feeEntry, err := newHarmonyEntry(
-		payment.settleTime.Unix(), feeAmt, feeType,
+		payment.settleTime, feeAmt, feeType,
 		payment.Hash.String(), feeRef, feeNote, false, convert,
 	)
 	if err != nil {
@@ -349,7 +349,7 @@ func forwardingEntry(forward lndclient.ForwardingEvent,
 	note := forwardNote(forward.AmountMsatIn, forward.AmountMsatOut)
 
 	fwdEntry, err := newHarmonyEntry(
-		forward.Timestamp.Unix(), 0, EntryTypeForward, txid, "", note,
+		forward.Timestamp, 0, EntryTypeForward, txid, "", note,
 		false, convert,
 	)
 	if err != nil {
@@ -362,7 +362,7 @@ func forwardingEntry(forward lndclient.ForwardingEvent,
 	}
 
 	feeEntry, err := newHarmonyEntry(
-		forward.Timestamp.Unix(), int64(forward.FeeMsat),
+		forward.Timestamp, int64(forward.FeeMsat),
 		EntryTypeForwardFee, txid, "", "", false, convert,
 	)
 	if err != nil {

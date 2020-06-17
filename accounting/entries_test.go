@@ -107,7 +107,7 @@ var (
 		IsKeysend:      true,
 	}
 
-	paymentTime = 1590399649
+	paymentTime = time.Unix(1590399649, 0)
 
 	paymentHash = "11f414479f0a0c2762492c71c58dded5dce99d56d65c3fa523f73513605bebb3"
 	pmtHash, _  = lntypes.MakeHashFromStr(paymentHash)
@@ -135,7 +135,7 @@ var (
 
 	settledPmt = settledPayment{
 		Payment:    payment,
-		settleTime: time.Unix(int64(paymentTime), 0),
+		settleTime: paymentTime,
 	}
 
 	forwardTs = time.Unix(1590578022, 0)
@@ -158,7 +158,7 @@ var (
 )
 
 // mockConvert is a mocked price function which returns mockPrice * amount.
-func mockConvert(amt, _ int64) (decimal.Decimal, error) {
+func mockConvert(amt int64, _ time.Time) (decimal.Decimal, error) {
 	amtDecimal := decimal.NewFromInt(amt)
 	return mockPrice.Mul(amtDecimal), nil
 }
@@ -181,7 +181,7 @@ func TestChannelOpenEntry(t *testing.T) {
 			entryType = EntryTypeRemoteChannelOpen
 		}
 
-		mockFiat, _ := mockConvert(amt, 0)
+		mockFiat, _ := mockConvert(amt, transactionTimestamp)
 
 		note := channelOpenNote(
 			initiator, remotePubkey, channelCapacitySats,
@@ -202,7 +202,7 @@ func TestChannelOpenEntry(t *testing.T) {
 	}
 
 	feeAmt := satsToMsat(channelFeesSats)
-	mockFee, _ := mockConvert(feeAmt, 0)
+	mockFee, _ := mockConvert(feeAmt, transactionTimestamp)
 	// Fee entry is the expected fee entry for locally initiated channels.
 	feeEntry := &HarmonyEntry{
 		Timestamp: transactionTimestamp,
@@ -279,7 +279,7 @@ func TestChannelCloseEntry(t *testing.T) {
 		note := channelCloseNote(channelID, closeType, closeInitiator)
 
 		closeAmt := satsToMsat(closeBalance)
-		closeFiat, _ := mockConvert(closeAmt, 0)
+		closeFiat, _ := mockConvert(closeAmt, closeTimestamp)
 
 		return &HarmonyEntry{
 			Timestamp: closeTimestamp,
@@ -349,7 +349,7 @@ func TestOnChainEntry(t *testing.T) {
 		}
 
 		amt := satsToMsat(onChainAmtSat)
-		fiat, _ := mockConvert(amt, 0)
+		fiat, _ := mockConvert(amt, onChainTimestamp)
 
 		return &HarmonyEntry{
 			Timestamp: onChainTimestamp,
@@ -365,7 +365,7 @@ func TestOnChainEntry(t *testing.T) {
 	}
 
 	feeAmt := satsToMsat(onChainFeeSat)
-	fiat, _ := mockConvert(feeAmt, 0)
+	fiat, _ := mockConvert(feeAmt, onChainTimestamp)
 
 	// Fee entry is the fee entry we expect for this transaction.
 	feeEntry := &HarmonyEntry{
@@ -464,7 +464,9 @@ func TestInvoiceEntry(t *testing.T) {
 			invoice.IsKeysend,
 		)
 
-		fiat, _ := mockConvert(int64(invoiceOverpaidAmt), 0)
+		fiat, _ := mockConvert(
+			int64(invoiceOverpaidAmt), invoiceSettleTime,
+		)
 
 		expectedEntry := &HarmonyEntry{
 			Timestamp: invoiceSettleTime,
@@ -524,13 +526,13 @@ func TestPaymentEntry(t *testing.T) {
 	// getEntries is a helper function which returns our expected entries
 	// based on whether we are testing a payment to ourselves or not.
 	getEntries := func(toSelf bool) []*HarmonyEntry {
-		mockFiat, _ := mockConvert(int64(paymentMsat), 0)
+		mockFiat, _ := mockConvert(int64(paymentMsat), paymentTime)
 		paymentRef := paymentReference(
 			uint64(paymentIndex), pmtHash,
 		)
 
 		paymentEntry := &HarmonyEntry{
-			Timestamp: time.Unix(int64(paymentTime), 0),
+			Timestamp: paymentTime,
 			Amount:    lnwire.MilliSatoshi(paymentMsat),
 			FiatValue: mockFiat,
 			TxID:      paymentHash,
@@ -541,9 +543,9 @@ func TestPaymentEntry(t *testing.T) {
 			Credit:    false,
 		}
 
-		feeFiat, _ := mockConvert(int64(paymentFeeMsat), 0)
+		feeFiat, _ := mockConvert(int64(paymentFeeMsat), paymentTime)
 		feeEntry := &HarmonyEntry{
-			Timestamp: time.Unix(int64(paymentTime), 0),
+			Timestamp: paymentTime,
 			Amount:    lnwire.MilliSatoshi(paymentFeeMsat),
 			FiatValue: feeFiat,
 			TxID:      paymentHash,
@@ -602,7 +604,7 @@ func TestForwardingEntry(t *testing.T) {
 	txid := forwardTxid(fwdEntry)
 	note := forwardNote(fwdInMsat, fwdOutMsat)
 
-	fwdFiat, _ := mockConvert(int64(0), 0)
+	fwdFiat, _ := mockConvert(int64(0), forwardTs)
 	fwdEntry := &HarmonyEntry{
 		Timestamp: forwardTs,
 		Amount:    0,
@@ -615,7 +617,7 @@ func TestForwardingEntry(t *testing.T) {
 		Credit:    true,
 	}
 
-	feeFiat, _ := mockConvert(int64(fwdFeeMsat), 0)
+	feeFiat, _ := mockConvert(int64(fwdFeeMsat), forwardTs)
 
 	feeEntry := &HarmonyEntry{
 		Timestamp: forwardTs,

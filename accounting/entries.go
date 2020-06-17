@@ -8,6 +8,7 @@ import (
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnwire"
 )
 
 // feeReference returns a special unique reference for the fee paid on a
@@ -325,28 +326,28 @@ func paymentEntry(payment settledPayment, paidToSelf bool,
 // ID paired with timestamp in an effort to make txid unique per htlc forwarded.
 // This is not used as a reference because we could theoretically have duplicate
 // timestamps.
-func forwardTxid(forward *lnrpc.ForwardingEvent) string {
-	return fmt.Sprintf("%v:%v:%v", forward.Timestamp, forward.ChanIdIn,
-		forward.ChanIdOut)
+func forwardTxid(forward lndclient.ForwardingEvent) string {
+	return fmt.Sprintf("%v:%v:%v", forward.Timestamp, forward.ChannelIn,
+		forward.ChannelOut)
 }
 
 // forwardNote creates a note that indicates the amuonts that were forwarded in
 // and out of our node.
-func forwardNote(amtIn, amtOut uint64) string {
+func forwardNote(amtIn, amtOut lnwire.MilliSatoshi) string {
 	return fmt.Sprintf("incoming: %v msat outgoing: %v msat", amtIn, amtOut)
 }
 
 // forwardingEntry produces a forwarding entry with a zero amount which reflects
 // shifting of funds in our channels, and fees entry which reflects the fees we
 // earned form the forward.
-func forwardingEntry(forward *lnrpc.ForwardingEvent,
+func forwardingEntry(forward lndclient.ForwardingEvent,
 	convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	txid := forwardTxid(forward)
-	note := forwardNote(forward.AmtInMsat, forward.AmtOutMsat)
+	note := forwardNote(forward.AmountMsatIn, forward.AmountMsatOut)
 
 	fwdEntry, err := newHarmonyEntry(
-		int64(forward.Timestamp), 0, EntryTypeForward, txid, "", note,
+		forward.Timestamp.Unix(), 0, EntryTypeForward, txid, "", note,
 		false, convert,
 	)
 	if err != nil {
@@ -359,7 +360,7 @@ func forwardingEntry(forward *lnrpc.ForwardingEvent,
 	}
 
 	feeEntry, err := newHarmonyEntry(
-		int64(forward.Timestamp), int64(forward.FeeMsat),
+		forward.Timestamp.Unix(), int64(forward.FeeMsat),
 		EntryTypeForwardFee, txid, "", "", false, convert,
 	)
 	if err != nil {

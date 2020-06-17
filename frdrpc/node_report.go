@@ -51,7 +51,7 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		ListPayments: func() ([]*lnrpc.Payment, error) {
 			return cfg.wrapListPayments(ctx)
 		},
-		ListForwards: func() ([]*lnrpc.ForwardingEvent, error) {
+		ListForwards: func() ([]lndclient.ForwardingEvent, error) {
 			return cfg.wrapListForwards(ctx, start, end)
 		},
 		OwnPubKey:   hex.EncodeToString(info.IdentityPubkey[:]),

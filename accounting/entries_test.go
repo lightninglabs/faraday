@@ -150,22 +150,22 @@ var (
 		settleTime: time.Unix(int64(paymentTime), 0),
 	}
 
-	forwardTs uint64 = 1590578022
+	forwardTs = time.Unix(1590578022, 0)
 
 	forwardChanIn  uint64 = 130841883770880
 	forwardChanOut uint64 = 124244814004224
 
-	fwdInMsat  uint64 = 4000
-	fwdOutMsat uint64 = 3000
-	fwdFeeMsat uint64 = 1000
+	fwdInMsat  = lnwire.MilliSatoshi(4000)
+	fwdOutMsat = lnwire.MilliSatoshi(3000)
+	fwdFeeMsat = lnwire.MilliSatoshi(1000)
 
-	fwdEntry = &lnrpc.ForwardingEvent{
-		Timestamp:  forwardTs,
-		ChanIdIn:   forwardChanIn,
-		ChanIdOut:  forwardChanOut,
-		FeeMsat:    fwdFeeMsat,
-		AmtInMsat:  fwdInMsat,
-		AmtOutMsat: fwdOutMsat,
+	fwdEntry = lndclient.ForwardingEvent{
+		Timestamp:     forwardTs,
+		ChannelIn:     forwardChanIn,
+		ChannelOut:    forwardChanOut,
+		FeeMsat:       fwdFeeMsat,
+		AmountMsatIn:  fwdInMsat,
+		AmountMsatOut: fwdOutMsat,
 	}
 )
 
@@ -612,13 +612,12 @@ func TestForwardingEntry(t *testing.T) {
 	entries, err := forwardingEntry(fwdEntry, mockConvert)
 	require.NoError(t, err)
 
-	ts := time.Unix(int64(forwardTs), 0)
 	txid := forwardTxid(fwdEntry)
 	note := forwardNote(fwdInMsat, fwdOutMsat)
 
 	fwdFiat, _ := mockConvert(int64(0), 0)
 	fwdEntry := &HarmonyEntry{
-		Timestamp: ts,
+		Timestamp: forwardTs,
 		Amount:    0,
 		FiatValue: fwdFiat,
 		TxID:      txid,
@@ -632,8 +631,8 @@ func TestForwardingEntry(t *testing.T) {
 	feeFiat, _ := mockConvert(int64(fwdFeeMsat), 0)
 
 	feeEntry := &HarmonyEntry{
-		Timestamp: ts,
-		Amount:    lnwire.MilliSatoshi(fwdFeeMsat),
+		Timestamp: forwardTs,
+		Amount:    fwdFeeMsat,
 		FiatValue: feeFiat,
 		TxID:      txid,
 		Reference: "",

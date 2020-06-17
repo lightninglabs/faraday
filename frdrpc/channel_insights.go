@@ -15,7 +15,7 @@ func channelInsights(ctx context.Context,
 	// Get revenue from a zero start time to the present to cover
 	// revenue over the lifetime of all our channels.
 	revenueCfg := getRevenueConfig(
-		ctx, cfg, 0, uint64(time.Now().Unix()),
+		ctx, cfg, time.Unix(0, 0), time.Now(),
 	)
 
 	report, err := revenue.GetRevenueReport(revenueCfg)

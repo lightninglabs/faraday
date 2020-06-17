@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/faraday/fiat"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/stretchr/testify/require"
 )
@@ -236,7 +237,7 @@ func TestOffChainReport(t *testing.T) {
 				ListPayments: func() ([]*lnrpc.Payment, error) {
 					return test.payments, nil
 				},
-				ListForwards: func() ([]*lnrpc.ForwardingEvent,
+				ListForwards: func() ([]lndclient.ForwardingEvent,
 					error) {
 
 					return nil, nil

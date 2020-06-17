@@ -218,27 +218,27 @@ func (c *Config) wrapListPayments(ctx context.Context) ([]*lnrpc.Payment, error)
 
 // wrapListForwards makes paginated calls to our forwarding events api.
 func (c *Config) wrapListForwards(ctx context.Context, startTime,
-	endTime time.Time) ([]*lnrpc.ForwardingEvent, error) {
+	endTime time.Time) ([]lndclient.ForwardingEvent, error) {
 
-	var forwards []*lnrpc.ForwardingEvent
+	var forwards []lndclient.ForwardingEvent
 
 	query := func(offset, maxEvents uint64) (uint64, uint64, error) {
-		resp, err := c.LightningClient.ForwardingHistory(
-			ctx, &lnrpc.ForwardingHistoryRequest{
-				StartTime:    uint64(startTime.Unix()),
-				EndTime:      uint64(endTime.Unix()),
-				IndexOffset:  uint32(offset),
-				NumMaxEvents: uint32(maxEvents),
+		resp, err := c.Lnd.Client.ForwardingHistory(
+			ctx, lndclient.ForwardingHistoryRequest{
+				StartTime: startTime,
+				EndTime:   endTime,
+				Offset:    uint32(offset),
+				MaxEvents: uint32(maxEvents),
 			},
 		)
 		if err != nil {
 			return 0, 0, err
 		}
 
-		forwards = append(forwards, resp.ForwardingEvents...)
+		forwards = append(forwards, resp.Events...)
 
-		return uint64(resp.LastOffsetIndex),
-			uint64(len(resp.ForwardingEvents)), nil
+		return uint64(resp.LastIndexOffset),
+			uint64(len(resp.Events)), nil
 	}
 
 	// Make paginated calls to the forwards API, starting at offset 0 and

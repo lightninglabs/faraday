@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/faraday/fiat"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
@@ -41,7 +42,7 @@ type OffChainConfig struct {
 	ListPayments func() ([]*lnrpc.Payment, error)
 
 	// ListForwards lists all our forwards over out relevant period.
-	ListForwards func() ([]*lnrpc.ForwardingEvent, error)
+	ListForwards func() ([]lndclient.ForwardingEvent, error)
 
 	// OwnPubKey is our node's public key. We use this value to identify
 	// payments that are made to our own node.
@@ -120,7 +121,7 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice msatToFiat) (Report,
 // invoices they paid.
 
 func offChainReport(invoices []*lnrpc.Invoice, payments []settledPayment,
-	circularPayments map[string]bool, forwards []*lnrpc.ForwardingEvent,
+	circularPayments map[string]bool, forwards []lndclient.ForwardingEvent,
 	convert msatToFiat) (Report, error) {
 
 	var reports Report

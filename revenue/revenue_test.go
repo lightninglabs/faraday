@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/lightninglabs/loop/lndclient"
-	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +35,7 @@ func TestGetRevenueReport(t *testing.T) {
 		forwardHistErr error
 		openChannels   []lndclient.ChannelInfo
 		closedChannels []lndclient.ClosedChannel
-		fwdHistory     []*lnrpc.ForwardingEvent
+		fwdHistory     []lndclient.ForwardingEvent
 		expectedReport *Report
 		expectErr      error
 	}{
@@ -57,9 +56,9 @@ func TestGetRevenueReport(t *testing.T) {
 		},
 		{
 			name: "cannot find channel",
-			fwdHistory: []*lnrpc.ForwardingEvent{
+			fwdHistory: []lndclient.ForwardingEvent{
 				{
-					ChanIdIn: 123,
+					ChannelIn: 123,
 				},
 			},
 			expectErr: nil,
@@ -74,12 +73,12 @@ func TestGetRevenueReport(t *testing.T) {
 				ChannelPoint: chan2.ChannelPoint,
 				ChannelID:    chan2.ChannelID,
 			}},
-			fwdHistory: []*lnrpc.ForwardingEvent{
+			fwdHistory: []lndclient.ForwardingEvent{
 				{
-					ChanIdIn:   chan1.ChannelID,
-					ChanIdOut:  chan2.ChannelID,
-					AmtOutMsat: 100,
-					AmtInMsat:  150,
+					ChannelIn:     chan1.ChannelID,
+					ChannelOut:    chan2.ChannelID,
+					AmountMsatOut: 100,
+					AmountMsatIn:  150,
 				},
 			},
 			expectedReport: &Report{
@@ -117,9 +116,12 @@ func TestGetRevenueReport(t *testing.T) {
 					return test.closedChannels, test.closedChanErr
 				},
 				ForwardingHistory: func(offset,
-					max uint32) ([]*lnrpc.ForwardingEvent, uint32, error) {
+					max uint32) (*lndclient.ForwardingHistoryResponse, error) {
 
-					return test.fwdHistory, offset, test.forwardHistErr
+					return &lndclient.ForwardingHistoryResponse{
+						LastIndexOffset: offset,
+						Events:          test.fwdHistory,
+					}, test.forwardHistErr
 				},
 			}
 
@@ -147,20 +149,23 @@ func TestGetEvents(t *testing.T) {
 	chanOutID := lnwire.NewShortChanIDFromInt(321)
 
 	// mockedEvents is the set of events our mock returns.
-	mockedEvents := []*lnrpc.ForwardingEvent{
+	mockedEvents := []lndclient.ForwardingEvent{
 		{
-			ChanIdIn:   chanInID.ToUint64(),
-			ChanIdOut:  chanOutID.ToUint64(),
-			AmtOutMsat: 2000,
-			AmtInMsat:  4000,
+			ChannelIn:     chanInID.ToUint64(),
+			ChannelOut:    chanOutID.ToUint64(),
+			AmountMsatOut: 2000,
+			AmountMsatIn:  4000,
 		},
 	}
 
 	// mockQuery returns our set of mocked events.
-	mockQuery := func(_, _ uint32) ([]*lnrpc.ForwardingEvent, uint32,
+	mockQuery := func(_, _ uint32) (*lndclient.ForwardingHistoryResponse,
 		error) {
 
-		return mockedEvents, 0, nil
+		return &lndclient.ForwardingHistoryResponse{
+			LastIndexOffset: 0,
+			Events:          mockedEvents,
+		}, nil
 	}
 
 	// channelIDFound is a map that will successfully lookup an outpoint for

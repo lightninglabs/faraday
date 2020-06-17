@@ -6,7 +6,6 @@ import (
 
 	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightninglabs/loop/lndclient"
-	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
 // parseRevenueRequest parses a request for a revenue report and wraps
@@ -19,32 +18,29 @@ func parseRevenueRequest(ctx context.Context, cfg *Config,
 	// We allow start time to be zero so that revenue can
 	// be calculated over the channel's full lifetime without
 	// knowing the time it was opened.
-	endTime := req.EndTime
-	if endTime == 0 {
-		endTime = uint64(time.Now().Unix())
+	endTime := time.Unix(int64(req.EndTime), 0)
+	if req.EndTime == 0 {
+		endTime = time.Now()
 	}
 
-	return getRevenueConfig(ctx, cfg, req.StartTime, endTime)
+	start := time.Unix(int64(req.StartTime), 0)
+	return getRevenueConfig(ctx, cfg, start, endTime)
 }
 
 func getRevenueConfig(ctx context.Context, cfg *Config,
-	start, end uint64) *revenue.Config {
+	start, end time.Time) *revenue.Config {
 
-	forwardingHistory := func(offset,
-		maxEvents uint32) ([]*lnrpc.ForwardingEvent, uint32, error) {
-		resp, err := cfg.LightningClient.ForwardingHistory(
-			ctx, &lnrpc.ForwardingHistoryRequest{
-				StartTime:    start,
-				EndTime:      end,
-				IndexOffset:  offset,
-				NumMaxEvents: maxEvents,
+	forwardingHistory := func(offset, maxEvents uint32) (
+		*lndclient.ForwardingHistoryResponse, error) {
+
+		return cfg.Lnd.Client.ForwardingHistory(
+			ctx, lndclient.ForwardingHistoryRequest{
+				StartTime: start,
+				EndTime:   end,
+				MaxEvents: maxEvents,
+				Offset:    offset,
 			},
 		)
-		if err != nil {
-			return nil, 0, err
-		}
-
-		return resp.ForwardingEvents, resp.LastOffsetIndex, nil
 	}
 
 	return &revenue.Config{

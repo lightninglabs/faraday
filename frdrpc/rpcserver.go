@@ -154,14 +154,14 @@ func (c *Config) wrapGetChainTransactions(ctx context.Context) func() ([]*lnrpc.
 
 // wrapListInvoices makes paginated calls to lnd to get our full set of
 // invoices.
-func (c *Config) wrapListInvoices(ctx context.Context) ([]*lnrpc.Invoice, error) {
-	var invoices []*lnrpc.Invoice
+func (c *Config) wrapListInvoices(ctx context.Context) ([]lndclient.Invoice, error) {
+	var invoices []lndclient.Invoice
 
-	query := func(offset, maxEvents uint64) (uint64, uint64, error) {
-		resp, err := c.LightningClient.ListInvoices(
-			ctx, &lnrpc.ListInvoiceRequest{
-				IndexOffset:    offset,
-				NumMaxInvoices: maxEvents,
+	query := func(offset, maxInvoices uint64) (uint64, uint64, error) {
+		resp, err := c.Lnd.Client.ListInvoices(
+			ctx, lndclient.ListInvoicesRequest{
+				Offset:      offset,
+				MaxInvoices: maxInvoices,
 			},
 		)
 		if err != nil {

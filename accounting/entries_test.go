@@ -1,7 +1,6 @@
 package accounting
 
 import (
-	"encoding/hex"
 	"fmt"
 	"testing"
 	"time"
@@ -9,6 +8,7 @@ import (
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/shopspring/decimal"
@@ -101,25 +101,22 @@ var (
 
 	invoiceOverpaidAmt = lnwire.MilliSatoshi(400)
 
-	invoiceSettleTime int64 = 1588159722
+	invoiceSettleTime = time.Unix(1588159722, 0)
 
 	invoicePreimage = "b5f0c5ac0c873a05702d0aa63a518ecdb8f3ba786be2c4f64a5b10581da976ae"
-	preimage, _     = hex.DecodeString(invoicePreimage)
+	preimage, _     = lntypes.MakePreimageFromStr(invoicePreimage)
 
 	invoiceHash = "afb2c82483ed90f9ec8ea178d2e328b2ca526313a4e61ac3808f715010424659"
-	hash, _     = hex.DecodeString(invoiceHash)
+	hash, _     = lntypes.MakeHashFromStr(invoiceHash)
 
-	invoice = &lnrpc.Invoice{
+	invoice = lndclient.Invoice{
 		Memo:           invoiceMemo,
-		RPreimage:      preimage,
-		RHash:          hash,
-		ValueMsat:      int64(invoiceAmt),
-		CreationDate:   0,
+		Preimage:       &preimage,
+		Hash:           hash,
+		Amount:         invoiceAmt,
 		SettleDate:     invoiceSettleTime,
 		PaymentRequest: paymentRequest,
-		AmtPaidSat:     0,
-		AmtPaidMsat:    int64(invoiceOverpaidAmt),
-		Htlcs:          nil,
+		AmountPaid:     invoiceOverpaidAmt,
 		IsKeysend:      true,
 	}
 
@@ -473,14 +470,14 @@ func TestOnChainEntry(t *testing.T) {
 func TestInvoiceEntry(t *testing.T) {
 	getEntry := func(circular bool) *HarmonyEntry {
 		note := invoiceNote(
-			invoice.Memo, invoice.ValueMsat, invoice.AmtPaidMsat,
+			invoice.Memo, invoice.Amount, invoice.AmountPaid,
 			invoice.IsKeysend,
 		)
 
 		fiat, _ := mockConvert(int64(invoiceOverpaidAmt), 0)
 
 		expectedEntry := &HarmonyEntry{
-			Timestamp: time.Unix(invoiceSettleTime, 0),
+			Timestamp: invoiceSettleTime,
 			Amount:    invoiceOverpaidAmt,
 			FiatValue: fiat,
 			TxID:      invoiceHash,

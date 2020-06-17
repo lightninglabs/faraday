@@ -2,7 +2,6 @@ package accounting
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"time"
 
@@ -36,7 +35,7 @@ var (
 // chain report.
 type OffChainConfig struct {
 	// ListInvoices lists all our invoices.
-	ListInvoices func() ([]*lnrpc.Invoice, error)
+	ListInvoices func() ([]lndclient.Invoice, error)
 
 	// ListPayments lists all our payments.
 	ListPayments func() ([]*lnrpc.Payment, error)
@@ -120,18 +119,16 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice msatToFiat) (Report,
 // that were made to ourselves for the sake of appropriately reporting the
 // invoices they paid.
 
-func offChainReport(invoices []*lnrpc.Invoice, payments []settledPayment,
+func offChainReport(invoices []lndclient.Invoice, payments []settledPayment,
 	circularPayments map[string]bool, forwards []lndclient.ForwardingEvent,
 	convert msatToFiat) (Report, error) {
 
 	var reports Report
 
 	for _, invoice := range invoices {
-		hash := hex.EncodeToString(invoice.RHash)
-
 		// If the invoice's payment hash is in our set of circular
 		// payments, we know that this payment was made to ourselves.
-		toSelf := circularPayments[hash]
+		toSelf := circularPayments[invoice.Hash.String()]
 
 		entry, err := invoiceEntry(invoice, toSelf, convert)
 		if err != nil {

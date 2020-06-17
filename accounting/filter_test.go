@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightningnetwork/lnd/channeldb"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/stretchr/testify/require"
 )
@@ -102,23 +104,25 @@ func TestFilterOnChain(t *testing.T) {
 
 // TestFilterInvoices tests filtering out of invoices that are not settled.
 func TestFilterInvoices(t *testing.T) {
+	inRange := time.Unix(inRangeTime, 0)
+
 	// Create two invoices within our desired time range, one that is
 	// settled and one that was cancelled and an invoice outside of our
 	// time range that is settled.
-	settledInvoice := &lnrpc.Invoice{
-		SettleDate: inRangeTime,
-		State:      lnrpc.Invoice_SETTLED,
+	settledInvoice := lndclient.Invoice{
+		SettleDate: inRange,
+		State:      channeldb.ContractSettled,
 	}
 
-	invoices := []*lnrpc.Invoice{
+	invoices := []lndclient.Invoice{
 		settledInvoice,
 		{
-			SettleDate: inRangeTime,
-			State:      lnrpc.Invoice_CANCELED,
+			SettleDate: inRange,
+			State:      channeldb.ContractCanceled,
 		},
 		{
-			SettleDate: startTime - 1,
-			State:      lnrpc.Invoice_SETTLED,
+			SettleDate: time.Unix(startTime-1, 0),
+			State:      channeldb.ContractSettled,
 		},
 	}
 
@@ -128,7 +132,7 @@ func TestFilterInvoices(t *testing.T) {
 	filtered := filterInvoices(start, end, invoices)
 
 	// We only expect the settled invoice to be included.
-	expected := []*lnrpc.Invoice{
+	expected := []lndclient.Invoice{
 		settledInvoice,
 	}
 

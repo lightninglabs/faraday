@@ -45,7 +45,7 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 	}
 
 	offChain := &accounting.OffChainConfig{
-		ListInvoices: func() ([]*lnrpc.Invoice, error) {
+		ListInvoices: func() ([]lndclient.Invoice, error) {
 			return cfg.wrapListInvoices(ctx)
 		},
 		ListPayments: func() ([]*lnrpc.Payment, error) {

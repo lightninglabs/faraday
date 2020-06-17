@@ -1,7 +1,6 @@
 package accounting
 
 import (
-	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -202,7 +201,9 @@ func onChainEntries(tx *lnrpc.Transaction,
 
 // invoiceNote creates an optional note for an invoice if it had a memo, was
 // overpaid, or both.
-func invoiceNote(memo string, amt, amtPaid int64, keysend bool) string {
+func invoiceNote(memo string, amt, amtPaid lnwire.MilliSatoshi,
+	keysend bool) string {
+
 	var notes []string
 
 	if memo != "" {
@@ -226,7 +227,7 @@ func invoiceNote(memo string, amt, amtPaid int64, keysend bool) string {
 }
 
 // invoiceEntry creates an entry for an invoice.
-func invoiceEntry(invoice *lnrpc.Invoice, circularReceipt bool,
+func invoiceEntry(invoice lndclient.Invoice, circularReceipt bool,
 	convert msatToFiat) (*HarmonyEntry, error) {
 
 	eventType := EntryTypeReceipt
@@ -235,16 +236,14 @@ func invoiceEntry(invoice *lnrpc.Invoice, circularReceipt bool,
 	}
 
 	note := invoiceNote(
-		invoice.Memo, invoice.ValueMsat, invoice.AmtPaidMsat,
+		invoice.Memo, invoice.Amount, invoice.AmountPaid,
 		invoice.IsKeysend,
 	)
 
-	preimage := hex.EncodeToString(invoice.RPreimage)
-	hash := hex.EncodeToString(invoice.RHash)
-
 	return newHarmonyEntry(
-		invoice.SettleDate, invoice.AmtPaidMsat, eventType,
-		hash, preimage, note, false, convert,
+		invoice.SettleDate.Unix(), int64(invoice.AmountPaid), eventType,
+		invoice.Hash.String(), invoice.Preimage.String(), note, false,
+		convert,
 	)
 }
 

@@ -231,7 +231,7 @@ func TestOffChainReport(t *testing.T) {
 			// Create a config that returns our test set of
 			// payments.
 			cfg := &OffChainConfig{
-				ListInvoices: func() ([]*lnrpc.Invoice, error) {
+				ListInvoices: func() ([]lndclient.Invoice, error) {
 					return nil, nil
 				},
 				ListPayments: func() ([]*lnrpc.Payment, error) {

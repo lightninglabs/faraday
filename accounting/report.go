@@ -144,4 +144,12 @@ const (
 	// EntryTypeCircularPaymentFee represents a the fees paid on an
 	// operational payment paid to ourselves to rebalance channels.
 	EntryTypeCircularPaymentFee
+
+	// EntryTypeSweep represents an on chain payment which swept funds
+	// back to our own wallet.
+	EntryTypeSweep
+
+	// EntryTypeSweepFee represents the fees that were paid to sweep funds
+	// back to our own wallet.
+	EntryTypeSweepFee
 )

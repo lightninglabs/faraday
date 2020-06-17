@@ -75,7 +75,7 @@ A payment is an on chain transaction which was paid from our wallet and was not 
 - Note: An optional label set on transaction publish (see [lnd transaction labels](https://github.com/lightningnetwork/lnd/blob/master/lnrpc/walletrpc/walletkit.proto#L136)). 
 
 Known Omissions:
-- This entry type will include on chain resolutions for channel closes that require on chain resolutions that spend from our balance. 
+- This entry type will include the on chain resolution of htlcs when we force close on our peers and have to settle or fail them on chain. 
 - The current accounting package does not support accounting for payments with duplicate payment hashes, which were allowed in previous versions of lnd. Duplicate payments should be deleted or a time range that does not include them should be specified. 
 
 ### Fee
@@ -85,6 +85,27 @@ A fee entry represents the on chain fees we paid for a transaction.
 - TxID: The on chain transaction ID.
 - Reference: TransactionID:-1. 
 - Note: Note set for fees. 
+
+### Sweep
+A sweep is an on chain transaction which is used to sweep our own funds back to our wallet. This is required when a channel is force closed and need to sweep time locked commitment outputs, htlcs or both. 
+
+- TxID: The on chain transaction ID.
+- Reference: The on chain transaction ID.
+- Note: An optional label set on transaction publish (see [lnd transaction labels](https://github.com/lightningnetwork/lnd/blob/master/lnrpc/walletrpc/walletkit.proto#L136)). 
+
+Known Omissions:
+- Note that this entry type does not include the first stage success/timeout transactions that are required to resolve htlcs when we force close on our peer. We currently do not have the information required to identify these transactions available, so they are included in payments, see known omissions. 
+
+### Sweep Fee
+A fee entry represents the on chain fees we paid for a sweep.
+
+- Amount: The amount in millisatoshis that was paid in fees from our wallet. 
+- TxID: The on chain transaction ID.
+- Reference: TransactionID:-1. 
+- Note: Not set for fees. 
+
+Known Omissions: 
+- If the wallet did not have knowledge that an input was owned by lnd (which is the case for more complex scripts, like htlcs), then it will not record fees that are siphoned off the input amount here because it does not know that we control those funds. 
 
 ## Off Chain Reports
 

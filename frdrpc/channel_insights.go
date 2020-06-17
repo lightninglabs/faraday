@@ -6,7 +6,6 @@ import (
 
 	"github.com/lightninglabs/faraday/insights"
 	"github.com/lightninglabs/faraday/revenue"
-	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
 // channelInsights gets the set of channel insights we need.
@@ -27,9 +26,7 @@ func channelInsights(ctx context.Context,
 	return insights.GetChannels(&insights.Config{
 		OpenChannels: cfg.wrapListChannels(ctx, false),
 		CurrentHeight: func() (u uint32, err error) {
-			info, err := cfg.LightningClient.GetInfo(
-				ctx, &lnrpc.GetInfoRequest{},
-			)
+			info, err := cfg.Lnd.Client.GetInfo(ctx)
 			if err != nil {
 				return 0, err
 			}

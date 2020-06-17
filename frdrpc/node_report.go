@@ -2,6 +2,7 @@ package frdrpc
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/lightninglabs/faraday/accounting"
@@ -35,7 +36,7 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 
 	// We lookup our pubkey once so that our paid to self function does
 	// not need to do a lookup for every payment it checks.
-	info, err := cfg.LightningClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	info, err := cfg.Lnd.Client.GetInfo(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -50,7 +51,7 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		ListForwards: func() ([]*lnrpc.ForwardingEvent, error) {
 			return cfg.wrapListForwards(ctx, start, end)
 		},
-		OwnPubKey:   info.IdentityPubkey,
+		OwnPubKey:   hex.EncodeToString(info.IdentityPubkey[:]),
 		StartTime:   start,
 		EndTime:     end,
 		Granularity: granularity,

@@ -186,13 +186,15 @@ func (c *Config) wrapListInvoices(ctx context.Context) ([]lndclient.Invoice, err
 
 // wrapListPayments makes a set of paginated calls to lnd to get our full set
 // of payments.
-func (c *Config) wrapListPayments(ctx context.Context) ([]*lnrpc.Payment, error) {
-	var payments []*lnrpc.Payment
+func (c *Config) wrapListPayments(ctx context.Context) ([]lndclient.Payment,
+	error) {
+
+	var payments []lndclient.Payment
 
 	query := func(offset, maxEvents uint64) (uint64, uint64, error) {
-		resp, err := c.LightningClient.ListPayments(
-			ctx, &lnrpc.ListPaymentsRequest{
-				IndexOffset: offset,
+		resp, err := c.Lnd.Client.ListPayments(
+			ctx, lndclient.ListPaymentsRequest{
+				Offset:      offset,
 				MaxPayments: maxEvents,
 			},
 		)

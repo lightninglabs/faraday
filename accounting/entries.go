@@ -7,6 +7,7 @@ import (
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
 
@@ -250,12 +251,12 @@ func invoiceEntry(invoice lndclient.Invoice, circularReceipt bool,
 // paymentReference produces a unique reference for a payment. Since payment
 // hash is not guaranteed to be unique, we use the payments unique sequence
 // number and its hash.
-func paymentReference(sequenceNumber uint64, paymentHash string) string {
+func paymentReference(sequenceNumber uint64, paymentHash lntypes.Hash) string {
 	return fmt.Sprintf("%v:%v", sequenceNumber, paymentHash)
 }
 
 // paymentNote creates a note for payments from our node.
-func paymentNote(preimage string) string {
+func paymentNote(preimage lntypes.Preimage) string {
 	return fmt.Sprintf("Preimage: %v", preimage)
 }
 
@@ -286,16 +287,18 @@ func paymentEntry(payment settledPayment, paidToSelf bool,
 		feeType = EntryTypeCircularPaymentFee
 	}
 
-	note := paymentNote(payment.PaymentPreimage)
-	ref := paymentReference(payment.PaymentIndex, payment.PaymentHash)
+	// Create a note for our payment. Since we have already checked that our
+	// payment is settled, we will not have a nil preimage.
+	note := paymentNote(*payment.Preimage)
+	ref := paymentReference(payment.SequenceNumber, payment.Hash)
 
 	// Payment values are expressed as positive values over rpc, but they
 	// decrease our balance so we flip our value to a negative one.
-	amt := invertMsat(payment.ValueMsat)
+	amt := invertMsat(int64(payment.Amount))
 
 	paymentEntry, err := newHarmonyEntry(
 		payment.settleTime.Unix(), amt, paymentType,
-		payment.PaymentHash, ref, note, false, convert,
+		payment.Hash.String(), ref, note, false, convert,
 	)
 	if err != nil {
 		return nil, err
@@ -303,17 +306,17 @@ func paymentEntry(payment settledPayment, paidToSelf bool,
 
 	// If we paid no fees (possible for payments to our direct peer), then
 	// we just return the payment entry.
-	if payment.FeeMsat == 0 {
+	if payment.Fee == 0 {
 		return []*HarmonyEntry{paymentEntry}, nil
 	}
 
 	feeNote := paymentFeeNote(payment.Htlcs)
 	feeRef := feeReference(ref)
-	feeAmt := invertMsat(payment.FeeMsat)
+	feeAmt := invertMsat(int64(payment.Fee))
 
 	feeEntry, err := newHarmonyEntry(
 		payment.settleTime.Unix(), feeAmt, feeType,
-		payment.PaymentHash, feeRef, feeNote, false, convert,
+		payment.Hash.String(), feeRef, feeNote, false, convert,
 	)
 	if err != nil {
 		return nil, err

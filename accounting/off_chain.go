@@ -7,7 +7,7 @@ import (
 
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/loop/lndclient"
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lntypes"
 )
 
 var (
@@ -38,7 +38,7 @@ type OffChainConfig struct {
 	ListInvoices func() ([]lndclient.Invoice, error)
 
 	// ListPayments lists all our payments.
-	ListPayments func() ([]*lnrpc.Payment, error)
+	ListPayments func() ([]lndclient.Payment, error)
 
 	// ListForwards lists all our forwards over out relevant period.
 	ListForwards func() ([]lndclient.ForwardingEvent, error)
@@ -141,7 +141,7 @@ func offChainReport(invoices []lndclient.Invoice, payments []settledPayment,
 	for _, payment := range payments {
 		// If the payment's payment request is in our set of circular
 		// payments, we know that this payment was made to ourselves.
-		toSelf := circularPayments[payment.PaymentHash]
+		toSelf := circularPayments[payment.Hash.String()]
 
 		entries, err := paymentEntry(payment, toSelf, convert)
 		if err != nil {
@@ -177,7 +177,7 @@ func offChainReport(invoices []lndclient.Invoice, payments []settledPayment,
 // the payments (resulting in bugs) and is not expected, because duplicate
 // payments are expected to reflect multiple attempts of the same payment.
 func getCircularPayments(ourPubkey string,
-	payments []*lnrpc.Payment) (map[string]bool, error) {
+	payments []lndclient.Payment) (map[string]bool, error) {
 
 	// Run through all payments and get those that were made to our own
 	// node. We identify these payments by payment hash so that we can
@@ -209,13 +209,13 @@ func getCircularPayments(ourPubkey string,
 		// Before we add our entry to the map, we sanity check that if
 		// it has any duplicates, the value in the map is the same as
 		// the value we are about to add.
-		duplicateToSelf, ok := paymentsToSelf[payment.PaymentHash]
+		duplicateToSelf, ok := paymentsToSelf[payment.Hash.String()]
 		if ok && duplicateToSelf != toSelf {
 			return nil, errDifferentDuplicates
 		}
 
 		if toSelf {
-			paymentsToSelf[payment.PaymentHash] = toSelf
+			paymentsToSelf[payment.Hash.String()] = toSelf
 		}
 	}
 
@@ -225,15 +225,15 @@ func getCircularPayments(ourPubkey string,
 // sanityCheckDuplicates checks that we have no payments with duplicate payment
 // hashes. We do not support accounting for duplicate payments.
 func sanityCheckDuplicates(payments []settledPayment) error {
-	uniqueHashes := make(map[string]bool, len(payments))
+	uniqueHashes := make(map[lntypes.Hash]bool, len(payments))
 
 	for _, payment := range payments {
-		_, ok := uniqueHashes[payment.PaymentHash]
+		_, ok := uniqueHashes[payment.Hash]
 		if ok {
 			return errDuplicatesNotSupported
 		}
 
-		uniqueHashes[payment.PaymentHash] = true
+		uniqueHashes[payment.Hash] = true
 	}
 
 	return nil

@@ -7,6 +7,7 @@ import (
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,7 +16,10 @@ var (
 	otherPubkey = "0349f7019b9c48bc456f011d17538a242f763bbc5759362f200854154113318727"
 
 	paymentHash1 = "673507764b0ad03443d07e7446b884d6d908aa783ee5e2704fbabc09ada79a79"
+	hash1, _     = lntypes.MakeHashFromStr(paymentHash1)
+
 	paymentHash2 = "a5530c5930b9eb7ea4284bcff39da52c6bca3103fc790749eb632911edc7143b"
+	hash2, _     = lntypes.MakeHashFromStr(paymentHash2)
 )
 
 // TestGetCircularPayments tests detection of payments that are made to
@@ -48,7 +52,7 @@ func TestGetCircularPayments(t *testing.T) {
 
 		// Payments is the set of payments that we examine for circular
 		// payments.
-		payments []*lnrpc.Payment
+		payments []lndclient.Payment
 
 		// circular is the set of circular payments we expect to be
 		// returned.
@@ -64,9 +68,9 @@ func TestGetCircularPayments(t *testing.T) {
 			// succeeded yet, so it is not relevant to our
 			// accounting period.
 			name: "Payment has no htlcs",
-			payments: []*lnrpc.Payment{
+			payments: []lndclient.Payment{
 				{
-					PaymentHash: paymentHash1,
+					Hash: hash1,
 				},
 			},
 			circular: make(map[string]bool),
@@ -74,9 +78,9 @@ func TestGetCircularPayments(t *testing.T) {
 		},
 		{
 			name: "Route has no hops",
-			payments: []*lnrpc.Payment{
+			payments: []lndclient.Payment{
 				{
-					PaymentHash: paymentHash1,
+					Hash: hash1,
 					Htlcs: []*lnrpc.HTLCAttempt{
 						{
 							Route: &lnrpc.Route{},
@@ -89,9 +93,9 @@ func TestGetCircularPayments(t *testing.T) {
 		},
 		{
 			name: "Last Hop to Us",
-			payments: []*lnrpc.Payment{
+			payments: []lndclient.Payment{
 				{
-					PaymentHash: paymentHash1,
+					Hash: hash1,
 					Htlcs: []*lnrpc.HTLCAttempt{
 						{
 							Route: routeToUs,
@@ -106,9 +110,9 @@ func TestGetCircularPayments(t *testing.T) {
 		},
 		{
 			name: "Last Hop not to Us",
-			payments: []*lnrpc.Payment{
+			payments: []lndclient.Payment{
 				{
-					PaymentHash: paymentHash1,
+					Hash: hash1,
 					Htlcs: []*lnrpc.HTLCAttempt{
 						{
 							Route: routeToOther,
@@ -121,9 +125,9 @@ func TestGetCircularPayments(t *testing.T) {
 		},
 		{
 			name: "Duplicates both to us",
-			payments: []*lnrpc.Payment{
+			payments: []lndclient.Payment{
 				{
-					PaymentHash: paymentHash1,
+					Hash: hash1,
 					Htlcs: []*lnrpc.HTLCAttempt{
 						{
 							Route: routeToUs,
@@ -131,7 +135,7 @@ func TestGetCircularPayments(t *testing.T) {
 					},
 				},
 				{
-					PaymentHash: paymentHash1,
+					Hash: hash1,
 					Htlcs: []*lnrpc.HTLCAttempt{
 						{
 							Route: routeToUs,
@@ -146,9 +150,9 @@ func TestGetCircularPayments(t *testing.T) {
 		},
 		{
 			name: "Duplicates not both to us",
-			payments: []*lnrpc.Payment{
+			payments: []lndclient.Payment{
 				{
-					PaymentHash: paymentHash1,
+					Hash: hash1,
 					Htlcs: []*lnrpc.HTLCAttempt{
 						{
 							Route: routeToUs,
@@ -156,7 +160,7 @@ func TestGetCircularPayments(t *testing.T) {
 					},
 				},
 				{
-					PaymentHash: paymentHash1,
+					Hash: hash1,
 					Htlcs: []*lnrpc.HTLCAttempt{
 						{
 							Route: routeToOther,
@@ -188,35 +192,45 @@ func TestGetCircularPayments(t *testing.T) {
 // payments, invoices and forwards. It uses a mocked price function so that the
 // test does not make live price API calls.
 func TestOffChainReport(t *testing.T) {
+	// status is a non-nil success state that is used to prevent payments
+	// from panicking on status checks (which are irrelevant for this test).
+	status := &lndclient.PaymentStatus{
+		State: lnrpc.Payment_SUCCEEDED,
+	}
+
 	tests := []struct {
 		name string
 
 		// Payments is the set of payments our ListPayments call should
 		// return.
-		payments []*lnrpc.Payment
+		payments []lndclient.Payment
 
 		// err is the error we expect to be returned.
 		err error
 	}{
 		{
 			name: "No duplicate payments",
-			payments: []*lnrpc.Payment{
+			payments: []lndclient.Payment{
 				{
-					PaymentHash: paymentHash1,
+					Hash:   hash1,
+					Status: status,
 				},
 				{
-					PaymentHash: paymentHash2,
+					Hash:   hash2,
+					Status: status,
 				},
 			},
 		},
 		{
 			name: "Duplicate payments both to ourself",
-			payments: []*lnrpc.Payment{
+			payments: []lndclient.Payment{
 				{
-					PaymentHash: paymentHash1,
+					Hash:   hash1,
+					Status: status,
 				},
 				{
-					PaymentHash: paymentHash1,
+					Hash:   hash1,
+					Status: status,
 				},
 			},
 		},
@@ -234,7 +248,7 @@ func TestOffChainReport(t *testing.T) {
 				ListInvoices: func() ([]lndclient.Invoice, error) {
 					return nil, nil
 				},
-				ListPayments: func() ([]*lnrpc.Payment, error) {
+				ListPayments: func() ([]lndclient.Payment, error) {
 					return test.payments, nil
 				},
 				ListForwards: func() ([]lndclient.ForwardingEvent,

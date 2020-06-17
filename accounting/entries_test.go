@@ -123,8 +123,10 @@ var (
 	paymentTime = 1590399649
 
 	paymentHash = "11f414479f0a0c2762492c71c58dded5dce99d56d65c3fa523f73513605bebb3"
+	pmtHash, _  = lntypes.MakeHashFromStr(paymentHash)
 
 	paymentPreimage = "adfef20b24152accd4ed9a05257fb77203d90a8bbbe6d4069a75c5320f0538d9"
+	pmtPreimage, _  = lntypes.MakePreimageFromStr(paymentPreimage)
 
 	paymentMsat = 30000
 
@@ -132,14 +134,16 @@ var (
 
 	paymentIndex = 33
 
-	payment = &lnrpc.Payment{
-		PaymentHash:     paymentHash,
-		PaymentPreimage: paymentPreimage,
-		ValueMsat:       int64(paymentMsat),
-		Status:          lnrpc.Payment_SUCCEEDED,
-		FeeMsat:         int64(paymentFeeMsat),
-		Htlcs:           []*lnrpc.HTLCAttempt{{}},
-		PaymentIndex:    uint64(paymentIndex),
+	payment = lndclient.Payment{
+		Hash:     pmtHash,
+		Preimage: &pmtPreimage,
+		Amount:   lnwire.MilliSatoshi(paymentMsat),
+		Status: &lndclient.PaymentStatus{
+			State: lnrpc.Payment_SUCCEEDED,
+		},
+		Fee:            lnwire.MilliSatoshi(paymentFeeMsat),
+		Htlcs:          []*lnrpc.HTLCAttempt{{}},
+		SequenceNumber: uint64(paymentIndex),
 	}
 
 	settledPmt = settledPayment{
@@ -536,7 +540,7 @@ func TestPaymentEntry(t *testing.T) {
 	getEntries := func(toSelf bool) []*HarmonyEntry {
 		mockFiat, _ := mockConvert(int64(paymentMsat), 0)
 		paymentRef := paymentReference(
-			uint64(paymentIndex), paymentHash,
+			uint64(paymentIndex), pmtHash,
 		)
 
 		paymentEntry := &HarmonyEntry{
@@ -545,7 +549,7 @@ func TestPaymentEntry(t *testing.T) {
 			FiatValue: mockFiat,
 			TxID:      paymentHash,
 			Reference: paymentRef,
-			Note:      paymentNote(paymentPreimage),
+			Note:      paymentNote(pmtPreimage),
 			Type:      EntryTypePayment,
 			OnChain:   false,
 			Credit:    false,

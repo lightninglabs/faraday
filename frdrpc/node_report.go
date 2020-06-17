@@ -7,7 +7,6 @@ import (
 
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/loop/lndclient"
-	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
 // parseNodeReportRequest parses a report request and returns the config
@@ -48,7 +47,7 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		ListInvoices: func() ([]lndclient.Invoice, error) {
 			return cfg.wrapListInvoices(ctx)
 		},
-		ListPayments: func() ([]*lnrpc.Payment, error) {
+		ListPayments: func() ([]lndclient.Payment, error) {
 			return cfg.wrapListPayments(ctx)
 		},
 		ListForwards: func() ([]lndclient.ForwardingEvent, error) {

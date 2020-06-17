@@ -83,7 +83,7 @@ func filterInvoices(startTime, endTime time.Time,
 // htlc. Payments do not have a settle time, so we have to get our settle time
 // from examining each htlc.
 type settledPayment struct {
-	*lnrpc.Payment
+	lndclient.Payment
 	settleTime time.Time
 }
 
@@ -94,14 +94,14 @@ type settledPayment struct {
 // payment occurred within our desired time range, because payments are not
 // considered settled until all the htlcs are resolved.
 func filterPayments(startTime, endTime time.Time,
-	payments []*lnrpc.Payment) []settledPayment {
+	payments []lndclient.Payment) []settledPayment {
 
 	// nolint: prealloc
 	var filtered []settledPayment
 
 	for _, payment := range payments {
 		// If the payment did not succeed, we can skip it.
-		if payment.Status != lnrpc.Payment_SUCCEEDED {
+		if payment.Status.State != lnrpc.Payment_SUCCEEDED {
 			continue
 		}
 

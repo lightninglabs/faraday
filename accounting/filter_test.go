@@ -154,8 +154,10 @@ func TestFilterPayments(t *testing.T) {
 
 	// succeededAfterPeriod is a payment which had a htlc in our period,
 	// but only succeeded afterwards.
-	succeededAfterPeriod := &lnrpc.Payment{
-		Status: lnrpc.Payment_SUCCEEDED,
+	succeededAfterPeriod := lndclient.Payment{
+		Status: &lndclient.PaymentStatus{
+			State: lnrpc.Payment_SUCCEEDED,
+		},
 		Htlcs: []*lnrpc.HTLCAttempt{
 			{
 				Status:        lnrpc.HTLCAttempt_FAILED,
@@ -170,8 +172,10 @@ func TestFilterPayments(t *testing.T) {
 
 	// succeededInPeriod is a payment that had a failed htlc outside of our
 	// period, but was settled in relevant period.
-	succeededInPeriod := &lnrpc.Payment{
-		Status: lnrpc.Payment_SUCCEEDED,
+	succeededInPeriod := lndclient.Payment{
+		Status: &lndclient.PaymentStatus{
+			State: lnrpc.Payment_SUCCEEDED,
+		},
 		Htlcs: []*lnrpc.HTLCAttempt{
 			{
 				Status:        lnrpc.HTLCAttempt_FAILED,
@@ -186,8 +190,10 @@ func TestFilterPayments(t *testing.T) {
 
 	// succeededInAndAfterPeriod is a payment that had successful htlc in
 	// our period, but its last htlc was settled after our period.
-	succeededInAndAfterPeriod := &lnrpc.Payment{
-		Status: lnrpc.Payment_SUCCEEDED,
+	succeededInAndAfterPeriod := lndclient.Payment{
+		Status: &lndclient.PaymentStatus{
+			State: lnrpc.Payment_SUCCEEDED,
+		},
 		Htlcs: []*lnrpc.HTLCAttempt{
 			{
 				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
@@ -201,8 +207,10 @@ func TestFilterPayments(t *testing.T) {
 	}
 
 	// inFlight has a htlc in the relevant period but it is not settled yet.
-	inFlight := &lnrpc.Payment{
-		Status: lnrpc.Payment_IN_FLIGHT,
+	inFlight := lndclient.Payment{
+		Status: &lndclient.PaymentStatus{
+			State: lnrpc.Payment_IN_FLIGHT,
+		},
 		Htlcs: []*lnrpc.HTLCAttempt{
 			{
 				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
@@ -211,7 +219,7 @@ func TestFilterPayments(t *testing.T) {
 		},
 	}
 
-	payments := []*lnrpc.Payment{
+	payments := []lndclient.Payment{
 		succeededInPeriod,
 		succeededAfterPeriod,
 		succeededInAndAfterPeriod,

@@ -17,26 +17,30 @@ func Main() error {
 		return fmt.Errorf("error loading config: %v", err)
 	}
 
-	// NewBasicClient get a lightning rpc client with
-	client, err := lndclient.NewBasicClient(
-		config.RPCServer,
-		config.TLSCertPath,
-		config.MacaroonDir,
-		config.network,
-		lndclient.MacFilename(config.MacaroonFile),
-	)
+	// Connect to the full suite of lightning services offered by lnd's
+	// subservers.
+	client, err := lndclient.NewLndServices(&lndclient.LndServicesConfig{
+		LndAddress:  config.RPCServer,
+		Network:     config.network,
+		MacaroonDir: config.MacaroonDir,
+		TLSPath:     config.TLSCertPath,
+		// Use the default lnd version check which checks for version
+		// 10.1 and requires all build tags.
+		CheckVersion: nil,
+	})
 	if err != nil {
-		return fmt.Errorf("cannot connect to lightning client: %v",
+		return fmt.Errorf("cannot connect to lightning services: %v",
 			err)
 	}
+	defer client.Close()
 
 	// Instantiate the faraday gRPC server.
 	server := frdrpc.NewRPCServer(
 		&frdrpc.Config{
-			LightningClient: client,
-			RPCListen:       config.RPCListen,
-			RESTListen:      config.RESTListen,
-			CORSOrigin:      config.CORSOrigin,
+			Lnd:        client.LndServices,
+			RPCListen:  config.RPCListen,
+			RESTListen: config.RESTListen,
+			CORSOrigin: config.CORSOrigin,
 		},
 	)
 

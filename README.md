@@ -2,7 +2,14 @@
 
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/lightninglabs/faraday/blob/master/LICENSE)
 
-Faraday is an external service intended to be run in conjunction with the [lnd](https://github.com/lightningnetwork/lnd) implementation of the [Lightning Network](https://lightning.network). It queries LND for information about its existing channels and provides channel close recommendations if channels are under-performing.  
+Faraday is an external service intended to be run in conjunction with the [lnd](https://github.com/lightningnetwork/lnd) implementation of the [Lightning Network](https://lightning.network). It queries LND for information about its existing channels and provides channel close recommendations if channels are under-performing. 
+
+## LND
+Note that Faraday requires lnd to be built with **all of its subservers** and requires running at least v0.10.1. Please see the [instructions](https://github.com/lightningnetwork/lnd/blob/master/docs/INSTALL.md) in the lnd repo for more detailed installation instructions. You will need to build lnd with the following command to enable all the relevant subservers:
+```
+make install tags="signrpc walletrpc chainrpc invoicesrpc"
+```
+
 
 ## Installation
 A [Makefile](https://github.com/lightninglabs/faraday/blob/master/Makefile) is provided. To install faraday and all its dependencies, run:
@@ -21,11 +28,10 @@ make check
 ```
 
 ## Usage
-Faraday connects to a single instance of lnd. It requires access to a macaroon with read permissions and a valid TLS certificate. It will attempt to use the default lnd values if no command line flags are specified.
+Faraday connects to a single instance of lnd. It requires access to macaroons for each subserver and a valid TLS certificate. It will attempt to use the default lnd values if no command line flags are specified.
 ```
 ./faraday                                    \
 --macaroondir={directory containing macaroon}   \
---macaroonfile={macaroon with read permissions} \
 --tlscertpath={path to lnd cert}                \
 --rpserver={host:port of lnd's rpserver} 
 ```

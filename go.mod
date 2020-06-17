@@ -4,13 +4,13 @@ require (
 	github.com/btcsuite/btcd v0.20.1-beta.0.20200515232429-9f0179fd2c46
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f
 	github.com/golang/protobuf v1.3.3
-	github.com/grpc-ecosystem/grpc-gateway v1.12.2
+	github.com/grpc-ecosystem/grpc-gateway v1.14.3
 	github.com/jessevdk/go-flags v1.4.0
-	github.com/lightninglabs/loop v0.6.0-beta
+	github.com/lightninglabs/loop v0.6.4-beta.0.20200617070054-40cb9644e86f
 	github.com/lightninglabs/protobuf-hex-display v1.3.3-0.20191212020323-b444784ce75d
-	github.com/lightningnetwork/lnd v0.10.0-beta.rc6.0.20200520092315-ca9c58aec9d6
+	github.com/lightningnetwork/lnd v0.10.0-beta.rc6.0.20200615174244-103c59a4889f
 	github.com/shopspring/decimal v1.2.0
-	github.com/stretchr/testify v1.3.0
+	github.com/stretchr/testify v1.5.1
 	github.com/urfave/cli v1.20.0
 	google.golang.org/genproto v0.0.0-20190927181202-20e1ac93f88c
 	google.golang.org/grpc v1.27.0

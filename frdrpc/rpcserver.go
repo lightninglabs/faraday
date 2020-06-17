@@ -24,6 +24,7 @@ import (
 	"github.com/lightninglabs/faraday/paginater"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"google.golang.org/grpc"
 )
@@ -92,8 +93,8 @@ type RPCServer struct {
 
 // Config provides closures and settings required to run the rpc server.
 type Config struct {
-	// LightningClient is a client which can be used to query lnd.
-	LightningClient lnrpc.LightningClient
+	// Lnd is a client which can be used to query lnd.
+	Lnd lndclient.LndServices
 
 	// RPCListen is the address:port that the gRPC server should listen on.
 	RPCListen string
@@ -349,12 +350,12 @@ func (s *RPCServer) Start() error {
 // create its own gRPC server but registers to an existing one. The same goes
 // for REST (if enabled), instead of creating an own mux and HTTP server, we
 // register to an existing one.
-func (s *RPCServer) StartAsSubserver(lndClient lnrpc.LightningClient) error {
+func (s *RPCServer) StartAsSubserver(lndClient lndclient.LndServices) error {
 	if atomic.AddInt32(&s.started, 1) != 1 {
 		return errServerAlreadyStarted
 	}
 
-	s.cfg.LightningClient = lndClient
+	s.cfg.Lnd = lndClient
 	return nil
 }
 

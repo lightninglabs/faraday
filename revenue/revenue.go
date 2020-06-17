@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/lightninglabs/faraday/paginater"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
@@ -15,10 +16,10 @@ const maxQueryEvents uint64 = 500
 // Config contains all the functions required to calculate revenue.
 type Config struct {
 	// ListChannels returns all open, public channels.
-	ListChannels func() ([]*lnrpc.Channel, error)
+	ListChannels func() ([]lndclient.ChannelInfo, error)
 
 	// ClosedChannels returns all closed channels.
-	ClosedChannels func() ([]*lnrpc.ChannelCloseSummary, error)
+	ClosedChannels func() ([]lndclient.ClosedChannel, error)
 
 	// ForwardingHistory returns paginated forwarding history results.
 	// The period that these results queried over determines the period
@@ -47,13 +48,13 @@ func GetRevenueReport(cfg *Config) (*Report, error) {
 	// string.
 	channelIDs := make(map[lnwire.ShortChannelID]string)
 	for _, channel := range channels {
-		channelIDs[lnwire.NewShortChanIDFromInt(channel.ChanId)] =
-			channel.ChannelPoint
+		id := lnwire.NewShortChanIDFromInt(channel.ChannelID)
+		channelIDs[id] = channel.ChannelPoint
 	}
 
 	for _, closedChannel := range closedChannels {
-		channelIDs[lnwire.NewShortChanIDFromInt(closedChannel.ChanId)] =
-			closedChannel.ChannelPoint
+		id := lnwire.NewShortChanIDFromInt(closedChannel.ChannelID)
+		channelIDs[id] = closedChannel.ChannelPoint
 	}
 
 	events, err := getEvents(channelIDs, cfg.ForwardingHistory)

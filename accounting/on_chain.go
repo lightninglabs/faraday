@@ -6,6 +6,7 @@ import (
 
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/utils"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
@@ -13,10 +14,10 @@ import (
 // report.
 type OnChainConfig struct {
 	// OpenChannels provides a list of all currently open channels.
-	OpenChannels func() ([]*lnrpc.Channel, error)
+	OpenChannels func() ([]lndclient.ChannelInfo, error)
 
 	// ClosedChannels provides a list of all closed channels.
-	ClosedChannels func() ([]*lnrpc.ChannelCloseSummary, error)
+	ClosedChannels func() ([]lndclient.ClosedChannel, error)
 
 	// OnChainTransactions provides a list of all on chain transactions
 	// relevant to our wallet over a block range.
@@ -76,7 +77,7 @@ func onChainReportWithPrices(cfg *OnChainConfig, getPrice msatToFiat) (Report,
 		return nil, err
 	}
 
-	openChannels := make(map[string]*lnrpc.Channel)
+	openChannels := make(map[string]lndclient.ChannelInfo)
 	for _, channel := range openRPCChannels {
 		outpoint, err := utils.GetOutPointFromString(
 			channel.ChannelPoint,
@@ -101,8 +102,8 @@ func onChainReportWithPrices(cfg *OnChainConfig, getPrice msatToFiat) (Report,
 	// our already closed channels, and another keyed by their channel point.
 	// We do this so that we can also match the on chain open transaction
 	// for channels that are already closed.
-	channelCloses := make(map[string]*lnrpc.ChannelCloseSummary)
-	channelOpens := make(map[string]*lnrpc.ChannelCloseSummary)
+	channelCloses := make(map[string]lndclient.ClosedChannel)
+	channelOpens := make(map[string]lndclient.ClosedChannel)
 
 	for _, closedChannel := range closedRPCChannels {
 		channelCloses[closedChannel.ClosingTxHash] = closedChannel
@@ -123,8 +124,9 @@ func onChainReportWithPrices(cfg *OnChainConfig, getPrice msatToFiat) (Report,
 
 // onChainReport produces an on chain transaction report.
 func onChainReport(txns []*lnrpc.Transaction, priceFunc msatToFiat,
-	currentlyOpenChannels map[string]*lnrpc.Channel, channelOpenTransactions,
-	channelCloseTransactions map[string]*lnrpc.ChannelCloseSummary) (
+	currentlyOpenChannels map[string]lndclient.ChannelInfo,
+	channelOpenTransactions,
+	channelCloseTransactions map[string]lndclient.ClosedChannel) (
 	Report, error) {
 
 	txMap := make(map[string]*lnrpc.Transaction, len(txns))

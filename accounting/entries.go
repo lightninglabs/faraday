@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/btcsuite/btcutil"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
@@ -16,7 +18,9 @@ func feeReference(reference string) string {
 }
 
 // channelOpenNote creates a note for a channel open entry type.
-func channelOpenNote(initiator bool, remotePubkey string, capacity int64) string {
+func channelOpenNote(initiator bool, remotePubkey string,
+	capacity btcutil.Amount) string {
+
 	if !initiator {
 		return fmt.Sprintf("remote peer %v initated channel open "+
 			"with capacity: %v sat", remotePubkey,
@@ -34,7 +38,7 @@ func channelOpenFeeNote(channelID uint64) string {
 
 // channelOpenEntries produces the relevant set of entries for a currently open
 // channel.
-func channelOpenEntries(channel *lnrpc.Channel, tx *lnrpc.Transaction,
+func channelOpenEntries(channel lndclient.ChannelInfo, tx *lnrpc.Transaction,
 	convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	var (
@@ -49,7 +53,8 @@ func channelOpenEntries(channel *lnrpc.Channel, tx *lnrpc.Transaction,
 
 	return openEntries(
 		tx, convert, amtMsat, channel.Capacity, entryType,
-		channel.RemotePubkey, channel.ChanId, channel.Initiator,
+		channel.PubKeyBytes.String(), channel.ChannelID,
+		channel.Initiator,
 	)
 }
 
@@ -57,7 +62,7 @@ func channelOpenEntries(channel *lnrpc.Channel, tx *lnrpc.Transaction,
 // and closed within the period we are reporting on. Since the channel has
 // already been closed, we need to produce channel opening records from the
 // close summary.
-func openChannelFromCloseSummary(channel *lnrpc.ChannelCloseSummary,
+func openChannelFromCloseSummary(channel lndclient.ClosedChannel,
 	tx *lnrpc.Transaction, convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	// If the transaction has a negative amount, we can infer that this
@@ -73,7 +78,7 @@ func openChannelFromCloseSummary(channel *lnrpc.ChannelCloseSummary,
 
 	return openEntries(
 		tx, convert, amtMsat, channel.Capacity, entryType,
-		channel.RemotePubkey, channel.ChanId, initiator,
+		channel.PubKeyBytes.String(), channel.ChannelID, initiator,
 	)
 }
 
@@ -81,8 +86,8 @@ func openChannelFromCloseSummary(channel *lnrpc.ChannelCloseSummary,
 // fields. This is required because we create channel open entries from already
 // open channels using lnrpc.Channel and from closed channels using
 // lnrpc.ChannelCloseSummary.
-func openEntries(tx *lnrpc.Transaction, convert msatToFiat,
-	amtMsat, capacity int64, entryType EntryType, remote string,
+func openEntries(tx *lnrpc.Transaction, convert msatToFiat, amtMsat int64,
+	capacity btcutil.Amount, entryType EntryType, remote string,
 	channelID uint64, initiator bool) ([]*HarmonyEntry, error) {
 
 	ref := fmt.Sprintf("%v", channelID)
@@ -131,12 +136,12 @@ func channelCloseNote(channelID uint64, closeType, initiated string) string {
 // in the close transaction. It *does not* include any on chain resolutions, so
 // it is excluding htlcs that are resolved on chain, and will not reflect our
 // balance when we force close (because it is behind a timelock).
-func closedChannelEntries(channel *lnrpc.ChannelCloseSummary,
+func closedChannelEntries(channel lndclient.ClosedChannel,
 	tx *lnrpc.Transaction, convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	amtMsat := satsToMsat(tx.Amount)
 	note := channelCloseNote(
-		channel.ChanId, channel.CloseType.String(),
+		channel.ChannelID, channel.CloseType.String(),
 		channel.CloseInitiator.String(),
 	)
 

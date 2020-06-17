@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/lightninglabs/faraday/accounting"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
@@ -26,8 +27,10 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 	}
 
 	onChain := &accounting.OnChainConfig{
-		OpenChannels:        cfg.wrapListChannels(ctx, false),
-		ClosedChannels:      cfg.wrapClosedChannels(ctx),
+		OpenChannels: cfg.wrapListChannels(ctx, false),
+		ClosedChannels: func() ([]lndclient.ClosedChannel, error) {
+			return cfg.Lnd.Client.ClosedChannels(ctx)
+		},
 		OnChainTransactions: cfg.wrapGetChainTransactions(ctx),
 		StartTime:           start,
 		EndTime:             end,

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/faraday/revenue"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
@@ -47,8 +48,10 @@ func getRevenueConfig(ctx context.Context, cfg *Config,
 	}
 
 	return &revenue.Config{
-		ListChannels:      cfg.wrapListChannels(ctx, false),
-		ClosedChannels:    cfg.wrapClosedChannels(ctx),
+		ListChannels: cfg.wrapListChannels(ctx, false),
+		ClosedChannels: func() ([]lndclient.ClosedChannel, error) {
+			return cfg.Lnd.Client.ClosedChannels(ctx)
+		},
 		ForwardingHistory: forwardingHistory,
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/stretchr/testify/require"
@@ -17,14 +18,14 @@ func TestGetRevenueReport(t *testing.T) {
 		// failures.
 		testErr = errors.New("error thrown by mock")
 
-		chan1 = &lnrpc.Channel{
+		chan1 = lndclient.ChannelInfo{
 			ChannelPoint: "a:1",
-			ChanId:       123,
+			ChannelID:    123,
 		}
 
-		chan2 = &lnrpc.Channel{
+		chan2 = lndclient.ChannelInfo{
 			ChannelPoint: "a:2",
-			ChanId:       321,
+			ChannelID:    321,
 		}
 	)
 
@@ -33,8 +34,8 @@ func TestGetRevenueReport(t *testing.T) {
 		listChanErr    error
 		closedChanErr  error
 		forwardHistErr error
-		openChannels   []*lnrpc.Channel
-		closedChannels []*lnrpc.ChannelCloseSummary
+		openChannels   []lndclient.ChannelInfo
+		closedChannels []lndclient.ClosedChannel
 		fwdHistory     []*lnrpc.ForwardingEvent
 		expectedReport *Report
 		expectErr      error
@@ -68,15 +69,15 @@ func TestGetRevenueReport(t *testing.T) {
 		},
 		{
 			name:         "open and closed channel",
-			openChannels: []*lnrpc.Channel{chan1},
-			closedChannels: []*lnrpc.ChannelCloseSummary{{
+			openChannels: []lndclient.ChannelInfo{chan1},
+			closedChannels: []lndclient.ClosedChannel{{
 				ChannelPoint: chan2.ChannelPoint,
-				ChanId:       chan2.ChanId,
+				ChannelID:    chan2.ChannelID,
 			}},
 			fwdHistory: []*lnrpc.ForwardingEvent{
 				{
-					ChanIdIn:   chan1.ChanId,
-					ChanIdOut:  chan2.ChanId,
+					ChanIdIn:   chan1.ChannelID,
+					ChanIdOut:  chan2.ChannelID,
 					AmtOutMsat: 100,
 					AmtInMsat:  150,
 				},
@@ -109,10 +110,10 @@ func TestGetRevenueReport(t *testing.T) {
 			// Create a config which returns the tests's specified
 			// responses and errors.
 			cfg := &Config{
-				ListChannels: func() ([]*lnrpc.Channel, error) {
+				ListChannels: func() ([]lndclient.ChannelInfo, error) {
 					return test.openChannels, test.listChanErr
 				},
-				ClosedChannels: func() ([]*lnrpc.ChannelCloseSummary, error) {
+				ClosedChannels: func() ([]lndclient.ClosedChannel, error) {
 					return test.closedChannels, test.closedChanErr
 				},
 				ForwardingHistory: func(offset,

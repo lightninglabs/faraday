@@ -6,16 +6,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
-
+	"github.com/btcsuite/btcutil"
+	"github.com/lightninglabs/loop/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/lightningnetwork/lnd/routing/route"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
 var (
 	openChannelTx              = "44183bc482d5b7be031739ce39b6c91562edd882ba5a9e3647341262328a2228"
 	remotePubkey               = "02f6a7664ca2a2178b422a058af651075de2e5bdfff028ac8e1fcd96153cba636b"
+	remoteVertex, _            = route.NewVertexFromStr(remotePubkey)
 	channelID           uint64 = 124244814004224
 	channelCapacitySats int64  = 500000
 	channelFeesSats     int64  = 10000
@@ -24,11 +27,11 @@ var (
 		"bcrt1qkhdqm0g4f73splxrluwegvus7rv9ve88x45ejm",
 	}
 
-	openChannel = lnrpc.Channel{
-		RemotePubkey: remotePubkey,
+	openChannel = lndclient.ChannelInfo{
+		PubKeyBytes:  remoteVertex,
 		ChannelPoint: fmt.Sprintf("%v:%v", openChannelTx, 1),
-		ChanId:       channelID,
-		Capacity:     channelCapacitySats,
+		ChannelID:    channelID,
+		Capacity:     btcutil.Amount(channelCapacitySats),
 		Initiator:    false,
 	}
 
@@ -50,13 +53,13 @@ var (
 
 	closeBalanceSat int64 = 50000
 
-	channelClose = lnrpc.ChannelCloseSummary{
+	channelClose = lndclient.ClosedChannel{
 		ChannelPoint:   openChannel.ChannelPoint,
-		ChanId:         openChannel.ChanId,
+		ChannelID:      openChannel.ChannelID,
 		ClosingTxHash:  closeTx,
-		RemotePubkey:   remotePubkey,
-		SettledBalance: closeBalanceSat,
-		CloseInitiator: lnrpc.Initiator_INITIATOR_REMOTE,
+		PubKeyBytes:    remoteVertex,
+		SettledBalance: btcutil.Amount(closeBalanceSat),
+		CloseInitiator: lndclient.InitiatorLocal,
 	}
 
 	closeTimestamp int64 = 1588159722
@@ -193,7 +196,8 @@ func TestChannelOpenEntry(t *testing.T) {
 		mockFiat, _ := mockConvert(amt, 0)
 
 		note := channelOpenNote(
-			initiator, remotePubkey, channelCapacitySats,
+			initiator, remotePubkey,
+			btcutil.Amount(channelCapacitySats),
 		)
 
 		return &HarmonyEntry{
@@ -259,7 +263,7 @@ func TestChannelOpenEntry(t *testing.T) {
 
 			// Get our entries.
 			entries, err := channelOpenEntries(
-				&channel, &tx, mockConvert,
+				channel, &tx, mockConvert,
 			)
 			require.Equal(t, test.expectedErr, err)
 
@@ -282,13 +286,10 @@ func TestChannelOpenEntry(t *testing.T) {
 func TestChannelCloseEntry(t *testing.T) {
 	// getCloseEntry returns a close entry for the global close var with
 	// correct close type and amount.
-	getCloseEntry := func(closeType string,
+	getCloseEntry := func(closeType, closeInitiator string,
 		closeBalance int64) *HarmonyEntry {
 
-		note := channelCloseNote(
-			channelID, closeType,
-			lnrpc.Initiator_INITIATOR_REMOTE.String(),
-		)
+		note := channelCloseNote(channelID, closeType, closeInitiator)
 
 		closeAmt := satsToMsat(closeBalance)
 		closeFiat, _ := mockConvert(closeAmt, 0)
@@ -308,17 +309,17 @@ func TestChannelCloseEntry(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		closeType lnrpc.ChannelCloseSummary_ClosureType
+		closeType lndclient.CloseType
 		closeAmt  int64
 	}{
 		{
 			name:      "coop close, has balance",
-			closeType: lnrpc.ChannelCloseSummary_COOPERATIVE_CLOSE,
+			closeType: lndclient.CloseTypeCooperative,
 			closeAmt:  closeBalanceSat,
 		},
 		{
 			name:      "force close, has no balance",
-			closeType: lnrpc.ChannelCloseSummary_LOCAL_FORCE_CLOSE,
+			closeType: lndclient.CloseTypeLocalForce,
 			closeAmt:  0,
 		},
 	}
@@ -336,12 +337,14 @@ func TestChannelCloseEntry(t *testing.T) {
 			closeTx.Amount = test.closeAmt
 
 			entries, err := closedChannelEntries(
-				&closeChan, &closeTx, mockConvert,
+				closeChan, &closeTx, mockConvert,
 			)
 			require.NoError(t, err)
 
 			expected := []*HarmonyEntry{getCloseEntry(
-				test.closeType.String(), test.closeAmt,
+				test.closeType.String(),
+				closeChan.CloseInitiator.String(),
+				test.closeAmt,
 			)}
 
 			require.Equal(t, expected, entries)

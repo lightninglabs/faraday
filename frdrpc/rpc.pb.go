@@ -9,6 +9,8 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -1564,6 +1566,29 @@ type FaradayServerServer interface {
 	//Example request:
 	//http://localhost:8466/v1/faraday/nodereport
 	NodeReport(context.Context, *NodeReportRequest) (*NodeReportResponse, error)
+}
+
+// UnimplementedFaradayServerServer can be embedded to have forward compatible implementations.
+type UnimplementedFaradayServerServer struct {
+}
+
+func (*UnimplementedFaradayServerServer) OutlierRecommendations(ctx context.Context, req *OutlierRecommendationsRequest) (*CloseRecommendationsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method OutlierRecommendations not implemented")
+}
+func (*UnimplementedFaradayServerServer) ThresholdRecommendations(ctx context.Context, req *ThresholdRecommendationsRequest) (*CloseRecommendationsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ThresholdRecommendations not implemented")
+}
+func (*UnimplementedFaradayServerServer) RevenueReport(ctx context.Context, req *RevenueReportRequest) (*RevenueReportResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RevenueReport not implemented")
+}
+func (*UnimplementedFaradayServerServer) ChannelInsights(ctx context.Context, req *ChannelInsightsRequest) (*ChannelInsightsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelInsights not implemented")
+}
+func (*UnimplementedFaradayServerServer) FiatEstimate(ctx context.Context, req *FiatEstimateRequest) (*FiatEstimateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FiatEstimate not implemented")
+}
+func (*UnimplementedFaradayServerServer) NodeReport(ctx context.Context, req *NodeReportRequest) (*NodeReportResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NodeReport not implemented")
 }
 
 func RegisterFaradayServerServer(s *grpc.Server, srv FaradayServerServer) {

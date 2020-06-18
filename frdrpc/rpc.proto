@@ -404,6 +404,12 @@ enum EntryType {
 
     // The fees paid to send an off chain payment to ourselves.
     CIRCULAR_FEE = 12;
+
+    // A transaction that sweeps funds back into our wallet's control.
+    SWEEP = 13;
+
+    // The amount of fees paid for a sweep transaction.
+    SWEEP_FEE = 14;
 }
 
 message ReportEntry {

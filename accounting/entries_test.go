@@ -342,16 +342,27 @@ func TestChannelCloseEntry(t *testing.T) {
 // TestOnChainEntry tests creation of entries for receipts and payments, and the
 // generation of a fee entry where applicable.
 func TestOnChainEntry(t *testing.T) {
-	getOnChainEntry := func(isReceive bool, label string) *HarmonyEntry {
-		entryType := EntryTypePayment
+	getOnChainEntry := func(isReceive, isSweep,
+		hasFee bool, label string) []*HarmonyEntry {
+
+		var (
+			entryType = EntryTypePayment
+			feeType   = EntryTypeFee
+		)
+
 		if isReceive {
 			entryType = EntryTypeReceipt
+		}
+
+		if isSweep {
+			entryType = EntryTypeSweep
+			feeType = EntryTypeSweepFee
 		}
 
 		amt := satsToMsat(onChainAmtSat)
 		fiat, _ := mockConvert(amt, onChainTimestamp)
 
-		return &HarmonyEntry{
+		entry := &HarmonyEntry{
 			Timestamp: onChainTimestamp,
 			Amount:    lnwire.MilliSatoshi(amt),
 			FiatValue: fiat,
@@ -362,22 +373,28 @@ func TestOnChainEntry(t *testing.T) {
 			OnChain:   true,
 			Credit:    isReceive,
 		}
-	}
 
-	feeAmt := satsToMsat(onChainFeeSat)
-	fiat, _ := mockConvert(feeAmt, onChainTimestamp)
+		if !hasFee {
+			return []*HarmonyEntry{entry}
+		}
 
-	// Fee entry is the fee entry we expect for this transaction.
-	feeEntry := &HarmonyEntry{
-		Timestamp: onChainTimestamp,
-		Amount:    lnwire.MilliSatoshi(feeAmt),
-		FiatValue: fiat,
-		TxID:      onChainTxID,
-		Reference: feeReference(onChainTxID),
-		Note:      "",
-		Type:      EntryTypeFee,
-		OnChain:   true,
-		Credit:    false,
+		feeAmt := satsToMsat(onChainFeeSat)
+		fiat, _ = mockConvert(feeAmt, onChainTimestamp)
+
+		// Fee entry is the fee entry we expect for this transaction.
+		feeEntry := &HarmonyEntry{
+			Timestamp: onChainTimestamp,
+			Amount:    lnwire.MilliSatoshi(feeAmt),
+			FiatValue: fiat,
+			TxID:      onChainTxID,
+			Reference: feeReference(onChainTxID),
+			Note:      "",
+			Type:      feeType,
+			OnChain:   true,
+			Credit:    false,
+		}
+
+		return []*HarmonyEntry{entry, feeEntry}
 	}
 
 	tests := []struct {
@@ -385,6 +402,10 @@ func TestOnChainEntry(t *testing.T) {
 
 		// Whether the transaction paid us, or was our payment.
 		isReceive bool
+
+		// isSweep returns true if the transaction should be identified
+		// as a sweep by lnd.
+		isSweep bool
 
 		// Whether the transaction has a fee attached.
 		hasFee bool
@@ -396,21 +417,31 @@ func TestOnChainEntry(t *testing.T) {
 			name:      "receive with fee",
 			isReceive: true,
 			hasFee:    true,
+			isSweep:   false,
 		},
 		{
 			name:      "receive without fee",
 			isReceive: true,
 			hasFee:    false,
+			isSweep:   false,
 		},
 		{
 			name:      "payment without fee",
 			isReceive: true,
 			hasFee:    false,
+			isSweep:   false,
 		},
 		{
 			name:      "payment with fee",
 			isReceive: true,
 			hasFee:    true,
+			isSweep:   false,
+		},
+		{
+			name:      "sweep with fee",
+			isReceive: true,
+			hasFee:    true,
+			isSweep:   true,
 		},
 	}
 
@@ -437,18 +468,17 @@ func TestOnChainEntry(t *testing.T) {
 			// Set the label as per the test.
 			chainTx.Label = test.txLabel
 
-			entries, err := onChainEntries(chainTx, mockConvert)
+			entries, err := onChainEntries(
+				chainTx, test.isSweep, mockConvert,
+			)
 			require.NoError(t, err)
 
-			// We expect the have an single on chain entry at least.
-			onChainEntry := getOnChainEntry(
-				test.isReceive, test.txLabel,
+			// Create the entries we expect based on the test
+			// params.
+			expected := getOnChainEntry(
+				test.isReceive, test.isSweep, test.hasFee,
+				test.txLabel,
 			)
-			expected := []*HarmonyEntry{onChainEntry}
-
-			if test.hasFee {
-				expected = append(expected, feeEntry)
-			}
 
 			require.Equal(t, expected, entries)
 		})

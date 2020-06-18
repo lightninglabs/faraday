@@ -33,6 +33,9 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		OnChainTransactions: func() ([]lndclient.Transaction, error) {
 			return cfg.Lnd.Client.ListTransactions(ctx)
 		},
+		ListSweeps: func() ([]string, error) {
+			return cfg.Lnd.WalletKit.ListSweeps(ctx)
+		},
 		StartTime:   start,
 		EndTime:     end,
 		Granularity: granularity,
@@ -131,6 +134,12 @@ func rpcEntryType(t accounting.EntryType) (EntryType, error) {
 
 	case accounting.EntryTypeCircularPaymentFee:
 		return EntryType_CIRCULAR_FEE, nil
+
+	case accounting.EntryTypeSweep:
+		return EntryType_SWEEP, nil
+
+	case accounting.EntryTypeSweepFee:
+		return EntryType_SWEEP_FEE, nil
 
 	default:
 		return 0, fmt.Errorf("unknown entrytype: %v", t)

@@ -22,6 +22,10 @@ type OnChainConfig struct {
 	// relevant to our wallet over a block range.
 	OnChainTransactions func() ([]lndclient.Transaction, error)
 
+	// ListSweeps returns the transaction ids of the list of sweeps known
+	// to lnd.
+	ListSweeps func() ([]string, error)
+
 	// StartTime is the time from which the report should be created,
 	// inclusive.
 	StartTime time.Time
@@ -116,15 +120,28 @@ func onChainReportWithPrices(cfg *OnChainConfig, getPrice msatToFiat) (Report,
 		channelOpens[outpoint.Hash.String()] = closedChannel
 	}
 
+	// Finally, get our list of known sweeps from lnd so that we can
+	// identify them separately to other on chain transactions.
+	sweeps, err := cfg.ListSweeps()
+	if err != nil {
+		return nil, err
+	}
+
+	isSweep := make(map[string]bool, len(sweeps))
+	for _, sweep := range sweeps {
+		isSweep[sweep] = true
+	}
+
 	return onChainReport(
-		filtered, getPrice, openChannels, channelOpens, channelCloses,
+		filtered, getPrice, openChannels, isSweep, channelOpens,
+		channelCloses,
 	)
 }
 
 // onChainReport produces an on chain transaction report.
 func onChainReport(txns []lndclient.Transaction, priceFunc msatToFiat,
 	currentlyOpenChannels map[string]lndclient.ChannelInfo,
-	channelOpenTransactions,
+	sweeps map[string]bool, channelOpenTransactions,
 	channelCloseTransactions map[string]lndclient.ClosedChannel) (
 	Report, error) {
 
@@ -181,9 +198,12 @@ func onChainReport(txns []lndclient.Transaction, priceFunc msatToFiat,
 		}
 
 		// Finally, if the transaction is unrelated to channel opens or
-		// closes, we create a generic on chain entry for it. Note that
-		// these entries still include on chain resolutions of channels.
-		entries, err := onChainEntries(txn, priceFunc)
+		// closes, we create a generic on chain entry for it. We check
+		// our list of known sweeps for this tx so that we can separate
+		// it our from regular chain sends.
+		isSweep := sweeps[txn.TxHash]
+
+		entries, err := onChainEntries(txn, isSweep, priceFunc)
 		if err != nil {
 			return nil, err
 		}

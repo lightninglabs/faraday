@@ -6,7 +6,7 @@ import (
 
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/utils"
-	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightninglabs/lndclient"
 )
 
 // OnChainConfig contains all the functionality required to produce an on chain

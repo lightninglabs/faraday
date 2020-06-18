@@ -24,7 +24,7 @@ import (
 	"github.com/lightninglabs/faraday/paginater"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
-	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightninglabs/lndclient"
 	"google.golang.org/grpc"
 )
 

@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/lightninglabs/faraday/accounting"
-	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightninglabs/lndclient"
 )
 
 // parseNodeReportRequest parses a report request and returns the config

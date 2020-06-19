@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/faraday/revenue"
-	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightninglabs/lndclient"
 )
 
 // parseRevenueRequest parses a request for a revenue report and wraps

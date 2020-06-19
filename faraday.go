@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/lightninglabs/faraday/frdrpc"
-	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/signal"
 )
 
@@ -21,7 +21,7 @@ func Main() error {
 	// subservers.
 	client, err := lndclient.NewLndServices(&lndclient.LndServicesConfig{
 		LndAddress:  config.RPCServer,
-		Network:     config.network,
+		Network:     lndclient.Network(config.network),
 		MacaroonDir: config.MacaroonDir,
 		TLSPath:     config.TLSCertPath,
 		// Use the default lnd version check which checks for version

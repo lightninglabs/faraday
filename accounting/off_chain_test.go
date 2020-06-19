@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/faraday/fiat"
-	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/stretchr/testify/require"

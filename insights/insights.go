@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/faraday/revenue"
-	"github.com/lightninglabs/loop/lndclient"
+	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/utils"
 	"github.com/lightninglabs/lndclient"
 )
@@ -33,10 +32,6 @@ type OnChainConfig struct {
 	// EndTime is the time until which the report should be created,
 	// exclusive.
 	EndTime time.Time
-
-	// Granularity is the level of granularity we require for our price
-	// estimates.
-	Granularity fiat.Granularity
 }
 
 // OnChainReport produces a report of our on chain activity for a period using
@@ -45,9 +40,7 @@ type OnChainConfig struct {
 // (eg, a remote party opening a channel to us), it will not be included.
 func OnChainReport(ctx context.Context, cfg *OnChainConfig) (Report, error) {
 	// Retrieve a function which can be used to query individual prices.
-	getPrice, err := getConversion(
-		ctx, cfg.StartTime, cfg.EndTime, cfg.Granularity,
-	)
+	getPrice, err := getConversion(ctx, cfg.StartTime, cfg.EndTime)
 	if err != nil {
 		return nil, err
 	}

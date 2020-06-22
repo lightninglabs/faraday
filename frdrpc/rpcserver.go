@@ -431,12 +431,8 @@ func (s *RPCServer) ChannelInsights(ctx context.Context,
 func (s *RPCServer) FiatEstimate(ctx context.Context,
 	req *FiatEstimateRequest) (*FiatEstimateResponse, error) {
 
-	granularity, reqs, err := parseFiatRequest(req)
-	if err != nil {
-		return nil, err
-	}
-
-	prices, err := fiat.GetPrices(ctx, reqs, granularity)
+	reqs := parseFiatRequest(req)
+	prices, err := fiat.GetPrices(ctx, reqs)
 	if err != nil {
 		return nil, err
 	}

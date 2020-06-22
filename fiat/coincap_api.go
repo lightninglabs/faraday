@@ -28,6 +28,11 @@ var (
 
 	errPeriodTooLong = errors.New("period too long for " +
 		"granularity level")
+
+	// ErrQueryTooLong is returned when we cannot get a granularity level
+	// for a period of time because it is too long.
+	ErrQueryTooLong = errors.New("period too long for coincap api, " +
+		"please reduce")
 )
 
 // Granularity indicates the level of aggregation price information will be
@@ -124,6 +129,53 @@ func (g Granularity) minDuration() (time.Duration, error) {
 	default:
 		return 0, errUnknownGranularity
 	}
+}
+
+// ascendingGranularity stores all the levels of granularity that coincap
+// allows in ascending order so that we can get the best value for a query
+// duration. We require this list because we cannot iterate through maps in
+// order.
+var ascendingGranularity = []Granularity{
+	GranularityMinute, Granularity5Minute, Granularity15Minute,
+	Granularity30Minute, GranularityHour, Granularity6Hour,
+	Granularity12Hour, GranularityDay,
+}
+
+// maxSplitDuration returns the total amount of time we can query the coincap
+// api at a given granularity level, given that we split our query up into
+// parts.
+func (g Granularity) maxSplitDuration() (time.Duration, error) {
+	maxDuration, err := g.maxDuration()
+	if err != nil {
+		return 0, err
+	}
+
+	return maxDuration * maxQueries, nil
+}
+
+// BestGranularity takes a period of time and returns the lowest granularity
+// that we can query the coincap api for taking into account that we allow
+// splitting up of queries into 5 parts to get more accurate price information.
+// If the period of time can't be catered for, we return an error.
+func BestGranularity(duration time.Duration) (Granularity, error) {
+	for _, granularity := range ascendingGranularity {
+		// Get the total amount of time we can query for at this level
+		// of granularity.
+		period, err := granularity.maxSplitDuration()
+		if err != nil {
+			return "", err
+		}
+
+		// If our target duration is less than the upper limit for this
+		// granularity level, we can use it.
+		if duration <= period {
+			return granularity, nil
+		}
+	}
+
+	// If our duration is longer than all maximum query periods, we fail
+	// and request a query over a shorter period.
+	return "", ErrQueryTooLong
 }
 
 // coinCapAPI implements the fiatApi interface, getting historical Bitcoin

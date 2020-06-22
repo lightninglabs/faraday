@@ -7,6 +7,7 @@ import (
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/channeldb"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/stretchr/testify/require"
 )
 
@@ -142,6 +143,76 @@ func TestFilterInvoices(t *testing.T) {
 // TestFilterPayments tests filtering of payments based on their htlc
 // timestamps.
 func TestFilterPayments(t *testing.T) {
+	now := time.Now()
+
+	startTime := now.Add(time.Hour * -2)
+	endTime := now.Add(time.Hour * 2)
+
+	beforeStart := startTime.Add(time.Hour * -1)
+	inRange := startTime.Add(time.Hour)
+	afterEnd := endTime.Add(time.Hour)
+
+	settledInRange := paymentInfo{
+		Payment: lndclient.Payment{
+			Status: &lndclient.PaymentStatus{
+				State: lnrpc.Payment_SUCCEEDED,
+			},
+		},
+		settleTime: inRange,
+	}
+
+	payments := []paymentInfo{
+		settledInRange,
+		{
+			Payment: lndclient.Payment{
+				Status: &lndclient.PaymentStatus{
+					State: lnrpc.Payment_SUCCEEDED,
+				},
+			},
+			settleTime: beforeStart,
+		},
+		{
+			Payment: lndclient.Payment{
+				Status: &lndclient.PaymentStatus{
+					State: lnrpc.Payment_SUCCEEDED,
+				},
+			},
+			settleTime: afterEnd,
+		},
+		{
+			Payment: lndclient.Payment{
+				Status: &lndclient.PaymentStatus{
+					State: lnrpc.Payment_IN_FLIGHT,
+				},
+			},
+			settleTime: beforeStart,
+		},
+		{
+			Payment: lndclient.Payment{
+				Status: &lndclient.PaymentStatus{
+					State: lnrpc.Payment_FAILED,
+				},
+			},
+			settleTime: inRange,
+		},
+		{
+			Payment: lndclient.Payment{
+				Status: &lndclient.PaymentStatus{
+					State: lnrpc.Payment_FAILED,
+				},
+			},
+			settleTime: afterEnd,
+		},
+	}
+	expected := []paymentInfo{settledInRange}
+
+	filtered := filterPayments(startTime, endTime, payments)
+	require.Equal(t, expected, filtered)
+}
+
+// TestPreProcessPayments tests getting of destinations and settle timestamps
+// for payments.
+func TestPreProcessPayments(t *testing.T) {
 	// Fix current time for testing.
 	now := time.Now()
 
@@ -162,6 +233,7 @@ func TestFilterPayments(t *testing.T) {
 			{
 				Status:        lnrpc.HTLCAttempt_FAILED,
 				ResolveTimeNs: inRange.UnixNano(),
+				Route:         routeToUs,
 			},
 			{
 				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
@@ -180,6 +252,7 @@ func TestFilterPayments(t *testing.T) {
 			{
 				Status:        lnrpc.HTLCAttempt_FAILED,
 				ResolveTimeNs: beforeStart.UnixNano(),
+				Route:         routeToUs,
 			},
 			{
 				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
@@ -198,6 +271,7 @@ func TestFilterPayments(t *testing.T) {
 			{
 				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
 				ResolveTimeNs: inRange.UnixNano(),
+				Route:         routeToOther,
 			},
 			{
 				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
@@ -215,6 +289,7 @@ func TestFilterPayments(t *testing.T) {
 			{
 				Status:        lnrpc.HTLCAttempt_SUCCEEDED,
 				ResolveTimeNs: inRange.UnixNano(),
+				Route:         routeToUs,
 			},
 		},
 	}
@@ -226,18 +301,155 @@ func TestFilterPayments(t *testing.T) {
 		inFlight,
 	}
 
-	filtered := filterPayments(startTime, endTime, payments)
+	processed, err := preProcessPayments(payments, decode(true))
+	require.NoError(t, err)
 
 	// We only expect the payment that had its last successful htlc in the
 	// relevant period to be included. Some rounding occurs when we go
 	// from the rpc payment unix nanoseconds to a golang time struct, so
 	// we round our settle time so that the two will be equal.
-	expected := []settledPayment{
+	expected := []paymentInfo{
 		{
-			Payment:    succeededInPeriod,
-			settleTime: time.Unix(0, inRange.UnixNano()),
+			Payment:     succeededInPeriod,
+			destination: &ourPubKey,
+			settleTime:  time.Unix(0, inRange.UnixNano()),
+		},
+		{
+			Payment:     succeededAfterPeriod,
+			destination: &ourPubKey,
+			settleTime:  time.Unix(0, afterEnd.UnixNano()),
+		},
+		{
+			Payment:     succeededInAndAfterPeriod,
+			destination: &otherPubkey,
+			settleTime:  time.Unix(0, afterEnd.UnixNano()),
+		},
+		{
+			Payment:     inFlight,
+			destination: &ourPubKey,
+			settleTime:  time.Time{},
 		},
 	}
 
-	require.Equal(t, filtered, expected)
+	require.Equal(t, processed, expected)
+}
+
+// Decode is a helper function which returns a decode function which will
+// provide our own pubkey if toSelf is true, and another pubkey otherwise.
+func decode(toSelf bool) func(_ string) (*lndclient.PaymentRequest,
+	error) {
+
+	return func(_ string) (*lndclient.PaymentRequest, error) {
+		pubkey := ourPubKey
+		if !toSelf {
+			pubkey = otherPubkey
+		}
+
+		return &lndclient.PaymentRequest{
+			Destination: pubkey,
+		}, nil
+	}
+}
+
+// TestPaymentHtlcDestination tests getting our payment destination from the
+// payment's set of htlcs.
+func TestPaymentHtlcDestination(t *testing.T) {
+	tests := []struct {
+		name  string
+		dest  *route.Vertex
+		htlcs []*lnrpc.HTLCAttempt
+		err   error
+	}{
+		{
+			name:  "no htlcs",
+			htlcs: nil,
+			dest:  nil,
+			err:   errNoHtlcs,
+		},
+		{
+			name: "route to us",
+			htlcs: []*lnrpc.HTLCAttempt{
+				{
+					Route: routeToUs,
+				},
+			},
+			dest: &ourPubKey,
+			err:  nil,
+		},
+		{
+			name: "route not to us",
+			htlcs: []*lnrpc.HTLCAttempt{
+				{
+					Route: routeToOther,
+				},
+			},
+			dest: &otherPubkey,
+			err:  nil,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Create a payment with our test state and htlcs.
+			payment := lndclient.Payment{
+				Htlcs: test.htlcs,
+			}
+
+			dest, err := paymentHtlcDestination(payment)
+			require.Equal(t, test.err, err)
+			require.Equal(t, test.dest, dest)
+		})
+	}
+}
+
+// TestPaymentRequestDestination tests getting of payment destinations from our
+// payment request.
+func TestPaymentRequestDestination(t *testing.T) {
+	tests := []struct {
+		name           string
+		paymentRequest string
+		decode         decodePaymentRequest
+		dest           *route.Vertex
+		err            error
+	}{
+		{
+			name:           "no payment request",
+			decode:         decode(true),
+			paymentRequest: "",
+			dest:           nil,
+			err:            errNoPaymentRequest,
+		},
+		{
+			name:           "to self",
+			decode:         decode(true),
+			paymentRequest: paymentRequest,
+			dest:           &ourPubKey,
+			err:            nil,
+		},
+		{
+			name:           "not to self",
+			decode:         decode(false),
+			paymentRequest: paymentRequest,
+			dest:           &otherPubkey,
+			err:            nil,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			dest, err := paymentRequestDestination(
+				test.paymentRequest, test.decode,
+			)
+			require.Equal(t, test.err, err)
+			require.Equal(t, test.dest, dest)
+		})
+	}
 }

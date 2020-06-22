@@ -15,6 +15,14 @@ var (
 	// hops in its route.
 	errNoHops = errors.New("payment htlc has a route with zero hops")
 
+	// errNoHtlcs is returned when we encounter a legacy payment which is
+	// settled but has no htlcs recorded with it.
+	errNoHtlcs = errors.New("settled payment has no htlcs")
+
+	// errNoPaymentRequest is returned when a payment does not have a
+	// payment request.
+	errNoPaymentRequest = errors.New("no payment request present")
+
 	// errDifferentDuplicates is returned if we have payments with duplicate
 	// payment hashes where one is made to our own node and one is made to
 	// another node. This is unexpected because legacy duplicate payments in
@@ -62,13 +70,20 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice msatToFiat) (Report,
 		return nil, err
 	}
 
-	// Get a list of all the payments we made to ourselves.
-	paymentsToSelf, err := getCircularPayments(cfg.OwnPubKey, payments)
+	preProcessed, err := preProcessPayments(payments, cfg.DecodePayReq)
 	if err != nil {
 		return nil, err
 	}
 
-	filteredPayments := filterPayments(cfg.StartTime, cfg.EndTime, payments)
+	// Get a list of all the payments we made to ourselves.
+	paymentsToSelf, err := getCircularPayments(cfg.OwnPubKey, preProcessed)
+	if err != nil {
+		return nil, err
+	}
+
+	filteredPayments := filterPayments(
+		cfg.StartTime, cfg.EndTime, preProcessed,
+	)
 	if err := sanityCheckDuplicates(filteredPayments); err != nil {
 		return nil, err
 	}
@@ -92,7 +107,7 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice msatToFiat) (Report,
 // that were made to ourselves for the sake of appropriately reporting the
 // invoices they paid.
 
-func offChainReport(invoices []lndclient.Invoice, payments []settledPayment,
+func offChainReport(invoices []lndclient.Invoice, payments []paymentInfo,
 	circularPayments map[string]bool, forwards []lndclient.ForwardingEvent,
 	convert msatToFiat) (Report, error) {
 
@@ -137,11 +152,13 @@ func offChainReport(invoices []lndclient.Invoice, payments []settledPayment,
 }
 
 // getCircularPayments returns a map of the payments that we made to our node.
-// Note that this function does only account for settled payments because it
+// Note that this function does not only account for settled payments because it
 // is possible that we made a payment to ourselves, settled the invoice and
-// queried listPayments while the payment was still being settled back. We
-// rather examine their htlcs, since we will check whether they are settled in
-// our relevant period at a later stage.
+// queried listPayments while the payment was still being settled back. If a
+// payment does not have a record of its payment hash (which is the case for
+// legacy payments, and payments that have just been dispatched), we log a
+// warning but do not fail so that legacy nodes can still use this feature (they
+// may just not detect old circular rebalances, which we document).
 //
 // To allow for legacy nodes that have payments with duplicate payment hashes,
 // we allow for payments with duplicate payment hashes. We only fail if we
@@ -150,7 +167,7 @@ func offChainReport(invoices []lndclient.Invoice, payments []settledPayment,
 // the payments (resulting in bugs) and is not expected, because duplicate
 // payments are expected to reflect multiple attempts of the same payment.
 func getCircularPayments(ourPubkey route.Vertex,
-	payments []lndclient.Payment) (map[string]bool, error) {
+	payments []paymentInfo) (map[string]bool, error) {
 
 	// Run through all payments and get those that were made to our own
 	// node. We identify these payments by payment hash so that we can
@@ -158,31 +175,21 @@ func getCircularPayments(ourPubkey route.Vertex,
 	paymentsToSelf := make(map[string]bool)
 
 	for _, payment := range payments {
-		// If our payment has no htlc attempts, it has not yet been sent
-		// our by our node. This payment therefore cannot be a payment
-		// to ourselves within this accounting period; if we are paying
-		// a regular invoice, it will not be settled yet, and if we are
-		// making a keysend, the invoice will not exist in our node yet.
-		if len(payment.Htlcs) == 0 {
+		// Try to determine whether a payment is made to our own
+		// node by checking its htlcs. If we cannot get this information
+		// from our set of htlcs, we fallback to trying to decode our
+		// payment request. If the payment request is not present as
+		// well, we skip over this payment and log a warning (because
+		// legacy nodes will always have these payment present).
+		if payment.destination == nil {
+			log.Warnf("payment %v destination unknown",
+				payment.Hash)
+
 			continue
 		}
 
-		// Since all htlcs go to the same node, we only need to get the
-		// destination of our first htlc to determine whether it's our
-		// own node. We expect the route this htlc took to have at least
-		// one hop, and fail if it does not.
-		hops := payment.Htlcs[0].Route.Hops
-		if len(hops) == 0 {
-			return nil, errNoHops
-		}
-
-		lastHop := hops[len(hops)-1]
-		lastHopPubkey, err := route.NewVertexFromStr(lastHop.PubKey)
-		if err != nil {
-			return nil, err
-		}
-
-		toSelf := bytes.Equal(lastHopPubkey[:], ourPubkey[:])
+		// Check whether the payment is made to our own node.
+		toSelf := bytes.Equal(ourPubkey[:], payment.destination[:])
 
 		// Before we add our entry to the map, we sanity check that if
 		// it has any duplicates, the value in the map is the same as
@@ -202,7 +209,7 @@ func getCircularPayments(ourPubkey route.Vertex,
 
 // sanityCheckDuplicates checks that we have no payments with duplicate payment
 // hashes. We do not support accounting for duplicate payments.
-func sanityCheckDuplicates(payments []settledPayment) error {
+func sanityCheckDuplicates(payments []paymentInfo) error {
 	uniqueHashes := make(map[lntypes.Hash]bool, len(payments))
 
 	for _, payment := range payments {

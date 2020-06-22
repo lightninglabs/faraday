@@ -133,9 +133,10 @@ var (
 		SequenceNumber: uint64(paymentIndex),
 	}
 
-	settledPmt = settledPayment{
-		Payment:    payment,
-		settleTime: paymentTime,
+	payInfo = paymentInfo{
+		Payment:     payment,
+		destination: &otherPubkey,
+		settleTime:  paymentTime,
 	}
 
 	forwardTs = time.Unix(1590578022, 0)
@@ -613,7 +614,7 @@ func TestPaymentEntry(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 			entries, err := paymentEntry(
-				settledPmt, test.toSelf, mockConvert,
+				payInfo, test.toSelf, mockConvert,
 			)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)

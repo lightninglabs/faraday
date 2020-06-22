@@ -9,6 +9,9 @@ import (
 	"github.com/lightningnetwork/lnd/routing/route"
 )
 
+// decodePaymentRequest is a signature for decoding payment requests.
+type decodePaymentRequest func(payReq string) (*lndclient.PaymentRequest, error)
+
 // OffChainConfig contains all the functionality required to produce an off
 // chain report.
 type OffChainConfig struct {
@@ -20,6 +23,9 @@ type OffChainConfig struct {
 
 	// ListForwards lists all our forwards over out relevant period.
 	ListForwards func() ([]lndclient.ForwardingEvent, error)
+
+	// DecodePayReq decodes a payment request.
+	DecodePayReq decodePaymentRequest
 
 	// StartTime is the time from which the report should be created,
 	// inclusive.
@@ -118,6 +124,11 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 				ctx, maxForwards, startTime, endTime,
 				lnd.Client,
 			)
+		},
+		DecodePayReq: func(payReq string) (*lndclient.PaymentRequest,
+			error) {
+
+			return lnd.Client.DecodePaymentRequest(ctx, payReq)
 		},
 		OwnPubKey:   ownPubkey,
 		StartTime:   startTime,

@@ -281,7 +281,7 @@ func paymentFeeNote(htlcs []*lnrpc.HTLCAttempt) string {
 
 // paymentEntry creates an entry for an off chain payment, including fee entries
 // where required.
-func paymentEntry(payment settledPayment, paidToSelf bool,
+func paymentEntry(payment paymentInfo, paidToSelf bool,
 	convert msatToFiat) ([]*HarmonyEntry, error) {
 
 	// It is possible to make a payment to ourselves as part of a circular

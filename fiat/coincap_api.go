@@ -60,37 +60,71 @@ const (
 	GranularityDay Granularity = "d1"
 )
 
-var (
-	// maxGranularityPeriod there is a maximum total queryable period for
-	// each level of granularity on coincap's api. We record those limits
-	// here so that we can size our requests appropriately.
-	maxGranularityPeriod = map[Granularity]time.Duration{
-		GranularityMinute:   time.Hour * 24,
-		Granularity5Minute:  time.Hour * 24 * 5,
-		Granularity15Minute: time.Hour * 24 * 7,
-		Granularity30Minute: time.Hour * 24 * 14,
-		GranularityHour:     time.Hour * 24 * 30,
-		Granularity6Hour:    time.Hour * 24 * 183,
-		Granularity12Hour:   time.Hour * 24 * 365,
-		GranularityDay:      time.Hour * 24 * 7305,
-	}
+// maxDuration returns the maximum duration that can be queried for a given
+// level of granularity.
+func (g Granularity) maxDuration() (time.Duration, error) {
+	switch g {
+	case GranularityMinute:
+		return time.Hour * 24, nil
 
-	// minGranularityPeriod maps each granularity to the minimum amount of
-	// time you may query coincap's api per granularity level. If you
-	// request a period that is shorter than the granularity itself, the
-	// api may not return a price point for that period (presumably due to
-	// the way they store/calculate their time series).
-	minGranularityPeriod = map[Granularity]time.Duration{
-		GranularityMinute:   time.Minute,
-		Granularity5Minute:  time.Minute * 5,
-		Granularity15Minute: time.Minute * 15,
-		Granularity30Minute: time.Minute * 30,
-		GranularityHour:     time.Hour,
-		Granularity6Hour:    time.Hour * 6,
-		Granularity12Hour:   time.Hour * 12,
-		GranularityDay:      time.Hour * 24,
+	case Granularity5Minute:
+		return time.Hour * 24 * 5, nil
+
+	case Granularity15Minute:
+		return time.Hour * 24 * 7, nil
+
+	case Granularity30Minute:
+		return time.Hour * 24 * 14, nil
+
+	case GranularityHour:
+		return time.Hour * 24 * 30, nil
+
+	case Granularity6Hour:
+		return time.Hour * 24 * 183, nil
+
+	case Granularity12Hour:
+		return time.Hour * 24 * 365, nil
+
+	case GranularityDay:
+		return time.Hour * 24 * 7305, nil
+
+	default:
+		return 0, errUnknownGranularity
 	}
-)
+}
+
+// minDuration returns the minimum duration that can be queried for a given
+// level of granularity.
+func (g Granularity) minDuration() (time.Duration, error) {
+	switch g {
+	case GranularityMinute:
+		return time.Minute, nil
+
+	case Granularity5Minute:
+		return time.Minute * 5, nil
+
+	case Granularity15Minute:
+		return time.Minute * 15, nil
+
+	case Granularity30Minute:
+		return time.Minute * 30, nil
+
+	case GranularityHour:
+		return time.Hour, nil
+
+	case Granularity6Hour:
+		return time.Hour * 6, nil
+
+	case Granularity12Hour:
+		return time.Hour * 12, nil
+
+	case GranularityDay:
+		return time.Hour * 24, nil
+
+	default:
+		return 0, errUnknownGranularity
+	}
+}
 
 // coinCapAPI implements the fiatApi interface, getting historical Bitcoin
 // prices from coincap.
@@ -198,9 +232,9 @@ func (c *coinCapAPI) GetPrices(ctx context.Context, startTime,
 	totalDuration := endTime.Sub(startTime).Seconds()
 
 	// Get the minimum period that we can query at this granularity.
-	min, ok := minGranularityPeriod[c.granularity]
-	if !ok {
-		return nil, errUnknownGranularity
+	min, err := c.granularity.minDuration()
+	if err != nil {
+		return nil, err
 	}
 
 	// If we are beneath minimum period, we shift our start time back by
@@ -215,9 +249,9 @@ func (c *coinCapAPI) GetPrices(ctx context.Context, startTime,
 
 	// Get maximum queryable period and ensure that we can obtain all the
 	// records within the limit we place on api calls.
-	max, ok := maxGranularityPeriod[c.granularity]
-	if !ok {
-		return nil, errUnknownGranularity
+	max, err := c.granularity.maxDuration()
+	if err != nil {
+		return nil, err
 	}
 
 	requiredRequests := totalDuration / max.Seconds()

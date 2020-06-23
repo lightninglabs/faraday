@@ -44,6 +44,7 @@ func main() {
 		channelInsightsCommand,
 		fiatEstimateCommand,
 		onChainReportCommand,
+		closeReportCommand,
 	}
 
 	if err := app.Run(os.Args); err != nil {

@@ -11,6 +11,7 @@ package frdrpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -22,6 +23,7 @@ import (
 	"github.com/lightninglabs/faraday/chain"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/recommend"
+	"github.com/lightninglabs/faraday/resolutions"
 	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightninglabs/lndclient"
 	"google.golang.org/grpc"
@@ -62,6 +64,10 @@ var (
 	// errServerAlreadyStarted is the error that is returned if the server
 	// is requested to start while it's already been started.
 	errServerAlreadyStarted = fmt.Errorf("server can only be started once")
+
+	// ErrBitcoinNodeRequired is required when an endpoint which requires
+	// a bitcoin node backend is hit and we are not connected to one.
+	ErrBitcoinNodeRequired = errors.New("bitcoin node required")
 )
 
 // RPCServer implements the faraday service, serving requests over grpc.
@@ -330,6 +336,34 @@ func (s *RPCServer) NodeReport(ctx context.Context,
 	}
 
 	return rpcReportResponse(append(onChainReport, offChainReport...))
+}
+
+// CloseReport returns a close report for the channel provided. Note that this
+// endpoint requires connection to an external bitcoind node.
+func (s *RPCServer) CloseReport(ctx context.Context,
+	req *CloseReportRequest) (*CloseReportResponse, error) {
+
+	if err := s.requireNode(); err != nil {
+		return nil, err
+	}
+
+	cfg := parseCloseReportRequest(ctx, s.cfg)
+
+	report, err := resolutions.ChannelCloseReport(cfg, req.ChannelPoint)
+	if err != nil {
+		return nil, err
+	}
+
+	return rpcCloseReportResponse(report), nil
+}
+
+// requireNode fails if we do not have a connection to a backing bitcoin node.
+func (s *RPCServer) requireNode() error {
+	if s.cfg.BitcoinClient == nil {
+		return ErrBitcoinNodeRequired
+	}
+
+	return nil
 }
 
 // allowCORS wraps the given http.Handler with a function that adds the

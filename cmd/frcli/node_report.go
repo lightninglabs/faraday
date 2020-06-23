@@ -47,9 +47,8 @@ func queryOnChainReport(ctx *cli.Context) error {
 	// Set start and end times from user specified values, defaulting
 	// to zero if they are not set.
 	req := &frdrpc.NodeReportRequest{
-		StartTime:   uint64(ctx.Int64("start_time")),
-		EndTime:     uint64(ctx.Int64("end_time")),
-		Granularity: frdrpc.FiatEstimateRequest_HOUR,
+		StartTime: uint64(ctx.Int64("start_time")),
+		EndTime:   uint64(ctx.Int64("end_time")),
 	}
 
 	// If start time is zero, default to a week ago.

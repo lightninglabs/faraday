@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 // TestCoinCapGetPrices tests splitting of a query period into the number of
@@ -129,6 +131,58 @@ func TestCoinCapGetPrices(t *testing.T) {
 					test.expectedCallCount,
 					test.mock.callCount)
 			}
+		})
+	}
+}
+
+// TestBestGranularity tests getting of the lowest granularity possible for
+// a given query duration.
+func TestBestGranularity(t *testing.T) {
+	period1Min, _ := GranularityMinute.maxSplitDuration()
+	period15Min, _ := Granularity15Minute.maxSplitDuration()
+	periodMax, _ := GranularityDay.maxSplitDuration()
+
+	tests := []struct {
+		name        string
+		duration    time.Duration
+		granularity Granularity
+		err         error
+	}{
+		{
+			name:        "equal to interval max",
+			duration:    period1Min,
+			granularity: GranularityMinute,
+			err:         nil,
+		},
+		{
+			name:        "less than interval",
+			duration:    time.Second,
+			granularity: GranularityMinute,
+			err:         nil,
+		},
+		{
+			name:        "multiple queries to m15",
+			duration:    period15Min - 100,
+			granularity: Granularity15Minute,
+			err:         nil,
+		},
+		{
+			name:        "too long",
+			duration:    periodMax + 1,
+			granularity: "",
+			err:         ErrQueryTooLong,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			best, err := BestGranularity(test.duration)
+			require.Equal(t, test.err, err)
+			require.Equal(t, test.granularity, best)
 		})
 	}
 }

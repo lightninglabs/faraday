@@ -6,6 +6,7 @@ import (
 
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/faraday/fiat"
+	"github.com/lightninglabs/faraday/utils"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/shopspring/decimal"
 )
@@ -33,8 +34,18 @@ func invertMsat(msat int64) int64 {
 // getConversion is a helper function which queries coincap for a relevant set
 // of price data and returns a convert function which can be used to get
 // individual price points from this data.
-func getConversion(ctx context.Context, startTime, endTime time.Time,
-	granularity fiat.Granularity) (msatToFiat, error) {
+func getConversion(ctx context.Context, startTime,
+	endTime time.Time) (msatToFiat, error) {
+
+	err := utils.ValidateTimeRange(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+
+	granularity, err := fiat.BestGranularity(endTime.Sub(startTime))
+	if err != nil {
+		return nil, err
+	}
 
 	// Get price data for our relevant period. We get pricing for the whole
 	// period rather than on a per-item level to limit the number of api

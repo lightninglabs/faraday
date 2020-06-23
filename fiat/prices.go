@@ -27,8 +27,8 @@ type PriceRequest struct {
 }
 
 // GetPrices gets a set of prices for a set of timestamped requests.
-func GetPrices(ctx context.Context, requests []*PriceRequest,
-	granularity Granularity) (map[string]decimal.Decimal, error) {
+func GetPrices(ctx context.Context,
+	requests []*PriceRequest) (map[string]decimal.Decimal, error) {
 
 	if len(requests) == 0 {
 		return nil, nil
@@ -50,6 +50,11 @@ func GetPrices(ctx context.Context, requests []*PriceRequest,
 	// Get the minimum and maximum timestamps for our set of requests
 	// so that we can efficiently query for price data.
 	start, end := getQueryableDuration(requests)
+
+	granularity, err := BestGranularity(end.Sub(start))
+	if err != nil {
+		return nil, err
+	}
 
 	priceData, err := CoinCapPriceData(ctx, start, end, granularity)
 	if err != nil {

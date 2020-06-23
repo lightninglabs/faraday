@@ -332,21 +332,7 @@ message FiatEstimateRequest {
 
     repeated PriceRequest requests = 1;
 
-    // Granularity describes the aggregation level at which the Bitcoin price
-    // is provided.
-    enum Granularity {
-        UNKNOWN = 0;
-        MINUTE = 1;
-        FIVE_MINUTES = 2;
-        FIFTEEN_MINUTES = 3;
-        THIRTY_MINUTES = 4;
-        HOUR = 5;
-        SIX_HOURS = 6;
-        TWELVE_HOURS = 7;
-        DAY = 8;
-    }
-
-    Granularity granularity = 2;
+    reserved  2;
 }
 
 message FiatEstimateResponse {
@@ -360,8 +346,7 @@ message NodeReportRequest {
     // The unix time until which to produce the report, exclusive.
     uint64 end_time = 2;
 
-    // The level of aggregation for fiat estimates.
-    FiatEstimateRequest.Granularity granularity = 3;
+    reserved  3;
 }
 
 enum EntryType {

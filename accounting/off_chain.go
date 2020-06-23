@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lntypes"
 )
@@ -54,16 +53,12 @@ type OffChainConfig struct {
 	// EndTime is the time until which the report should be created,
 	// exclusive.
 	EndTime time.Time
-
-	// Granularity is the level of granularity we require for our price
-	// estimates.
-	Granularity fiat.Granularity
 }
 
 // OffChainReport gets a report of off chain activity using live price data.
 func OffChainReport(ctx context.Context, cfg *OffChainConfig) (Report, error) {
 	getPrice, err := getConversion(
-		ctx, cfg.StartTime, cfg.EndTime, cfg.Granularity,
+		ctx, cfg.StartTime, cfg.EndTime,
 	)
 	if err != nil {
 		return nil, err

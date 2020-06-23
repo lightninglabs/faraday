@@ -20,11 +20,6 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
-	granularity, err := granularityFromRPC(req.Granularity)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	onChain := &accounting.OnChainConfig{
 		OpenChannels: cfg.wrapListChannels(ctx, false),
 		ClosedChannels: func() ([]lndclient.ClosedChannel, error) {
@@ -36,9 +31,8 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		ListSweeps: func() ([]string, error) {
 			return cfg.Lnd.WalletKit.ListSweeps(ctx)
 		},
-		StartTime:   start,
-		EndTime:     end,
-		Granularity: granularity,
+		StartTime: start,
+		EndTime:   end,
 	}
 
 	// We lookup our pubkey once so that our paid to self function does
@@ -58,10 +52,9 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		ListForwards: func() ([]lndclient.ForwardingEvent, error) {
 			return cfg.wrapListForwards(ctx, start, end)
 		},
-		OwnPubKey:   hex.EncodeToString(info.IdentityPubkey[:]),
-		StartTime:   start,
-		EndTime:     end,
-		Granularity: granularity,
+		OwnPubKey: hex.EncodeToString(info.IdentityPubkey[:]),
+		StartTime: start,
+		EndTime:   end,
 	}
 
 	return onChain, offChain, nil

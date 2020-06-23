@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntypes"
@@ -256,9 +255,8 @@ func TestOffChainReport(t *testing.T) {
 
 					return nil, nil
 				},
-				Granularity: fiat.GranularityHour,
-				StartTime:   time.Unix(startTime, 0),
-				EndTime:     time.Unix(endTime, 0),
+				StartTime: time.Unix(startTime, 0),
+				EndTime:   time.Unix(endTime, 0),
 			}
 
 			_, err := offChainReportWithPrices(cfg, mockConvert)

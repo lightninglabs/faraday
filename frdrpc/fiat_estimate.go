@@ -1,7 +1,6 @@
 package frdrpc
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/lightninglabs/faraday/fiat"
@@ -9,9 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func parseFiatRequest(req *FiatEstimateRequest) (fiat.Granularity,
-	[]*fiat.PriceRequest, error) {
-
+func parseFiatRequest(req *FiatEstimateRequest) []*fiat.PriceRequest {
 	requests := make([]*fiat.PriceRequest, len(req.Requests))
 
 	for i, request := range req.Requests {
@@ -22,54 +19,7 @@ func parseFiatRequest(req *FiatEstimateRequest) (fiat.Granularity,
 		}
 	}
 
-	granularity, err := granularityFromRPC(req.Granularity)
-	if err != nil {
-		return granularity, nil, err
-	}
-
-	return granularity, requests, nil
-}
-
-// granularityFromRPC gets a granularity enum value from a rpc request,
-// defaulting to a minute.
-func granularityFromRPC(req FiatEstimateRequest_Granularity) (fiat.Granularity,
-	error) {
-
-	granularity := fiat.GranularityMinute
-
-	switch req {
-	// If granularity is not set, allow it to default to one minute
-	case FiatEstimateRequest_UNKNOWN:
-
-	case FiatEstimateRequest_MINUTE:
-		granularity = fiat.GranularityMinute
-
-	case FiatEstimateRequest_FIVE_MINUTES:
-		granularity = fiat.Granularity5Minute
-
-	case FiatEstimateRequest_FIFTEEN_MINUTES:
-		granularity = fiat.Granularity15Minute
-
-	case FiatEstimateRequest_THIRTY_MINUTES:
-		granularity = fiat.Granularity30Minute
-
-	case FiatEstimateRequest_HOUR:
-		granularity = fiat.GranularityHour
-
-	case FiatEstimateRequest_SIX_HOURS:
-		granularity = fiat.Granularity6Hour
-
-	case FiatEstimateRequest_TWELVE_HOURS:
-		granularity = fiat.Granularity12Hour
-
-	case FiatEstimateRequest_DAY:
-		granularity = fiat.GranularityDay
-
-	default:
-		return granularity, fmt.Errorf("unknown granularity: %v", req)
-	}
-
-	return granularity, nil
+	return requests
 }
 
 func fiatEstimateResponse(prices map[string]decimal.Decimal) *FiatEstimateResponse {

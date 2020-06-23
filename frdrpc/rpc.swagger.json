@@ -30,26 +30,6 @@
             }
           }
         },
-        "parameters": [
-          {
-            "name": "granularity",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "enum": [
-              "UNKNOWN",
-              "MINUTE",
-              "FIVE_MINUTES",
-              "FIFTEEN_MINUTES",
-              "THIRTY_MINUTES",
-              "HOUR",
-              "SIX_HOURS",
-              "TWELVE_HOURS",
-              "DAY"
-            ],
-            "default": "UNKNOWN"
-          }
-        ],
         "tags": [
           "FaradayServer"
         ]
@@ -114,25 +94,6 @@
             "required": false,
             "type": "string",
             "format": "uint64"
-          },
-          {
-            "name": "granularity",
-            "description": "The level of aggregation for fiat estimates.",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "enum": [
-              "UNKNOWN",
-              "MINUTE",
-              "FIVE_MINUTES",
-              "FIFTEEN_MINUTES",
-              "THIRTY_MINUTES",
-              "HOUR",
-              "SIX_HOURS",
-              "TWELVE_HOURS",
-              "DAY"
-            ],
-            "default": "UNKNOWN"
           }
         ],
         "tags": [
@@ -320,22 +281,6 @@
         "TOTAL_VOLUME"
       ],
       "default": "UNKNOWN"
-    },
-    "FiatEstimateRequestGranularity": {
-      "type": "string",
-      "enum": [
-        "UNKNOWN",
-        "MINUTE",
-        "FIVE_MINUTES",
-        "FIFTEEN_MINUTES",
-        "THIRTY_MINUTES",
-        "HOUR",
-        "SIX_HOURS",
-        "TWELVE_HOURS",
-        "DAY"
-      ],
-      "default": "UNKNOWN",
-      "description": "Granularity describes the aggregation level at which the Bitcoin price\nis provided."
     },
     "FiatEstimateRequestPriceRequest": {
       "type": "object",

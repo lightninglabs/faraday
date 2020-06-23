@@ -2,10 +2,10 @@ package frdrpc
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 
 	"github.com/lightninglabs/faraday/accounting"
+	"github.com/lightningnetwork/lnd/routing/route"
 )
 
 // parseNodeReportRequest parses a report request and returns the config
@@ -25,7 +25,11 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 	if err != nil {
 		return nil, nil, err
 	}
-	pubkey := hex.EncodeToString(info.IdentityPubkey[:])
+
+	pubkey, err := route.NewVertexFromBytes(info.IdentityPubkey[:])
+	if err != nil {
+		return nil, nil, err
+	}
 
 	offChain := accounting.NewOffChainConfig(
 		ctx, cfg.Lnd, uint64(maxInvoiceQueries),

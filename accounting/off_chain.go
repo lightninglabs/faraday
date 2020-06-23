@@ -1,11 +1,13 @@
 package accounting
 
 import (
+	"bytes"
 	"context"
 	"errors"
 
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lntypes"
+	"github.com/lightningnetwork/lnd/routing/route"
 )
 
 var (
@@ -147,7 +149,7 @@ func offChainReport(invoices []lndclient.Invoice, payments []settledPayment,
 // is not. This would make lookup in our circular payment map wrong for one of
 // the payments (resulting in bugs) and is not expected, because duplicate
 // payments are expected to reflect multiple attempts of the same payment.
-func getCircularPayments(ourPubkey string,
+func getCircularPayments(ourPubkey route.Vertex,
 	payments []lndclient.Payment) (map[string]bool, error) {
 
 	// Run through all payments and get those that were made to our own
@@ -175,7 +177,12 @@ func getCircularPayments(ourPubkey string,
 		}
 
 		lastHop := hops[len(hops)-1]
-		toSelf := lastHop.PubKey == ourPubkey
+		lastHopPubkey, err := route.NewVertexFromStr(lastHop.PubKey)
+		if err != nil {
+			return nil, err
+		}
+
+		toSelf := bytes.Equal(lastHopPubkey[:], ourPubkey[:])
 
 		// Before we add our entry to the map, we sanity check that if
 		// it has any duplicates, the value in the map is the same as

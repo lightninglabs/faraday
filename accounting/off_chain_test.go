@@ -7,12 +7,15 @@ import (
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntypes"
+	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/stretchr/testify/require"
 )
 
 var (
-	ourPubKey   = "03abfbad2e4387e73175949ba8b8d42e1101f4a21a73567da12b730a05db8a4f15"
-	otherPubkey = "0349f7019b9c48bc456f011d17538a242f763bbc5759362f200854154113318727"
+	ourPK        = "03abfbad2e4387e73175949ba8b8d42e1101f4a21a73567da12b730a05db8a4f15"
+	ourPubKey, _ = route.NewVertexFromStr(ourPK)
+
+	otherPK = "0349f7019b9c48bc456f011d17538a242f763bbc5759362f200854154113318727"
 
 	paymentHash1 = "673507764b0ad03443d07e7446b884d6d908aa783ee5e2704fbabc09ada79a79"
 	hash1, _     = lntypes.MakeHashFromStr(paymentHash1)
@@ -25,11 +28,11 @@ var (
 // ourselves based on the destination pubkey in the payment's htlc attempts.
 func TestGetCircularPayments(t *testing.T) {
 	hopToUs := &lnrpc.Hop{
-		PubKey: ourPubKey,
+		PubKey: ourPK,
 	}
 
 	hopToOther := &lnrpc.Hop{
-		PubKey: otherPubkey,
+		PubKey: otherPK,
 	}
 
 	routeToUs := &lnrpc.Route{

@@ -1,8 +1,10 @@
 package accounting
 
 import (
+	"context"
 	"time"
 
+	"github.com/lightninglabs/faraday/lndwrap"
 	"github.com/lightninglabs/lndclient"
 )
 
@@ -55,4 +57,58 @@ type OnChainConfig struct {
 	// EndTime is the time until which the report should be created,
 	// exclusive.
 	EndTime time.Time
+}
+
+// NewOnChainConfig returns an on chain config from the lnd services provided.
+func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
+	endTime time.Time) *OnChainConfig {
+
+	return &OnChainConfig{
+		OpenChannels: lndwrap.ListChannels(
+			ctx, lnd.Client, false,
+		),
+		ClosedChannels: func() ([]lndclient.ClosedChannel, error) {
+			return lnd.Client.ClosedChannels(ctx)
+		},
+		OnChainTransactions: func() ([]lndclient.Transaction, error) {
+			return lnd.Client.ListTransactions(ctx)
+		},
+		ListSweeps: func() ([]string, error) {
+			return lnd.WalletKit.ListSweeps(ctx)
+		},
+		StartTime: startTime,
+		EndTime:   endTime,
+	}
+}
+
+// NewOffChainConfig creates a config for creating off chain reports. It takes
+// max parameters which allow control over the pagination size for queries to
+// lnd.
+func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
+	maxInvoices, maxPayments, maxForwards uint64, ownPubkey string,
+	startTime, endTime time.Time) *OffChainConfig {
+
+	return &OffChainConfig{
+		ListInvoices: func() ([]lndclient.Invoice, error) {
+			return lndwrap.ListInvoices(
+				ctx, 0, maxInvoices,
+				lnd.Client,
+			)
+		},
+		ListPayments: func() ([]lndclient.Payment, error) {
+			return lndwrap.ListPayments(
+				ctx, 0, maxPayments,
+				lnd.Client,
+			)
+		},
+		ListForwards: func() ([]lndclient.ForwardingEvent, error) {
+			return lndwrap.ListForwards(
+				ctx, maxForwards, startTime, endTime,
+				lnd.Client,
+			)
+		},
+		OwnPubKey: ownPubkey,
+		StartTime: startTime,
+		EndTime:   endTime,
+	}
 }

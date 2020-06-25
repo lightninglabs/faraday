@@ -6,8 +6,6 @@ import (
 	"fmt"
 
 	"github.com/lightninglabs/faraday/accounting"
-	"github.com/lightninglabs/faraday/lndwrap"
-	"github.com/lightninglabs/lndclient"
 )
 
 // parseNodeReportRequest parses a report request and returns the config
@@ -21,53 +19,21 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
-	onChain := &accounting.OnChainConfig{
-		OpenChannels: lndwrap.ListChannels(
-			ctx, cfg.Lnd.Client, false,
-		),
-		ClosedChannels: func() ([]lndclient.ClosedChannel, error) {
-			return cfg.Lnd.Client.ClosedChannels(ctx)
-		},
-		OnChainTransactions: func() ([]lndclient.Transaction, error) {
-			return cfg.Lnd.Client.ListTransactions(ctx)
-		},
-		ListSweeps: func() ([]string, error) {
-			return cfg.Lnd.WalletKit.ListSweeps(ctx)
-		},
-		StartTime: start,
-		EndTime:   end,
-	}
-
 	// We lookup our pubkey once so that our paid to self function does
 	// not need to do a lookup for every payment it checks.
 	info, err := cfg.Lnd.Client.GetInfo(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
+	pubkey := hex.EncodeToString(info.IdentityPubkey[:])
 
-	offChain := &accounting.OffChainConfig{
-		ListInvoices: func() ([]lndclient.Invoice, error) {
-			return lndwrap.ListInvoices(
-				ctx, 0, uint64(maxInvoiceQueries),
-				cfg.Lnd.Client,
-			)
-		},
-		ListPayments: func() ([]lndclient.Payment, error) {
-			return lndwrap.ListPayments(
-				ctx, 0, uint64(maxPaymentQueries),
-				cfg.Lnd.Client,
-			)
-		},
-		ListForwards: func() ([]lndclient.ForwardingEvent, error) {
-			return lndwrap.ListForwards(
-				ctx, uint64(maxForwardQueries), start, end,
-				cfg.Lnd.Client,
-			)
-		},
-		OwnPubKey: hex.EncodeToString(info.IdentityPubkey[:]),
-		StartTime: start,
-		EndTime:   end,
-	}
+	offChain := accounting.NewOffChainConfig(
+		ctx, cfg.Lnd, uint64(maxInvoiceQueries),
+		uint64(maxPaymentQueries), uint64(maxForwardQueries),
+		pubkey, start, end,
+	)
+
+	onChain := accounting.NewOnChainConfig(ctx, cfg.Lnd, start, end)
 
 	return onChain, offChain, nil
 }

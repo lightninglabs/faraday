@@ -3,7 +3,6 @@ package accounting
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lntypes"
@@ -29,31 +28,6 @@ var (
 	errDuplicatesNotSupported = errors.New("duplicate payments not " +
 		"supported, query more recent timestamp to exclude duplicates")
 )
-
-// OffChainConfig contains all the functionality required to produce an off
-// chain report.
-type OffChainConfig struct {
-	// ListInvoices lists all our invoices.
-	ListInvoices func() ([]lndclient.Invoice, error)
-
-	// ListPayments lists all our payments.
-	ListPayments func() ([]lndclient.Payment, error)
-
-	// ListForwards lists all our forwards over out relevant period.
-	ListForwards func() ([]lndclient.ForwardingEvent, error)
-
-	// OwnPubKey is our node's public key. We use this value to identify
-	// payments that are made to our own node.
-	OwnPubKey string
-
-	// StartTime is the time from which the report should be created,
-	// inclusive.
-	StartTime time.Time
-
-	// EndTime is the time until which the report should be created,
-	// exclusive.
-	EndTime time.Time
-}
 
 // OffChainReport gets a report of off chain activity using live price data.
 func OffChainReport(ctx context.Context, cfg *OffChainConfig) (Report, error) {

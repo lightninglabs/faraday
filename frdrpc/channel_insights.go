@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/faraday/insights"
+	"github.com/lightninglabs/faraday/lndwrap"
 	"github.com/lightninglabs/faraday/revenue"
 )
 
@@ -24,7 +25,9 @@ func channelInsights(ctx context.Context,
 	}
 
 	return insights.GetChannels(&insights.Config{
-		OpenChannels: cfg.wrapListChannels(ctx, false),
+		OpenChannels: lndwrap.ListChannels(
+			ctx, cfg.Lnd.Client, false,
+		),
 		CurrentHeight: func() (u uint32, err error) {
 			info, err := cfg.Lnd.Client.GetInfo(ctx)
 			if err != nil {

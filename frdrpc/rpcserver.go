@@ -16,12 +16,10 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	proxy "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/fiat"
-	"github.com/lightninglabs/faraday/paginater"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightninglabs/lndclient"
@@ -104,139 +102,6 @@ type Config struct {
 	// CORSOrigin specifies the CORS header that should be set on REST
 	// responses. No header is added if the value is empty.
 	CORSOrigin string
-}
-
-// wrapListChannels wraps the listchannels call to lnd, with a publicOnly bool
-// that can be used to toggle whether private channels are included.
-func (c *Config) wrapListChannels(ctx context.Context,
-	publicOnly bool) func() ([]lndclient.ChannelInfo, error) {
-
-	return func() ([]lndclient.ChannelInfo, error) {
-		resp, err := c.Lnd.Client.ListChannels(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		// If we want all channels, we can just return now.
-		if !publicOnly {
-			return resp, err
-		}
-
-		// If we only want public channels, we skip over all private
-		// channels and return a list of public only.
-		var publicChannels []lndclient.ChannelInfo
-		for _, channel := range resp {
-			if channel.Private {
-				continue
-			}
-
-			publicChannels = append(publicChannels, channel)
-		}
-
-		return publicChannels, nil
-	}
-}
-
-// wrapListInvoices makes paginated calls to lnd to get our full set of
-// invoices.
-func (c *Config) wrapListInvoices(ctx context.Context) ([]lndclient.Invoice, error) {
-	var invoices []lndclient.Invoice
-
-	query := func(offset, maxInvoices uint64) (uint64, uint64, error) {
-		resp, err := c.Lnd.Client.ListInvoices(
-			ctx, lndclient.ListInvoicesRequest{
-				Offset:      offset,
-				MaxInvoices: maxInvoices,
-			},
-		)
-		if err != nil {
-			return 0, 0, err
-		}
-
-		invoices = append(invoices, resp.Invoices...)
-
-		return resp.LastIndexOffset, uint64(len(resp.Invoices)), nil
-	}
-
-	// Make paginated calls to the invoices API, starting at offset 0 and
-	// querying our max number of invoices each time.
-	if err := paginater.QueryPaginated(
-		ctx, query, 0, uint64(maxInvoiceQueries),
-	); err != nil {
-		return nil, err
-	}
-
-	return invoices, nil
-}
-
-// wrapListPayments makes a set of paginated calls to lnd to get our full set
-// of payments.
-func (c *Config) wrapListPayments(ctx context.Context) ([]lndclient.Payment,
-	error) {
-
-	var payments []lndclient.Payment
-
-	query := func(offset, maxEvents uint64) (uint64, uint64, error) {
-		resp, err := c.Lnd.Client.ListPayments(
-			ctx, lndclient.ListPaymentsRequest{
-				Offset:      offset,
-				MaxPayments: maxEvents,
-			},
-		)
-		if err != nil {
-			return 0, 0, err
-		}
-
-		payments = append(payments, resp.Payments...)
-
-		return resp.LastIndexOffset, uint64(len(resp.Payments)), nil
-	}
-
-	// Make paginated calls to the payments API, starting at offset 0 and
-	// querying our max number of payments each time.
-	if err := paginater.QueryPaginated(
-		ctx, query, 0, uint64(maxPaymentQueries),
-	); err != nil {
-		return nil, err
-	}
-
-	return payments, nil
-}
-
-// wrapListForwards makes paginated calls to our forwarding events api.
-func (c *Config) wrapListForwards(ctx context.Context, startTime,
-	endTime time.Time) ([]lndclient.ForwardingEvent, error) {
-
-	var forwards []lndclient.ForwardingEvent
-
-	query := func(offset, maxEvents uint64) (uint64, uint64, error) {
-		resp, err := c.Lnd.Client.ForwardingHistory(
-			ctx, lndclient.ForwardingHistoryRequest{
-				StartTime: startTime,
-				EndTime:   endTime,
-				Offset:    uint32(offset),
-				MaxEvents: uint32(maxEvents),
-			},
-		)
-		if err != nil {
-			return 0, 0, err
-		}
-
-		forwards = append(forwards, resp.Events...)
-
-		return uint64(resp.LastIndexOffset),
-			uint64(len(resp.Events)), nil
-	}
-
-	// Make paginated calls to the forwards API, starting at offset 0 and
-	// querying our max number of payments each time.
-	if err := paginater.QueryPaginated(
-		ctx, query, 0, uint64(maxForwardQueries),
-	); err != nil {
-		return nil, err
-	}
-
-	return forwards, nil
 }
 
 // NewRPCServer returns a server which will listen for rpc requests on the

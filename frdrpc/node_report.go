@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/lightninglabs/faraday/accounting"
+	"github.com/lightninglabs/faraday/lndwrap"
 	"github.com/lightninglabs/lndclient"
 )
 
@@ -21,7 +22,9 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 	}
 
 	onChain := &accounting.OnChainConfig{
-		OpenChannels: cfg.wrapListChannels(ctx, false),
+		OpenChannels: lndwrap.ListChannels(
+			ctx, cfg.Lnd.Client, false,
+		),
 		ClosedChannels: func() ([]lndclient.ClosedChannel, error) {
 			return cfg.Lnd.Client.ClosedChannels(ctx)
 		},
@@ -44,13 +47,22 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 
 	offChain := &accounting.OffChainConfig{
 		ListInvoices: func() ([]lndclient.Invoice, error) {
-			return cfg.wrapListInvoices(ctx)
+			return lndwrap.ListInvoices(
+				ctx, 0, uint64(maxInvoiceQueries),
+				cfg.Lnd.Client,
+			)
 		},
 		ListPayments: func() ([]lndclient.Payment, error) {
-			return cfg.wrapListPayments(ctx)
+			return lndwrap.ListPayments(
+				ctx, 0, uint64(maxPaymentQueries),
+				cfg.Lnd.Client,
+			)
 		},
 		ListForwards: func() ([]lndclient.ForwardingEvent, error) {
-			return cfg.wrapListForwards(ctx, start, end)
+			return lndwrap.ListForwards(
+				ctx, uint64(maxForwardQueries), start, end,
+				cfg.Lnd.Client,
+			)
 		},
 		OwnPubKey: hex.EncodeToString(info.IdentityPubkey[:]),
 		StartTime: start,

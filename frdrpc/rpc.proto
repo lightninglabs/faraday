@@ -347,6 +347,12 @@ message NodeReportRequest {
     uint64 end_time = 2;
 
     reserved  3;
+
+    /*
+    Set to generate a report without conversion to fiat. If set, fiat values
+    will display as 0.
+    */
+    bool disable_fiat = 4;
 }
 
 enum EntryType {

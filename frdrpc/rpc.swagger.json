@@ -94,6 +94,14 @@
             "required": false,
             "type": "string",
             "format": "uint64"
+          },
+          {
+            "name": "disable_fiat",
+            "description": "Set to generate a report without conversion to fiat. If set, fiat values\nwill display as 0.",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
           }
         ],
         "tags": [

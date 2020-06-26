@@ -2,45 +2,21 @@ package accounting
 
 import (
 	"context"
-	"time"
 
 	"github.com/lightninglabs/faraday/utils"
 	"github.com/lightninglabs/lndclient"
 )
-
-// OnChainConfig contains all the functionality required to produce an on chain
-// report.
-type OnChainConfig struct {
-	// OpenChannels provides a list of all currently open channels.
-	OpenChannels func() ([]lndclient.ChannelInfo, error)
-
-	// ClosedChannels provides a list of all closed channels.
-	ClosedChannels func() ([]lndclient.ClosedChannel, error)
-
-	// OnChainTransactions provides a list of all on chain transactions
-	// relevant to our wallet over a block range.
-	OnChainTransactions func() ([]lndclient.Transaction, error)
-
-	// ListSweeps returns the transaction ids of the list of sweeps known
-	// to lnd.
-	ListSweeps func() ([]string, error)
-
-	// StartTime is the time from which the report should be created,
-	// inclusive.
-	StartTime time.Time
-
-	// EndTime is the time until which the report should be created,
-	// exclusive.
-	EndTime time.Time
-}
 
 // OnChainReport produces a report of our on chain activity for a period using
 // live price data. Note that this report relies on transactions returned by
 // GetTransactions in lnd. If a transaction is not included in this response
 // (eg, a remote party opening a channel to us), it will not be included.
 func OnChainReport(ctx context.Context, cfg *OnChainConfig) (Report, error) {
-	// Retrieve a function which can be used to query individual prices.
-	getPrice, err := getConversion(ctx, cfg.StartTime, cfg.EndTime)
+	// Retrieve a function which can be used to query individual prices,
+	// or a no-op function if we do not want prices.
+	getPrice, err := getConversion(
+		ctx, cfg.StartTime, cfg.EndTime, cfg.DisableFiat,
+	)
 	if err != nil {
 		return nil, err
 	}

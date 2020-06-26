@@ -34,8 +34,15 @@ func invertMsat(msat int64) int64 {
 // getConversion is a helper function which queries coincap for a relevant set
 // of price data and returns a convert function which can be used to get
 // individual price points from this data.
-func getConversion(ctx context.Context, startTime,
-	endTime time.Time) (msatToFiat, error) {
+func getConversion(ctx context.Context, startTime, endTime time.Time,
+	disableFiat bool) (msatToFiat, error) {
+
+	// If we don't want fiat values, just return a no-op function.
+	if disableFiat {
+		return func(_ int64, _ time.Time) (decimal.Decimal, error) {
+			return decimal.Zero, nil
+		}, nil
+	}
 
 	err := utils.ValidateTimeRange(startTime, endTime)
 	if err != nil {

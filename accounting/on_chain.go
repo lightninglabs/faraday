@@ -12,8 +12,11 @@ import (
 // GetTransactions in lnd. If a transaction is not included in this response
 // (eg, a remote party opening a channel to us), it will not be included.
 func OnChainReport(ctx context.Context, cfg *OnChainConfig) (Report, error) {
-	// Retrieve a function which can be used to query individual prices.
-	getPrice, err := getConversion(ctx, cfg.StartTime, cfg.EndTime)
+	// Retrieve a function which can be used to query individual prices,
+	// or a no-op function if we do not want prices.
+	getPrice, err := getConversion(
+		ctx, cfg.StartTime, cfg.EndTime, cfg.DisableFiat,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -30,10 +30,12 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 	offChain := accounting.NewOffChainConfig(
 		ctx, cfg.Lnd, uint64(maxInvoiceQueries),
 		uint64(maxPaymentQueries), uint64(maxForwardQueries),
-		pubkey, start, end,
+		pubkey, start, end, req.DisableFiat,
 	)
 
-	onChain := accounting.NewOnChainConfig(ctx, cfg.Lnd, start, end)
+	onChain := accounting.NewOnChainConfig(
+		ctx, cfg.Lnd, start, end, req.DisableFiat,
+	)
 
 	return onChain, offChain, nil
 }

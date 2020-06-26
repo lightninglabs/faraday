@@ -31,6 +31,11 @@ type OffChainConfig struct {
 	// EndTime is the time until which the report should be created,
 	// exclusive.
 	EndTime time.Time
+
+	// DisableFiat is set if we want to produce a report without fiat
+	// conversions. This is useful for testing, and for cases where our fiat
+	// data api may be down.
+	DisableFiat bool
 }
 
 // OnChainConfig contains all the functionality required to produce an on chain
@@ -57,11 +62,16 @@ type OnChainConfig struct {
 	// EndTime is the time until which the report should be created,
 	// exclusive.
 	EndTime time.Time
+
+	// DisableFiat is set if we want to produce a report without fiat
+	// conversions. This is useful for testing, and for cases where our fiat
+	// data api may be down.
+	DisableFiat bool
 }
 
 // NewOnChainConfig returns an on chain config from the lnd services provided.
 func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
-	endTime time.Time) *OnChainConfig {
+	endTime time.Time, disableFiat bool) *OnChainConfig {
 
 	return &OnChainConfig{
 		OpenChannels: lndwrap.ListChannels(
@@ -76,8 +86,9 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 		ListSweeps: func() ([]string, error) {
 			return lnd.WalletKit.ListSweeps(ctx)
 		},
-		StartTime: startTime,
-		EndTime:   endTime,
+		StartTime:   startTime,
+		EndTime:     endTime,
+		DisableFiat: disableFiat,
 	}
 }
 
@@ -86,7 +97,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 // lnd.
 func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 	maxInvoices, maxPayments, maxForwards uint64, ownPubkey string,
-	startTime, endTime time.Time) *OffChainConfig {
+	startTime, endTime time.Time, disableFiat bool) *OffChainConfig {
 
 	return &OffChainConfig{
 		ListInvoices: func() ([]lndclient.Invoice, error) {
@@ -107,8 +118,9 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 				lnd.Client,
 			)
 		},
-		OwnPubKey: ownPubkey,
-		StartTime: startTime,
-		EndTime:   endTime,
+		OwnPubKey:   ownPubkey,
+		StartTime:   startTime,
+		EndTime:     endTime,
+		DisableFiat: disableFiat,
 	}
 }

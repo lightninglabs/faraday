@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcutil"
+	"github.com/lightninglabs/faraday/script"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntypes"
@@ -161,29 +162,56 @@ func closedChannelEntries(channel lndclient.ClosedChannel,
 }
 
 // onChainEntries produces relevant entries for an on chain transaction.
-func onChainEntries(tx lndclient.Transaction, isSweep bool,
+func onChainEntries(tx lndclient.Transaction, isSweep bool, heightHint uint32,
 	convert msatToFiat) ([]*HarmonyEntry, error) {
 
-	var (
-		amtMsat   = satsToMsat(tx.Amount)
-		entryType EntryType
-		feeType   = EntryTypeFee
-	)
-
-	// Determine the type of entry we are creating. If this is a sweep, we
-	// set our fee as well, otherwise we set type based on the amount of the
-	// transaction.
-	switch {
-	case isSweep:
-		entryType = EntryTypeSweep
-		feeType = EntryTypeSweepFee
-
-	case amtMsat < 0:
-		entryType = EntryTypePayment
-
-	case amtMsat >= 0:
-		entryType = EntryTypeReceipt
+	// If this entry is an on chain sweep, return entries for a sweep. We
+	// do this to make sure we don't identify channel htlc sweeps as swap
+	// transactions.
+	if isSweep {
+		return onChainEntriesWithType(
+			tx, EntryTypeSweep, EntryTypeSweepFee, convert,
+		)
 	}
+
+	// Set our entry type to payment or receipt based on the amount
+	// reported.
+	entryType, feeType := EntryTypeReceipt, EntryTypeFee
+	if tx.Amount < 0 {
+		entryType = EntryTypePayment
+	}
+
+	// Next, check whether the transaction is associated with an on chain
+	// swap. We get a height hint for the match from the current height less
+	// our confirmations. We expect our confirmations to be >=0 because
+	// all transactions are confirmed; unconfirmed have -1 confirmation
+	// height, but they have already been filtered out.
+	confHeight := int64(heightHint) - int64(tx.Confirmations)
+
+	spendType, err := script.MatchSpend(tx.Tx, confHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	// If we matched our entry to a success or timeout spend, we update
+	// the entry type accordingly.
+	switch spendType {
+	case script.SpendTypeSuccess:
+		entryType = EntryTypeSwapSuccess
+		feeType = EntryTypeSwapSuccessFee
+
+	case script.SpendTypeTimeout:
+		entryType = EntryTypeSwapTimeout
+		feeType = EntryTypeSwapTimeoutFee
+	}
+
+	return onChainEntriesWithType(tx, entryType, feeType, convert)
+}
+
+func onChainEntriesWithType(tx lndclient.Transaction, entryType,
+	feeType EntryType, convert msatToFiat) ([]*HarmonyEntry, error) {
+
+	amtMsat := satsToMsat(tx.Amount)
 
 	txEntry, err := newHarmonyEntry(
 		tx.Timestamp, amtMsat, entryType, tx.TxHash, tx.TxHash,

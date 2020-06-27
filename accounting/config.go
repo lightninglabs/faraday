@@ -55,6 +55,9 @@ type OnChainConfig struct {
 	// to lnd.
 	ListSweeps func() ([]string, error)
 
+	// CurrentHeight gets our current block height.
+	CurrentHeight func() (uint32, error)
+
 	// StartTime is the time from which the report should be created,
 	// inclusive.
 	StartTime time.Time
@@ -85,6 +88,14 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 		},
 		ListSweeps: func() ([]string, error) {
 			return lnd.WalletKit.ListSweeps(ctx)
+		},
+		CurrentHeight: func() (uint32, error) {
+			info, err := lnd.Client.GetInfo(ctx)
+			if err != nil {
+				return 0, nil
+			}
+
+			return info.BlockHeight, nil
 		},
 		StartTime:   startTime,
 		EndTime:     endTime,

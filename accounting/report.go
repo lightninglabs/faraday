@@ -152,4 +152,22 @@ const (
 	// EntryTypeSweepFee represents the fees that were paid to sweep funds
 	// back to our own wallet.
 	EntryTypeSweepFee
+
+	// EntryTypeSwapSuccess represents the on chain sweep of a subatomic
+	// swap using its preimage. This type of sweep is expected for
+	// successful loop out swaps.
+	EntryTypeSwapSuccess
+
+	// EntryTypeSwapSuccessFee represents the fees paid to sweep the success
+	// path of a swap htlc on chain.
+	EntryTypeSwapSuccessFee
+
+	// EntryTypeSweepTimeout represents the on chain sweep of a subatomic
+	// swap using the timeout clause. This type of sweep is expected for
+	// failed loop in sweeps.
+	EntryTypeSwapTimeout
+
+	// EntryTypeSwapTimeoutFee represents the fees paid to sweep the timeout
+	// path of a swap htlc on chain.
+	EntryTypeSwapTimeoutFee
 )

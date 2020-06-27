@@ -114,6 +114,18 @@ func rpcEntryType(t accounting.EntryType) (EntryType, error) {
 	case accounting.EntryTypeSweepFee:
 		return EntryType_SWEEP_FEE, nil
 
+	case accounting.EntryTypeSwapSuccess:
+		return EntryType_SWAP_SUCCESS, nil
+
+	case accounting.EntryTypeSwapSuccessFee:
+		return EntryType_SWAP_SUCCESS_FEE, nil
+
+	case accounting.EntryTypeSwapTimeout:
+		return EntryType_SWAP_TIMEOUT, nil
+
+	case accounting.EntryTypeSwapTimeoutFee:
+		return EntryType_SWAP_TIMEOUT_FEE, nil
+
 	default:
 		return 0, fmt.Errorf("unknown entrytype: %v", t)
 	}

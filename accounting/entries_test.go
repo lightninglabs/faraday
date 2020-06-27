@@ -5,8 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/lndclient"
+	"github.com/lightninglabs/loop/swap"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/lnwire"
@@ -16,6 +19,16 @@ import (
 )
 
 var (
+	testKey = [33]byte{
+		1, 2, 3, 4, 5, 6, 7, 8,
+		1, 2, 3, 4, 5, 6, 7, 8,
+		1, 2, 3, 4, 5, 6, 7, 8,
+		1, 2, 3, 4, 5, 6, 7, 8,
+		1,
+	}
+
+	params = &chaincfg.TestNet3Params
+
 	openChannelTx              = "44183bc482d5b7be031739ce39b6c91562edd882ba5a9e3647341262328a2228"
 	remotePubkey               = "02f6a7664ca2a2178b422a058af651075de2e5bdfff028ac8e1fcd96153cba636b"
 	remoteVertex, _            = route.NewVertexFromStr(remotePubkey)
@@ -73,11 +86,13 @@ var (
 	onChainFeeSat    = btcutil.Amount(1000)
 	onChainTimestamp = time.Unix(1588160816, 0)
 
-	onChainTx = lndclient.Transaction{
-		TxHash:    onChainTxID,
-		Amount:    onChainAmtSat,
-		Timestamp: onChainTimestamp,
-		Fee:       onChainFeeSat,
+	currentHeight   uint32 = 600000
+	txConfirmations int32  = 9
+
+	// multiInputTx is a transaction which does not match our template for
+	// loop out and loop in transactions (it has too many inputs).
+	multiInputTx = &wire.MsgTx{
+		TxIn: []*wire.TxIn{{}, {}},
 	}
 
 	paymentRequest = "lnbcrt10n1p0t6nmypp547evsfyrakg0nmyw59ud9cegkt99yccn5nnp4suq3ac4qyzzgevsdqqcqzpgsp54hvffpajcyddm20k3ptu53930425hpnv8m06nh5jrd6qhq53anrq9qy9qsqphhzyenspf7kfwvm3wyu04fa8cjkmvndyexlnrmh52huwa4tntppjmak703gfln76rvswmsx2cz3utsypzfx40dltesy8nj64ttgemgqtwfnj9"
@@ -342,106 +357,122 @@ func TestChannelCloseEntry(t *testing.T) {
 // TestOnChainEntry tests creation of entries for receipts and payments, and the
 // generation of a fee entry where applicable.
 func TestOnChainEntry(t *testing.T) {
-	getOnChainEntry := func(isReceive, isSweep,
-		hasFee bool, label string) []*HarmonyEntry {
+	// Create a valid htlc which we can use to match entries with sweep
+	// spends.
+	validNP2WSH, err := swap.NewHtlc(
+		int32(currentHeight), testKey, testKey, hash, swap.HtlcNP2WSH,
+		params,
+	)
+	require.NoError(t, err)
 
-		var (
-			entryType = EntryTypePayment
-			feeType   = EntryTypeFee
-		)
+	timeOut := []*wire.TxIn{
+		{
+			Witness: [][]byte{
+				{},
+				{0},
+				validNP2WSH.Script,
+			},
+		},
+	}
 
-		if isReceive {
-			entryType = EntryTypeReceipt
-		}
-
-		if isSweep {
-			entryType = EntryTypeSweep
-			feeType = EntryTypeSweepFee
-		}
-
-		amt := satsToMsat(onChainAmtSat)
-		fiat, _ := mockConvert(amt, onChainTimestamp)
-
-		entry := &HarmonyEntry{
-			Timestamp: onChainTimestamp,
-			Amount:    lnwire.MilliSatoshi(amt),
-			FiatValue: fiat,
-			TxID:      onChainTxID,
-			Reference: onChainTxID,
-			Note:      label,
-			Type:      entryType,
-			OnChain:   true,
-			Credit:    isReceive,
-		}
-
-		if !hasFee {
-			return []*HarmonyEntry{entry}
-		}
-
-		feeAmt := satsToMsat(onChainFeeSat)
-		fiat, _ = mockConvert(feeAmt, onChainTimestamp)
-
-		// Fee entry is the fee entry we expect for this transaction.
-		feeEntry := &HarmonyEntry{
-			Timestamp: onChainTimestamp,
-			Amount:    lnwire.MilliSatoshi(feeAmt),
-			FiatValue: fiat,
-			TxID:      onChainTxID,
-			Reference: feeReference(onChainTxID),
-			Note:      "",
-			Type:      feeType,
-			OnChain:   true,
-			Credit:    false,
-		}
-
-		return []*HarmonyEntry{entry, feeEntry}
+	success := []*wire.TxIn{
+		{
+			Witness: [][]byte{
+				{},
+				preimage[:],
+				validNP2WSH.Script,
+			},
+		},
 	}
 
 	tests := []struct {
 		name string
 
-		// Whether the transaction paid us, or was our payment.
-		isReceive bool
+		// Amount is the amount of our on chain tx in sats.
+		amount btcutil.Amount
 
-		// isSweep returns true if the transaction should be identified
-		// as a sweep by lnd.
+		// Fee amount is the amount of our fee in sats. If the amount
+		// is zero, the test does not expect a fee entry to be produced.
+		feeAmount btcutil.Amount
+
+		// isSweep indicates whether the transaction should be flagged
+		// as a sweep.
 		isSweep bool
-
-		// Whether the transaction has a fee attached.
-		hasFee bool
 
 		// txLabel is an optional label on the rpc transaction.
 		txLabel string
+
+		// tx contains the raw transaction we want to test with, we
+		// allow this to vary so that we can identify swap success and
+		// failure entries.
+		tx *wire.MsgTx
+
+		// The entry type we expect to be made for this test.
+		entryType EntryType
+
+		// The fee type we expect to be made for this test, if any.
+		feeType EntryType
 	}{
 		{
 			name:      "receive with fee",
-			isReceive: true,
-			hasFee:    true,
+			amount:    onChainAmtSat,
+			feeAmount: onChainFeeSat,
 			isSweep:   false,
+			tx:        multiInputTx,
+			entryType: EntryTypeReceipt,
+			feeType:   EntryTypeFee,
 		},
 		{
 			name:      "receive without fee",
-			isReceive: true,
-			hasFee:    false,
+			amount:    onChainAmtSat,
+			feeAmount: 0,
 			isSweep:   false,
+			tx:        multiInputTx,
+			entryType: EntryTypeReceipt,
 		},
 		{
 			name:      "payment without fee",
-			isReceive: true,
-			hasFee:    false,
+			amount:    onChainAmtSat * -1,
+			feeAmount: 0,
 			isSweep:   false,
+			tx:        multiInputTx,
+			entryType: EntryTypePayment,
 		},
 		{
 			name:      "payment with fee",
-			isReceive: true,
-			hasFee:    true,
+			amount:    onChainAmtSat * -1,
+			feeAmount: onChainFeeSat,
 			isSweep:   false,
+			tx:        multiInputTx,
+			entryType: EntryTypePayment,
+			feeType:   EntryTypeFee,
 		},
 		{
 			name:      "sweep with fee",
-			isReceive: true,
-			hasFee:    true,
+			amount:    onChainAmtSat,
+			feeAmount: onChainFeeSat,
 			isSweep:   true,
+			tx:        multiInputTx,
+			entryType: EntryTypeSweep,
+			feeType:   EntryTypeSweepFee,
+		},
+		{
+			name:    "success tx",
+			amount:  onChainAmtSat,
+			isSweep: false,
+			tx: &wire.MsgTx{
+				TxIn: success,
+			},
+			entryType: EntryTypeSwapSuccess,
+		},
+		{
+			name:    "timeout tx",
+			amount:  onChainAmtSat,
+			isSweep: false,
+			tx: &wire.MsgTx{
+				TxIn: timeOut,
+			},
+			entryType: EntryTypeSwapTimeout,
 		},
 	}
 
@@ -449,36 +480,70 @@ func TestOnChainEntry(t *testing.T) {
 		test := test
 
 		t.Run(test.name, func(t *testing.T) {
-			// Make a copy so that we can change fields.
-			chainTx := onChainTx
-
-			// If we are testing a payment, the amount should be
-			// negative.
-			if !test.isReceive {
-				chainTx.Amount *= -1
+			// Create a basic on chain transaction we will use
+			// for testing, using the amount, fee amount and raw
+			// transaction and label provided by the test.
+			onChainTx := lndclient.Transaction{
+				TxHash:        onChainTxID,
+				Amount:        test.amount,
+				Fee:           test.feeAmount,
+				Timestamp:     onChainTimestamp,
+				Confirmations: txConfirmations,
+				Tx:            test.tx,
+				Label:         test.txLabel,
 			}
-
-			// If we should not have a fee present, remove it,
-			// also add the fee entry to our expected set of
-			// entries.
-			if !test.hasFee {
-				chainTx.Fee = 0
-			}
-
-			// Set the label as per the test.
-			chainTx.Label = test.txLabel
 
 			entries, err := onChainEntries(
-				chainTx, test.isSweep, mockConvert,
+				onChainTx, test.isSweep, currentHeight,
+				mockConvert,
 			)
 			require.NoError(t, err)
 
-			// Create the entries we expect based on the test
-			// params.
-			expected := getOnChainEntry(
-				test.isReceive, test.isSweep, test.hasFee,
-				test.txLabel,
-			)
+			// Create the entry we expect. We report the absolute
+			// amount for transactions with a credit field to
+			// indicate whether our amount is positive or negative
+			// so we get the absolute amount here.
+			amt := satsToMsat(test.amount)
+			if test.amount < 0 {
+				amt *= -1
+			}
+
+			fiat, _ := mockConvert(amt, onChainTimestamp)
+
+			expected := []*HarmonyEntry{
+				{
+					Timestamp: onChainTimestamp,
+					Amount:    lnwire.MilliSatoshi(amt),
+					FiatValue: fiat,
+					TxID:      onChainTxID,
+					Reference: onChainTxID,
+					Note:      test.txLabel,
+					Type:      test.entryType,
+					OnChain:   true,
+					Credit:    test.amount >= 0,
+				},
+			}
+
+			// If we have a fee amount, add it to our set of
+			// expected entries.
+			if test.feeAmount != 0 {
+				feeAmt := satsToMsat(test.feeAmount)
+				fiat, _ = mockConvert(feeAmt, onChainTimestamp)
+
+				feeEntry := &HarmonyEntry{
+					Timestamp: onChainTimestamp,
+					Amount:    lnwire.MilliSatoshi(feeAmt),
+					FiatValue: fiat,
+					TxID:      onChainTxID,
+					Reference: feeReference(onChainTxID),
+					Note:      "",
+					Type:      test.feeType,
+					OnChain:   true,
+					Credit:    false,
+				}
+
+				expected = append(expected, feeEntry)
+			}
 
 			require.Equal(t, expected, entries)
 		})

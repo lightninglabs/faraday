@@ -481,10 +481,14 @@
         "CIRCULAR_PAYMENT",
         "CIRCULAR_FEE",
         "SWEEP",
-        "SWEEP_FEE"
+        "SWEEP_FEE",
+        "SWAP_SUCCESS",
+        "SWAP_SUCCESS_FEE",
+        "SWAP_TIMEOUT",
+        "SWAP_TIMEOUT_FEE"
       ],
       "default": "UNKNOWN",
-      "description": " - LOCAL_CHANNEL_OPEN: A channel opening transaction for a channel opened by our node.\n - REMOTE_CHANNEL_OPEN: A channel opening transaction for a channel opened by a remote node.\n - CHANNEL_OPEN_FEE: The on chain fee paid to open a channel.\n - CHANNEL_CLOSE: A channel closing transaction.\n - RECEIPT: Receipt of funds. On chain this reflects receives, off chain settlement\nof invoices.\n - PAYMENT: Payment of funds. On chain this reflects sends, off chain settlement\nof our payments.\n - FEE: Payment of fees.\n - CIRCULAR_RECEIPT: Receipt of a payment to ourselves.\n - FORWARD: A forward through our node.\n - FORWARD_FEE: Fees earned from forwarding.\n - CIRCULAR_PAYMENT: Sending of a payment to ourselves.\n - CIRCULAR_FEE: The fees paid to send an off chain payment to ourselves.\n - SWEEP: A transaction that sweeps funds back into our wallet's control.\n - SWEEP_FEE: The amount of fees paid for a sweep transaction."
+      "description": " - LOCAL_CHANNEL_OPEN: A channel opening transaction for a channel opened by our node.\n - REMOTE_CHANNEL_OPEN: A channel opening transaction for a channel opened by a remote node.\n - CHANNEL_OPEN_FEE: The on chain fee paid to open a channel.\n - CHANNEL_CLOSE: A channel closing transaction.\n - RECEIPT: Receipt of funds. On chain this reflects receives, off chain settlement\nof invoices.\n - PAYMENT: Payment of funds. On chain this reflects sends, off chain settlement\nof our payments.\n - FEE: Payment of fees.\n - CIRCULAR_RECEIPT: Receipt of a payment to ourselves.\n - FORWARD: A forward through our node.\n - FORWARD_FEE: Fees earned from forwarding.\n - CIRCULAR_PAYMENT: Sending of a payment to ourselves.\n - CIRCULAR_FEE: The fees paid to send an off chain payment to ourselves.\n - SWEEP: A transaction that sweeps funds back into our wallet's control.\n - SWEEP_FEE: The amount of fees paid for a sweep transaction.\n - SWAP_SUCCESS: Sweep of an individual on chain htlc with the preimage, associated with a\nsub-atomic swap. Note that these transactions will only detect swaps\nwith the same script structure as Lightning Labs Loop.\n - SWAP_SUCCESS_FEE: Fees for sweeping on chain htlc with the preimage.\n - SWAP_TIMEOUT: Sweep of an individual on chain htlc with the timeout clause, associated\nwith a sub-atomic swap. Note that these transactions will only detect swaps\nwith the same script structure as Lightning Labs Loop.\n - SWAP_TIMEOUT_FEE: Fees for sweeping an on chain htlc with the timeout clause."
     },
     "frdrpcFiatEstimateResponse": {
       "type": "object",

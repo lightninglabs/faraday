@@ -413,6 +413,26 @@ enum EntryType {
 
     // The amount of fees paid for a sweep transaction.
     SWEEP_FEE = 14;
+
+    /*
+    Sweep of an individual on chain htlc with the preimage, associated with a
+    sub-atomic swap. Note that these transactions will only detect swaps
+    with the same script structure as Lightning Labs Loop.
+    */
+    SWAP_SUCCESS = 15;
+
+    // Fees for sweeping on chain htlc with the preimage.
+    SWAP_SUCCESS_FEE = 16;
+
+    /*
+    Sweep of an individual on chain htlc with the timeout clause, associated
+    with a sub-atomic swap. Note that these transactions will only detect swaps
+    with the same script structure as Lightning Labs Loop.
+    */
+    SWAP_TIMEOUT = 17;
+
+    // Fees for sweeping an on chain htlc with the timeout clause.
+    SWAP_TIMEOUT_FEE = 18;
 }
 
 message ReportEntry {

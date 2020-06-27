@@ -101,9 +101,14 @@ func onChainReportWithPrices(cfg *OnChainConfig, getPrice msatToFiat) (Report,
 		isSweep[sweep] = true
 	}
 
+	height, err := cfg.CurrentHeight()
+	if err != nil {
+		return nil, err
+	}
+
 	return onChainReport(
 		filtered, getPrice, openChannels, isSweep, channelOpens,
-		channelCloses,
+		channelCloses, height,
 	)
 }
 
@@ -111,8 +116,8 @@ func onChainReportWithPrices(cfg *OnChainConfig, getPrice msatToFiat) (Report,
 func onChainReport(txns []lndclient.Transaction, priceFunc msatToFiat,
 	currentlyOpenChannels map[string]lndclient.ChannelInfo,
 	sweeps map[string]bool, channelOpenTransactions,
-	channelCloseTransactions map[string]lndclient.ClosedChannel) (
-	Report, error) {
+	channelCloseTransactions map[string]lndclient.ClosedChannel,
+	height uint32) (Report, error) {
 
 	txMap := make(map[string]lndclient.Transaction, len(txns))
 	for _, tx := range txns {
@@ -172,7 +177,7 @@ func onChainReport(txns []lndclient.Transaction, priceFunc msatToFiat,
 		// it our from regular chain sends.
 		isSweep := sweeps[txn.TxHash]
 
-		entries, err := onChainEntries(txn, isSweep, priceFunc)
+		entries, err := onChainEntries(txn, isSweep, height, priceFunc)
 		if err != nil {
 			return nil, err
 		}

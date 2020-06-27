@@ -107,6 +107,44 @@ A fee entry represents the on chain fees we paid for a sweep.
 Known Omissions: 
 - If the wallet did not have knowledge that an input was owned by lnd (which is the case for more complex scripts, like htlcs), then it will not record fees that are siphoned off the input amount here because it does not know that we control those funds. 
 
+### Swap Success
+A swap success transaction is one that spends from an on chain htlc offered as part of a sub-atomic swap using the preimage. When completing a successful [loop out swap](https://lightning.engineering/posts/2019-04-15-loop-out-in-depth/), this transaction sweeps funds to your wallet. 
+
+- Amount: The amount in millisatoshis that was paid to an address controlled by our wallet.
+- TxID: The on chain transaction ID.
+- Reference: The on chain transaction ID.
+- Note: An optional label set on transaction publish (see [lnd transaction labels](https://github.com/lightningnetwork/lnd/blob/master/lnrpc/walletrpc/walletkit.proto#L136)). 
+
+Known Omissions:
+- We will only identify swap success transactions if they follow the format used by [Lightning Labs Loop](https://github.com/lightninglabs/loop/blob/master/swap/htlc.go#L147). 
+
+### Swap Success Fee
+The fees paid for the transaction above. 
+
+- Amount: The amount in millisatoshis that was paid in fees from our wallet. 
+- TxID: The on chain transaction ID.
+- Reference: TransactionID:-1. 
+- Note: Not set for fees. 
+
+### Swap Timeout
+A swap timeout transaction is one that spends from an on chain htlc offered as part of a sub-atomic swap using the timeout clause. If a [loop in swap](https://blog.lightning.engineering/announcement/2019/06/25/loop-in.html) fails, this transaction sweeps funds to your wallet. 
+
+- Amount: The amount in millisatoshis that was paid to an address controlled by our wallet.
+- TxID: The on chain transaction ID.
+- Reference: The on chain transaction ID.
+- Note: An optional label set on transaction publish (see [lnd transaction labels](https://github.com/lightningnetwork/lnd/blob/master/lnrpc/walletrpc/walletkit.proto#L136)). 
+
+Known Omissions:
+- We will only identify swap success transactions if they follow the format used by [Lightning Labs Loop](https://github.com/lightninglabs/loop/blob/master/swap/htlc.go#L147). 
+
+### Swap Timeout Fee
+The fees paid for the transaction above. 
+
+- Amount: The amount in millisatoshis that was paid in fees from our wallet. 
+- TxID: The on chain transaction ID.
+- Reference: TransactionID:-1. 
+- Note: Not set for fees. 
+
 ## Off Chain Reports
 
 ### Receipt

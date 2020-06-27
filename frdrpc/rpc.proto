@@ -80,6 +80,18 @@ service FaradayServer {
             get: "/v1/faraday/nodereport"
         };
     }
+
+    /**
+    Get a channel close report for a specific channel.
+
+    Example request:
+    http://localhost:8466/v1/faraday/closereport
+    */
+    rpc CloseReport (CloseReportRequest) returns (CloseReportResponse) {
+        option (google.api.http) = {
+            get: "/v1/faraday/closereport"
+        };
+    }
 }
 
 message CloseRecommendationRequest {
@@ -438,4 +450,38 @@ message ReportEntry {
 message NodeReportResponse {
     // On chain reports for the period queried.
     repeated ReportEntry reports = 1;
+}
+
+message CloseReportRequest {
+    /*
+    The funding outpoint of the channel the report should be created for,
+    formatted txid:outpoint.
+    */
+    string channel_point = 1;
+}
+
+message CloseReportResponse{
+    // The funding outpoint of the channel.
+    string channel_point = 1;
+
+    // True if we opened the channel, false if the remote peer did.
+    bool channel_initiator = 2;
+
+    // The type of close that resolved this channel.
+    string close_type = 3;
+
+    // The transaction id of the close transaction that confirmed on chain.
+    string close_txid = 4;
+
+    /*
+    The fee we paid on chain to open this channel in satoshis, note that this
+    field will be zero if the remote party paid.
+    */
+    string open_fee = 5;
+
+    /*
+    The fee we paid on chain for the close transaction in staoshis, note that
+    this field will be zero if the remote party paid.
+    */
+    string close_fee = 6;
 }

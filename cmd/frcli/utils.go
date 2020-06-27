@@ -8,7 +8,10 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"strconv"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/protobuf-hex-display/jsonpb"
 	"github.com/lightninglabs/protobuf-hex-display/proto"
@@ -184,4 +187,46 @@ func readMacaroon(macPath string) grpc.DialOption {
 	// Now we append the macaroon credentials to the dial options.
 	cred := macaroons.NewMacaroonCredential(constrainedMac)
 	return grpc.WithPerRPCCredentials(cred)
+}
+
+// parseChannelPoint parses a funding txid and output index from the command
+// line. Both named options as well as unnamed parameters are supported.
+func parseChannelPoint(ctx *cli.Context) (*wire.OutPoint, error) {
+	args := ctx.Args()
+
+	var txid string
+	switch {
+	case ctx.IsSet("funding_txid"):
+		txid = ctx.String("funding_txid")
+
+	case args.Present():
+		txid = args.First()
+		args = args.Tail()
+	default:
+		return nil, fmt.Errorf("funding txid argument missing")
+	}
+
+	hash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		return nil, err
+	}
+
+	channelPoint := &wire.OutPoint{
+		Hash: *hash,
+	}
+
+	switch {
+	case ctx.IsSet("output_index"):
+		channelPoint.Index = uint32(ctx.Int("output_index"))
+
+	case args.Present():
+		index, err := strconv.ParseUint(args.First(), 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("unable to decode output "+
+				"index: %v", err)
+		}
+		channelPoint.Index = uint32(index)
+	}
+
+	return channelPoint, nil
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jessevdk/go-flags"
+	"github.com/lightninglabs/faraday/chain"
 	"github.com/lightningnetwork/lnd/build"
 )
 
@@ -15,6 +16,10 @@ const (
 	defaultMinimumMonitor = time.Hour * 24 * 7 * 4 // four weeks in hours
 	defaultDebugLevel     = "info"
 	defaultRPCListen      = "localhost:8465"
+
+	// By default we do not require connecting to a bitcoin node so that
+	// we can serve basic functionality by default.
+	defaultChainConn = false
 )
 
 type Config struct {
@@ -36,6 +41,9 @@ type Config struct {
 	// Simnet is set to true when using bitcoind's regtest.
 	Regtest bool `long:"regtest" description:"Use regtest"`
 
+	// ChainConn specifies whether to attempt connecting to a bitcoin backend.
+	ChainConn bool `long:"connect_bitcoin" description:"Whether to attempt to connect to a backing bitcoin node. Some endpoints will not be available if this option is not enabled."`
+
 	// MinimumMonitored is the minimum amount of time that a channel must be monitored for before we consider it for termination.
 	MinimumMonitored time.Duration `long:"min_monitored" description:"The minimum amount of time that a channel must be monitored for before recommending termination. Valid time units are {s, m, h}."`
 
@@ -54,6 +62,9 @@ type Config struct {
 
 	// CORSOrigin specifies the CORS header that should be set on REST responses. No header is added if the value is empty.
 	CORSOrigin string `long:"corsorigin" description:"The value to send in the Access-Control-Allow-Origin header. Header will be omitted if empty."`
+
+	// Bitcoin is the configuration required to connect to a bitcoin node.
+	Bitcoin *chain.BitcoinConfig `group:"bitcoin" namespace:"bitcoin"`
 }
 
 // DefaultConfig returns all default values for the Config struct.
@@ -64,6 +75,8 @@ func DefaultConfig() Config {
 		MinimumMonitored: defaultMinimumMonitor,
 		DebugLevel:       defaultDebugLevel,
 		RPCListen:        defaultRPCListen,
+		ChainConn:        defaultChainConn,
+		Bitcoin:          chain.DefaultConfig,
 	}
 }
 
@@ -96,6 +109,21 @@ func LoadConfig() (*Config, error) {
 
 	if netCount > 1 {
 		return nil, fmt.Errorf("do not specify more than one network flag")
+	}
+
+	// If the user has opted into connecting to a bitcoin backend, check
+	// that we have a rpc user and password, and that tls path is set if
+	// required.
+	if config.ChainConn {
+		if config.Bitcoin.User == "" || config.Bitcoin.Password == "" {
+			return nil, fmt.Errorf("rpc user and password " +
+				"required when chainconn is set")
+		}
+
+		if config.Bitcoin.UseTLS && config.Bitcoin.TLSPath == "" {
+			return nil, fmt.Errorf("bitcoin.tlspath required " +
+				"when chainconn is set")
+		}
 	}
 
 	if err := build.ParseAndSetDebugLevels(config.DebugLevel, logWriter); err != nil {

@@ -4,6 +4,7 @@ package faraday
 import (
 	"fmt"
 
+	"github.com/lightninglabs/faraday/chain"
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/signal"
@@ -35,14 +36,22 @@ func Main() error {
 	defer client.Close()
 
 	// Instantiate the faraday gRPC server.
-	server := frdrpc.NewRPCServer(
-		&frdrpc.Config{
-			Lnd:        client.LndServices,
-			RPCListen:  config.RPCListen,
-			RESTListen: config.RESTListen,
-			CORSOrigin: config.CORSOrigin,
-		},
-	)
+	cfg := &frdrpc.Config{
+		Lnd:        client.LndServices,
+		RPCListen:  config.RPCListen,
+		RESTListen: config.RESTListen,
+		CORSOrigin: config.CORSOrigin,
+	}
+
+	// If the client chose to connect to a bitcoin client, get one now.
+	if config.ChainConn {
+		cfg.BitcoinClient, err = chain.NewBitcoinClient(config.Bitcoin)
+		if err != nil {
+			return err
+		}
+	}
+
+	server := frdrpc.NewRPCServer(cfg)
 
 	// Catch intercept signals, then start the server.
 	signal.Intercept()

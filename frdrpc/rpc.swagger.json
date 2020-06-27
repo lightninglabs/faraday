@@ -11,6 +11,39 @@
     "application/json"
   ],
   "paths": {
+    "/v1/faraday/closereport": {
+      "get": {
+        "summary": "*\nGet a channel close report for a specific channel.",
+        "description": "Example request:\nhttp://localhost:8466/v1/faraday/closereport",
+        "operationId": "CloseReport",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcCloseReportResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "channel_point",
+            "description": "The funding outpoint of the channel the report should be created for,\nformatted txid:outpoint.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
+      }
+    },
     "/v1/faraday/fiat": {
       "get": {
         "summary": "* frcli:\nGet fiat prices for btc.",
@@ -398,6 +431,36 @@
             "$ref": "#/definitions/frdrpcRecommendation"
           },
           "description": "A set of channel close recommendations. The absence of a channel in this\nset implies that it was not considered for close because it did not meet\nthe criteria for close recommendations (it is private, or has not been\nmonitored for long enough)."
+        }
+      }
+    },
+    "frdrpcCloseReportResponse": {
+      "type": "object",
+      "properties": {
+        "channel_point": {
+          "type": "string",
+          "description": "The funding outpoint of the channel."
+        },
+        "channel_initiator": {
+          "type": "boolean",
+          "format": "boolean",
+          "description": "True if we opened the channel, false if the remote peer did."
+        },
+        "close_type": {
+          "type": "string",
+          "description": "The type of close that resolved this channel."
+        },
+        "close_txid": {
+          "type": "string",
+          "description": "The transaction id of the close transaction that confirmed on chain."
+        },
+        "open_fee": {
+          "type": "string",
+          "description": "The fee we paid on chain to open this channel in satoshis, note that this\nfield will be zero if the remote party paid."
+        },
+        "close_fee": {
+          "type": "string",
+          "description": "The fee we paid on chain for the close transaction in staoshis, note that\nthis field will be zero if the remote party paid."
         }
       }
     },

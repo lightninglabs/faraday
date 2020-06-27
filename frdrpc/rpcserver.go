@@ -19,6 +19,7 @@ import (
 
 	proxy "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/lightninglabs/faraday/accounting"
+	"github.com/lightninglabs/faraday/chain"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
@@ -102,6 +103,10 @@ type Config struct {
 	// CORSOrigin specifies the CORS header that should be set on REST
 	// responses. No header is added if the value is empty.
 	CORSOrigin string
+
+	// BitcoinClient is set if the client opted to connect to a bitcoin
+	// backend, if not, it will be nil.
+	BitcoinClient chain.BitcoinClient
 }
 
 // NewRPCServer returns a server which will listen for rpc requests on the

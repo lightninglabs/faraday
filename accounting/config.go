@@ -6,7 +6,11 @@ import (
 
 	"github.com/lightninglabs/faraday/lndwrap"
 	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/routing/route"
 )
+
+// decodePaymentRequest is a signature for decoding payment requests.
+type decodePaymentRequest func(payReq string) (*lndclient.PaymentRequest, error)
 
 // OffChainConfig contains all the functionality required to produce an off
 // chain report.
@@ -20,9 +24,8 @@ type OffChainConfig struct {
 	// ListForwards lists all our forwards over out relevant period.
 	ListForwards func() ([]lndclient.ForwardingEvent, error)
 
-	// OwnPubKey is our node's public key. We use this value to identify
-	// payments that are made to our own node.
-	OwnPubKey string
+	// DecodePayReq decodes a payment request.
+	DecodePayReq decodePaymentRequest
 
 	// StartTime is the time from which the report should be created,
 	// inclusive.
@@ -36,6 +39,10 @@ type OffChainConfig struct {
 	// conversions. This is useful for testing, and for cases where our fiat
 	// data api may be down.
 	DisableFiat bool
+
+	// OwnPubKey is our node's public key. We use this value to identify
+	// payments that are made to our own node.
+	OwnPubKey route.Vertex
 }
 
 // OnChainConfig contains all the functionality required to produce an on chain
@@ -81,7 +88,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 			return lnd.Client.ClosedChannels(ctx)
 		},
 		OnChainTransactions: func() ([]lndclient.Transaction, error) {
-			return lnd.Client.ListTransactions(ctx)
+			return lnd.Client.ListTransactions(ctx, 0, 0)
 		},
 		ListSweeps: func() ([]string, error) {
 			return lnd.WalletKit.ListSweeps(ctx)
@@ -96,7 +103,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 // max parameters which allow control over the pagination size for queries to
 // lnd.
 func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
-	maxInvoices, maxPayments, maxForwards uint64, ownPubkey string,
+	maxInvoices, maxPayments, maxForwards uint64, ownPubkey route.Vertex,
 	startTime, endTime time.Time, disableFiat bool) *OffChainConfig {
 
 	return &OffChainConfig{
@@ -117,6 +124,11 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 				ctx, maxForwards, startTime, endTime,
 				lnd.Client,
 			)
+		},
+		DecodePayReq: func(payReq string) (*lndclient.PaymentRequest,
+			error) {
+
+			return lnd.Client.DecodePaymentRequest(ctx, payReq)
 		},
 		OwnPubKey:   ownPubkey,
 		StartTime:   startTime,

@@ -133,9 +133,10 @@ var (
 		SequenceNumber: uint64(paymentIndex),
 	}
 
-	settledPmt = settledPayment{
-		Payment:    payment,
-		settleTime: paymentTime,
+	payInfo = paymentInfo{
+		Payment:     payment,
+		destination: &otherPubkey,
+		settleTime:  paymentTime,
 	}
 
 	forwardTs = time.Unix(1590578022, 0)
@@ -558,7 +559,7 @@ func TestPaymentEntry(t *testing.T) {
 	getEntries := func(toSelf bool) []*HarmonyEntry {
 		mockFiat, _ := mockConvert(int64(paymentMsat), paymentTime)
 		paymentRef := paymentReference(
-			uint64(paymentIndex), pmtHash,
+			uint64(paymentIndex), pmtPreimage,
 		)
 
 		paymentEntry := &HarmonyEntry{
@@ -567,7 +568,7 @@ func TestPaymentEntry(t *testing.T) {
 			FiatValue: mockFiat,
 			TxID:      paymentHash,
 			Reference: paymentRef,
-			Note:      paymentNote(pmtPreimage),
+			Note:      paymentNote(&otherPubkey),
 			Type:      EntryTypePayment,
 			OnChain:   false,
 			Credit:    false,
@@ -580,7 +581,7 @@ func TestPaymentEntry(t *testing.T) {
 			FiatValue: feeFiat,
 			TxID:      paymentHash,
 			Reference: feeReference(paymentRef),
-			Note:      paymentFeeNote(payment.Htlcs),
+			Note:      paymentNote(&otherPubkey),
 			Type:      EntryTypeFee,
 			OnChain:   false,
 			Credit:    false,
@@ -613,7 +614,7 @@ func TestPaymentEntry(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 			entries, err := paymentEntry(
-				settledPmt, test.toSelf, mockConvert,
+				payInfo, test.toSelf, mockConvert,
 			)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)

@@ -6,6 +6,7 @@ import (
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/channeldb"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/routing/route"
 )
 
 // inRange returns a boolean that indicates whether a timestamp lies in a
@@ -77,29 +78,56 @@ func filterInvoices(startTime, endTime time.Time,
 	return filtered
 }
 
-// settledPayment contains a payment and the timestamp of the latest settled
-// htlc. Payments do not have a settle time, so we have to get our settle time
-// from examining each htlc.
-type settledPayment struct {
+// paymentInfo wraps a lndclient payment struct with a destination, if it is
+// available from the information we have available, and its settle time.
+// Since we now allow multi-path payments, a single payment may have multiple
+// htlcs resolved over a period of time. We use the most recent settle time for
+// payment because payments are not considered settled until all the htlcs are
+// resolved.
+type paymentInfo struct {
 	lndclient.Payment
-	settleTime time.Time
+	destination *route.Vertex
+	settleTime  time.Time
 }
 
-// filterPayments filters out unsuccessful payments and those which did not
-// occur within the range we specify. Since we now allow multi-path payments,
-// a single payment may have multiple htlcs resolved over a period of time.
-// We use the most recent settle time for payment to classify whether the
-// payment occurred within our desired time range, because payments are not
-// considered settled until all the htlcs are resolved.
-func filterPayments(startTime, endTime time.Time,
-	payments []lndclient.Payment) []settledPayment {
+// preProcessPayments takes a list of payments and gets their destination and
+// settled time from their htlcs and payment request. We use the last hop in our
+// stored payment attempt to identify payments to our own nodes because this
+// information is readily available for the most recent payments db migration,
+// and we do not need to query lnd to decode payment requests. Further, payment
+// requests are not stored for keysend payments and payments that were created
+// by directly specifying the amount and destination. We fallback to payment
+// requests in the case where we do not have htlcs present.
+func preProcessPayments(payments []lndclient.Payment,
+	decode decodePaymentRequest) ([]paymentInfo, error) {
 
-	// nolint: prealloc
-	var filtered []settledPayment
+	paymentList := make([]paymentInfo, len(payments))
 
-	for _, payment := range payments {
-		// If the payment did not succeed, we can skip it.
+	for i, payment := range payments {
+		// Try to get our payment destination from our set of htlcs.
+		// If we cannot get it from our htlcs (which is the case for
+		// legacy payments that did not store htlcs), we try to get it
+		// from our payment request. This value may not be present for
+		// all payments, so we do not error if it is not.
+		destination, err := paymentHtlcDestination(payment)
+		if err != nil {
+			destination, err = paymentRequestDestination(
+				payment.PaymentRequest, decode,
+			)
+			if err != nil && err != errNoPaymentRequest {
+				return nil, err
+			}
+		}
+
+		pmt := paymentInfo{
+			Payment:     payment,
+			destination: destination,
+		}
+
+		// If the payment did not succeed, we can add it to our list
+		// with its current zero settle time and continue.
 		if payment.Status.State != lnrpc.Payment_SUCCEEDED {
+			paymentList[i] = pmt
 			continue
 		}
 
@@ -117,20 +145,81 @@ func filterPayments(startTime, endTime time.Time,
 				latestTimeNs = htlc.ResolveTimeNs
 			}
 		}
+		pmt.settleTime = time.Unix(0, latestTimeNs)
+		paymentList[i] = pmt
+	}
+
+	return paymentList, nil
+}
+
+// paymentHtlcDestination examines the htlcs in a payment to determine whether a
+// payment was made to our own node.
+func paymentHtlcDestination(payment lndclient.Payment) (*route.Vertex, error) {
+	// If our payment has no htlcs and it is settled, it is either a legacy
+	// payment that does not have its htlcs stored, or it is currently in
+	// flight and no htlcs have been dispatched. We return an error because
+	// we cannot get our destination with the information available.
+	if len(payment.Htlcs) == 0 {
+		return nil, errNoHtlcs
+	}
+
+	// Since all htlcs go to the same node, we only need to get the
+	// destination of our first htlc to determine whether it's our own node.
+	// We expect the route this htlc took to have at least one hop, and fail
+	// if it does not.
+	hops := payment.Htlcs[0].Route.Hops
+	if len(hops) == 0 {
+		return nil, errNoHops
+	}
+
+	lastHop := hops[len(hops)-1]
+	lastHopPubkey, err := route.NewVertexFromStr(lastHop.PubKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return &lastHopPubkey, nil
+}
+
+// paymentRequestDestination attempts to decode a payment address, and returns
+// the destination.
+func paymentRequestDestination(paymentRequest string,
+	decode decodePaymentRequest) (*route.Vertex, error) {
+
+	if paymentRequest == "" {
+		return nil, errNoPaymentRequest
+	}
+
+	payReq, err := decode(paymentRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	return &payReq.Destination, nil
+}
+
+// filterPayments filters out unsuccessful payments and those which did not
+// occur within the range we specify.
+func filterPayments(startTime, endTime time.Time,
+	payments []paymentInfo) []paymentInfo {
+
+	// nolint: prealloc
+	var filtered []paymentInfo
+
+	for _, payment := range payments {
+		if payment.Status.State != lnrpc.Payment_SUCCEEDED {
+			continue
+		}
 
 		// Skip the payment if the oldest settle time is not within the
 		// range we are looking at.
-		ts := time.Unix(0, latestTimeNs)
-		if !inRange(ts, startTime, endTime) {
+		if !inRange(payment.settleTime, startTime, endTime) {
 			continue
 		}
 
 		// Add a settled payment to our set of settled payments with its
 		// timestamp.
-		filtered = append(filtered, settledPayment{
-			Payment:    payment,
-			settleTime: ts,
-		})
+		filtered = append(filtered, payment)
 	}
 
 	return filtered

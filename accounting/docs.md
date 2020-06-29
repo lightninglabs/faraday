@@ -77,6 +77,7 @@ A payment is an on chain transaction which was paid from our wallet and was not 
 Known Omissions:
 - This entry type will include the on chain resolution of htlcs when we force close on our peers and have to settle or fail them on chain. 
 - The current accounting package does not support accounting for payments with duplicate payment hashes, which were allowed in previous versions of lnd. Duplicate payments should be deleted or a time range that does not include them should be specified. 
+- Legacy payments that were made in older versions of lnd that were created without a payment request will not have any information stored about their destination. We therefore cannot identify whether these are circular payments (they will be identified as regular payments). A warning will be logged when we encounter this type of payment.
 
 ### Fee
 A fee entry represents the on chain fees we paid for a transaction. 
@@ -130,30 +131,30 @@ Payments off chain represent payments made via the Lightning Network.
 
 - Amount: The amount in millisatoshis that we paid, excluding the off chain fees paid. 
 - TxID: The payment hash. 
-- Reference: Unique payment ID: Payment hash. 
-- Note: The preimage for the payment, which serves as proof of payment.
+- Reference: Unique payment ID: Payment Preimage. 
+- Note: The node pubkey that the payment was made to.
 
 ### Fee
 - Amount: The amount in millisatoshis that was paid in off chain fees. 
 - TxID: The payment hash. 
-- Reference: Unique payment ID: Payment hash: -1. 
-- Note: A note indicating the number of htlcs the payment was paid over.
+- Reference: Unique payment ID: Payment Preimage: -1. 
+- Note: The node pubkey that the payment was made to.
 
 ### Circular Payment
 Circular payments represent payments made to our own node to rebalance channels. These payments are paid from our node to one of our own invoices.
 
 - Amount: The amount that was rebalanced.
 - TxID: The payment hash.
-- Reference: Unique payment ID: Payment hash. 
-- Note: The preimage for the payment, which serves as proof of payment.
+- Reference: Unique payment ID: Payment Preimage. 
+- Note: The node pubkey that the payment was made to.
 
 ### Circular Payment Fee
 Circular payment fees represent the fees we paid to loop a circular payment to ourselves.
 
 - Amount: The amount that was paid in off chain fees. 
 - TxID: The payment hash.
-- Reference: Unique payment ID: Payment hash: -1. 
-- Note: A note indicating the number of htlcs the payment was paid over.
+- Reference: Unique payment ID: Payment Preimage: -1. 
+- Note: The node pubkey that the payment was made to.
 
 ### Forwards
 A forward represents a payment that arrives at our node on an incoming channel and is forwarded out on an outgoing channel in exchange for fees. The forward itself does not changes our balance, since it just shifts funds over our channels. We include forwarding entries with zero balances for completeness. Forwarding fee entries reflect the increase in our holdings from the fee we are paid. 

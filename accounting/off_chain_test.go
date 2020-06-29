@@ -7,51 +7,55 @@ import (
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntypes"
+	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/stretchr/testify/require"
 )
 
 var (
-	ourPubKey   = "03abfbad2e4387e73175949ba8b8d42e1101f4a21a73567da12b730a05db8a4f15"
-	otherPubkey = "0349f7019b9c48bc456f011d17538a242f763bbc5759362f200854154113318727"
+	ourPK        = "03abfbad2e4387e73175949ba8b8d42e1101f4a21a73567da12b730a05db8a4f15"
+	ourPubKey, _ = route.NewVertexFromStr(ourPK)
+
+	otherPK        = "0349f7019b9c48bc456f011d17538a242f763bbc5759362f200854154113318727"
+	otherPubkey, _ = route.NewVertexFromStr(otherPK)
 
 	paymentHash1 = "673507764b0ad03443d07e7446b884d6d908aa783ee5e2704fbabc09ada79a79"
 	hash1, _     = lntypes.MakeHashFromStr(paymentHash1)
 
 	paymentHash2 = "a5530c5930b9eb7ea4284bcff39da52c6bca3103fc790749eb632911edc7143b"
 	hash2, _     = lntypes.MakeHashFromStr(paymentHash2)
+
+	hopToUs = &lnrpc.Hop{
+		PubKey: ourPK,
+	}
+
+	hopToOther = &lnrpc.Hop{
+		PubKey: otherPK,
+	}
+
+	routeToUs = &lnrpc.Route{
+		Hops: []*lnrpc.Hop{
+			hopToOther,
+			hopToUs,
+		},
+	}
+
+	routeToOther = &lnrpc.Route{
+		Hops: []*lnrpc.Hop{
+			hopToUs,
+			hopToOther,
+		},
+	}
 )
 
 // TestGetCircularPayments tests detection of payments that are made to
 // ourselves based on the destination pubkey in the payment's htlc attempts.
 func TestGetCircularPayments(t *testing.T) {
-	hopToUs := &lnrpc.Hop{
-		PubKey: ourPubKey,
-	}
-
-	hopToOther := &lnrpc.Hop{
-		PubKey: otherPubkey,
-	}
-
-	routeToUs := &lnrpc.Route{
-		Hops: []*lnrpc.Hop{
-			hopToOther,
-			hopToUs,
-		},
-	}
-
-	routeToOther := &lnrpc.Route{
-		Hops: []*lnrpc.Hop{
-			hopToUs,
-			hopToOther,
-		},
-	}
-
 	tests := []struct {
 		name string
 
 		// Payments is the set of payments that we examine for circular
 		// payments.
-		payments []lndclient.Payment
+		payments []paymentInfo
 
 		// circular is the set of circular payments we expect to be
 		// returned.
@@ -61,45 +65,28 @@ func TestGetCircularPayments(t *testing.T) {
 		err error
 	}{
 		{
-			// This test case is added to cover a race where we
-			// have just initiated a payment in lnd and do not
-			// have any htlcs in flight. This payment cannot have
-			// succeeded yet, so it is not relevant to our
-			// accounting period.
-			name: "Payment has no htlcs",
-			payments: []lndclient.Payment{
+			// Test the case where we have a legacy payment that
+			// we do not know the destination for.
+			name: "legacy payment, no destination",
+			payments: []paymentInfo{
 				{
-					Hash: hash1,
+					destination: nil,
 				},
 			},
 			circular: make(map[string]bool),
 			err:      nil,
 		},
 		{
-			name: "Route has no hops",
-			payments: []lndclient.Payment{
+			// Test the case where we have a settled legacy payment
+			// with a payment request to ourselves, which allows us
+			// to identify it as circular.
+			name: "legacy, has payment request",
+			payments: []paymentInfo{
 				{
-					Hash: hash1,
-					Htlcs: []*lnrpc.HTLCAttempt{
-						{
-							Route: &lnrpc.Route{},
-						},
+					Payment: lndclient.Payment{
+						Hash: hash1,
 					},
-				},
-			},
-			circular: nil,
-			err:      errNoHops,
-		},
-		{
-			name: "Last Hop to Us",
-			payments: []lndclient.Payment{
-				{
-					Hash: hash1,
-					Htlcs: []*lnrpc.HTLCAttempt{
-						{
-							Route: routeToUs,
-						},
-					},
+					destination: &ourPubKey,
 				},
 			},
 			circular: map[string]bool{
@@ -108,38 +95,19 @@ func TestGetCircularPayments(t *testing.T) {
 			err: nil,
 		},
 		{
-			name: "Last Hop not to Us",
-			payments: []lndclient.Payment{
+			name: "duplicates both to us",
+			payments: []paymentInfo{
 				{
-					Hash: hash1,
-					Htlcs: []*lnrpc.HTLCAttempt{
-						{
-							Route: routeToOther,
-						},
+					Payment: lndclient.Payment{
+						Hash: hash1,
 					},
-				},
-			},
-			circular: make(map[string]bool),
-			err:      nil,
-		},
-		{
-			name: "Duplicates both to us",
-			payments: []lndclient.Payment{
-				{
-					Hash: hash1,
-					Htlcs: []*lnrpc.HTLCAttempt{
-						{
-							Route: routeToUs,
-						},
-					},
+					destination: &ourPubKey,
 				},
 				{
-					Hash: hash1,
-					Htlcs: []*lnrpc.HTLCAttempt{
-						{
-							Route: routeToUs,
-						},
+					Payment: lndclient.Payment{
+						Hash: hash1,
 					},
+					destination: &ourPubKey,
 				},
 			},
 			circular: map[string]bool{
@@ -148,23 +116,19 @@ func TestGetCircularPayments(t *testing.T) {
 			err: nil,
 		},
 		{
-			name: "Duplicates not both to us",
-			payments: []lndclient.Payment{
+			name: "duplicates not both to us",
+			payments: []paymentInfo{
 				{
-					Hash: hash1,
-					Htlcs: []*lnrpc.HTLCAttempt{
-						{
-							Route: routeToUs,
-						},
+					Payment: lndclient.Payment{
+						Hash: hash1,
 					},
+					destination: &ourPubKey,
 				},
 				{
-					Hash: hash1,
-					Htlcs: []*lnrpc.HTLCAttempt{
-						{
-							Route: routeToOther,
-						},
+					Payment: lndclient.Payment{
+						Hash: hash1,
 					},
+					destination: &otherPubkey,
 				},
 			},
 			circular: nil,

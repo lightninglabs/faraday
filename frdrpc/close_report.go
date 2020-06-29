@@ -14,7 +14,7 @@ func parseCloseReportRequest(ctx context.Context, cfg *Config) *resolutions.Conf
 		},
 		GetTxDetail: cfg.BitcoinClient.GetTxDetail,
 		WalletTransactions: func() ([]lndclient.Transaction, error) {
-			return cfg.Lnd.Client.ListTransactions(ctx)
+			return cfg.Lnd.Client.ListTransactions(ctx, 0, 0)
 		},
 	}
 }

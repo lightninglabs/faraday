@@ -81,7 +81,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 			return lnd.Client.ClosedChannels(ctx)
 		},
 		OnChainTransactions: func() ([]lndclient.Transaction, error) {
-			return lnd.Client.ListTransactions(ctx)
+			return lnd.Client.ListTransactions(ctx, 0, 0)
 		},
 		ListSweeps: func() ([]string, error) {
 			return lnd.WalletKit.ListSweeps(ctx)

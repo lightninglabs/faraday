@@ -133,6 +133,7 @@ func onChainReport(txns []lndclient.Transaction, priceFunc msatToFiat,
 				return nil, err
 			}
 			report = append(report, entries...)
+			continue
 		}
 
 		// If the transaction is a channel opening transaction for one

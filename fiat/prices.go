@@ -103,9 +103,9 @@ func getQueryableDuration(requests []*PriceRequest) (time.Time, time.Time) {
 	return start, end
 }
 
-// msatToUSD converts a msat amount to usd. Note that this function coverts
+// MsatToUSD converts a msat amount to usd. Note that this function coverts
 // values to Bitcoin values, then gets the fiat price for that BTC value.
-func msatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
+func MsatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
 	msatDecimal := decimal.NewFromInt(int64(amt))
 
 	// We are quoted price per whole bitcoin. We need to scale this price
@@ -131,7 +131,7 @@ func GetPrice(prices []*USDPrice, request *PriceRequest) (decimal.Decimal,
 		// Check the optimistic case where the price timestamp matches
 		// our timestamp exactly.
 		if price.Timestamp.Equal(request.Timestamp) {
-			return msatToUSD(price.Price, request.Value), nil
+			return MsatToUSD(price.Price, request.Value), nil
 		}
 
 		// Once we reach a price point that is before our request's
@@ -142,14 +142,14 @@ func GetPrice(prices []*USDPrice, request *PriceRequest) (decimal.Decimal,
 			// very first price data point. We do not aggregate in
 			// this case.
 			if lastPrice.Equal(decimal.Zero) {
-				return msatToUSD(price.Price, request.Value),
+				return MsatToUSD(price.Price, request.Value),
 					nil
 			}
 
 			// Otherwise, aggregate the price over the current data
 			// point and the next one.
 			price := decimal.Avg(lastPrice, price.Price)
-			return msatToUSD(price, request.Value), nil
+			return MsatToUSD(price, request.Value), nil
 		}
 
 		lastPrice = price.Price
@@ -158,5 +158,5 @@ func GetPrice(prices []*USDPrice, request *PriceRequest) (decimal.Decimal,
 	// If we have fallen through to this point, the price's timestamp falls
 	// after our last price data point's timestamp. In this case, we just
 	// return the price quoted on that price.
-	return msatToUSD(lastPrice, request.Value), nil
+	return MsatToUSD(lastPrice, request.Value), nil
 }

@@ -47,7 +47,7 @@ func TestGetPrice(t *testing.T) {
 				Timestamp: oneHourAgo,
 			},
 			expectedErr:   nil,
-			expectedPrice: msatToUSD(price10K, 1),
+			expectedPrice: MsatToUSD(price10K, 1),
 		},
 		{
 			name: "timestamp equals data point timestamp",
@@ -66,7 +66,7 @@ func TestGetPrice(t *testing.T) {
 				Timestamp: now,
 			},
 			expectedErr:   nil,
-			expectedPrice: msatToUSD(price10K, 2),
+			expectedPrice: MsatToUSD(price10K, 2),
 		},
 		{
 			name: "timestamp after range",
@@ -85,7 +85,7 @@ func TestGetPrice(t *testing.T) {
 				Timestamp: now,
 			},
 			expectedErr:   nil,
-			expectedPrice: msatToUSD(price10K, 3),
+			expectedPrice: MsatToUSD(price10K, 3),
 		},
 		{
 			name: "timestamp between prices, aggregated",
@@ -104,7 +104,7 @@ func TestGetPrice(t *testing.T) {
 				Timestamp: oneHourAgo,
 			},
 			expectedErr:   nil,
-			expectedPrice: msatToUSD(avg, 3),
+			expectedPrice: MsatToUSD(avg, 3),
 		},
 	}
 
@@ -232,7 +232,7 @@ func TestMSatToUsd(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			amt := msatToUSD(test.price, test.amount)
+			amt := MsatToUSD(test.price, test.amount)
 			if !amt.Equals(test.expectedFiat) {
 				t.Fatalf("expected: %v, got: %v",
 					test.expectedFiat, amt)

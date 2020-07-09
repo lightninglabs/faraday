@@ -44,16 +44,16 @@
         ]
       }
     },
-    "/v1/faraday/fiat": {
+    "/v1/faraday/exchangerate": {
       "get": {
         "summary": "* frcli:\nGet fiat prices for btc.",
-        "description": "Example request:\nhttp://localhost:8466/v1/faraday/fiat",
-        "operationId": "FiatEstimate",
+        "description": "Example request:\nhttp://localhost:8466/v1/faraday/exchangerate",
+        "operationId": "ExchangeRate",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/frdrpcFiatEstimateResponse"
+              "$ref": "#/definitions/frdrpcExchangeRateResponse"
             }
           },
           "default": {
@@ -63,6 +63,39 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "timestamps",
+            "description": "A set of timestamps for which we want the bitcoin price.",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uint64"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "granularity",
+            "description": "The level of granularity at which we want the bitcoin price to be quoted.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "UNKNOWN_GRANULARITY",
+              "MINUTE",
+              "FIVE_MINUTES",
+              "FIFTEEN_MINUTES",
+              "THIRTY_MINUTES",
+              "HOUR",
+              "SIX_HOURS",
+              "TWELVE_HOURS",
+              "DAY"
+            ],
+            "default": "UNKNOWN_GRANULARITY"
+          }
+        ],
         "tags": [
           "FaradayServer"
         ]
@@ -323,22 +356,17 @@
       ],
       "default": "UNKNOWN"
     },
-    "FiatEstimateRequestPriceRequest": {
+    "frdrpcBitcoinPrice": {
       "type": "object",
       "properties": {
-        "id": {
+        "price": {
           "type": "string",
-          "description": "id is a unique identifier for the request."
+          "description": "The price of 1 BTC, expressed in USD."
         },
-        "amount_msat": {
+        "price_timestamp": {
           "type": "string",
           "format": "uint64",
-          "description": "The amount to be converted to fiat in millisatoshis."
-        },
-        "timestamp": {
-          "type": "string",
-          "format": "int64",
-          "description": "The unix timestamp at which the price should be quoted."
+          "description": "The timestamp for this price price provided."
         }
       }
     },
@@ -486,16 +514,47 @@
       "default": "UNKNOWN",
       "description": " - LOCAL_CHANNEL_OPEN: A channel opening transaction for a channel opened by our node.\n - REMOTE_CHANNEL_OPEN: A channel opening transaction for a channel opened by a remote node.\n - CHANNEL_OPEN_FEE: The on chain fee paid to open a channel.\n - CHANNEL_CLOSE: A channel closing transaction.\n - RECEIPT: Receipt of funds. On chain this reflects receives, off chain settlement\nof invoices.\n - PAYMENT: Payment of funds. On chain this reflects sends, off chain settlement\nof our payments.\n - FEE: Payment of fees.\n - CIRCULAR_RECEIPT: Receipt of a payment to ourselves.\n - FORWARD: A forward through our node.\n - FORWARD_FEE: Fees earned from forwarding.\n - CIRCULAR_PAYMENT: Sending of a payment to ourselves.\n - CIRCULAR_FEE: The fees paid to send an off chain payment to ourselves.\n - SWEEP: A transaction that sweeps funds back into our wallet's control.\n - SWEEP_FEE: The amount of fees paid for a sweep transaction."
     },
-    "frdrpcFiatEstimateResponse": {
+    "frdrpcExchangeRate": {
       "type": "object",
       "properties": {
-        "fiat_values": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
+        "timestamp": {
+          "type": "string",
+          "format": "uint64",
+          "description": "timestamp is the timestamp of the original request made."
+        },
+        "btc_price": {
+          "$ref": "#/definitions/frdrpcBitcoinPrice",
+          "description": "Price is the bitcoin price approximation for the timestamp queried. Note\nthat this value has its own timestamp because we are not guaranteed to get\nprice points for the exact timestamp that was queried."
         }
       }
+    },
+    "frdrpcExchangeRateResponse": {
+      "type": "object",
+      "properties": {
+        "rates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/frdrpcExchangeRate"
+          },
+          "title": "Rates contains a set of exchange rates for the set of timestamps"
+        }
+      }
+    },
+    "frdrpcGranularity": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN_GRANULARITY",
+        "MINUTE",
+        "FIVE_MINUTES",
+        "FIFTEEN_MINUTES",
+        "THIRTY_MINUTES",
+        "HOUR",
+        "SIX_HOURS",
+        "TWELVE_HOURS",
+        "DAY"
+      ],
+      "default": "UNKNOWN_GRANULARITY",
+      "description": "Granularity describes the aggregation level at which the Bitcoin price should\nbe queried. Note that setting lower levels of granularity may require more\nqueries to the fiat backend."
     },
     "frdrpcNodeReportResponse": {
       "type": "object",

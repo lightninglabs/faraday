@@ -62,11 +62,11 @@ service FaradayServer {
     Get fiat prices for btc.
 
     Example request:
-    http://localhost:8466/v1/faraday/fiat
+    http://localhost:8466/v1/faraday/exchangerate
     */
-    rpc FiatEstimate (FiatEstimateRequest) returns (FiatEstimateResponse) {
+    rpc ExchangeRate (ExchangeRateRequest) returns (ExchangeRateResponse) {
         option (google.api.http) = {
-            get: "/v1/faraday/fiat"
+            get: "/v1/faraday/exchangerate"
         };
     }
     /**
@@ -330,25 +330,60 @@ message ChannelInsight {
     bool private = 8;
 }
 
-message FiatEstimateRequest {
-    message PriceRequest {
-        // id is a unique identifier for the request.
-        string id = 1;
-
-        // The amount to be converted to fiat in millisatoshis.
-        uint64 amount_msat = 2;
-
-        // The unix timestamp at which the price should be quoted.
-        int64 timestamp = 3;
-    }
-
-    repeated PriceRequest requests = 1;
-
-    reserved 2;
+/*
+Granularity describes the aggregation level at which the Bitcoin price should
+be queried. Note that setting lower levels of granularity may require more
+queries to the fiat backend.
+*/
+enum Granularity {
+    UNKNOWN_GRANULARITY = 0;
+    MINUTE = 1;
+    FIVE_MINUTES = 2;
+    FIFTEEN_MINUTES = 3;
+    THIRTY_MINUTES = 4;
+    HOUR = 5;
+    SIX_HOURS = 6;
+    TWELVE_HOURS = 7;
+    DAY = 8;
 }
 
-message FiatEstimateResponse {
-    map<string, string> fiat_values = 1;
+message ExchangeRateRequest {
+    reserved 1;
+
+    reserved 2;
+
+    // A set of timestamps for which we want the bitcoin price.
+    repeated uint64 timestamps = 3;
+
+    // The level of granularity at which we want the bitcoin price to be quoted.
+    Granularity granularity = 4;
+}
+
+message ExchangeRateResponse {
+    reserved 1;
+
+    // Rates contains a set of exchange rates for the set of timestamps
+    repeated ExchangeRate rates = 2;
+}
+
+message BitcoinPrice {
+    // The price of 1 BTC, expressed in USD.
+    string price = 1;
+
+    // The timestamp for this price price provided.
+    uint64 price_timestamp = 2;
+}
+
+message ExchangeRate {
+    // timestamp is the timestamp of the original request made.
+    uint64 timestamp = 1;
+
+    /*
+    Price is the bitcoin price approximation for the timestamp queried. Note
+    that this value has its own timestamp because we are not guaranteed to get
+    price points for the exact timestamp that was queried.
+    */
+    BitcoinPrice btc_price = 2;
 }
 
 message NodeReportRequest {

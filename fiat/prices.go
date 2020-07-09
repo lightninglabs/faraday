@@ -3,6 +3,7 @@ package fiat
 import (
 	"context"
 	"errors"
+	"sort"
 	"time"
 
 	"github.com/lightningnetwork/lnd/lnwire"
@@ -11,7 +12,6 @@ import (
 
 var (
 	errNoPrices        = errors.New("no price data provided")
-	errDuplicateLabel  = errors.New("duplicate label in request set")
 	errPriceOutOfRange = errors.New("timestamp before beginning of price " +
 		"dataset")
 )
@@ -28,53 +28,41 @@ type PriceRequest struct {
 	Timestamp time.Time
 }
 
-// GetPrices gets a set of prices for a set of timestamped requests.
-func GetPrices(ctx context.Context,
-	requests []*PriceRequest) (map[string]decimal.Decimal, error) {
+// GetPrices gets a set of prices for a set of timestamps.
+func GetPrices(ctx context.Context, timestamps []time.Time,
+	granularity Granularity) (map[time.Time]*USDPrice, error) {
 
-	if len(requests) == 0 {
+	if len(timestamps) == 0 {
 		return nil, nil
 	}
 
-	log.Debugf("getting prices for: %v requests", len(requests))
+	log.Debugf("getting prices for: %v requests", len(timestamps))
 
-	// Make sure that every label that in the request set is unique.
-	uniqueLabels := make(map[string]bool, len(requests))
-	for _, request := range requests {
-		_, ok := uniqueLabels[request.Identifier]
-		if ok {
-			return nil, errDuplicateLabel
-		}
+	// Sort our timestamps in ascending order so that we can get the start
+	// and end period we need.
+	sort.SliceStable(timestamps, func(i, j int) bool {
+		return timestamps[i].Before(timestamps[j])
+	})
 
-		uniqueLabels[request.Identifier] = true
-	}
-
-	// Get the minimum and maximum timestamps for our set of requests
-	// so that we can efficiently query for price data.
-	start, end := getQueryableDuration(requests)
-
-	granularity, err := BestGranularity(end.Sub(start))
-	if err != nil {
-		return nil, err
-	}
+	// Get the earliest and latest timestamps we can, these may be the same
+	// timestamp if we have 1 entry, but that's ok.
+	start, end := timestamps[0], timestamps[len(timestamps)-1]
 
 	priceData, err := CoinCapPriceData(ctx, start, end, granularity)
 	if err != nil {
 		return nil, err
 	}
 
-	// Prices will map transaction identifiers to their USD prices.
-	var prices = make(map[string]decimal.Decimal, len(requests))
+	// Prices will map transaction timestamps to their USD prices.
+	var prices = make(map[time.Time]*USDPrice, len(timestamps))
 
-	for _, request := range requests {
-		price, err := GetPrice(priceData, request.Timestamp)
+	for _, ts := range timestamps {
+		price, err := GetPrice(priceData, ts)
 		if err != nil {
 			return nil, err
 		}
 
-		prices[request.Identifier] = MsatToUSD(
-			price.Price, request.Value,
-		)
+		prices[ts] = price
 	}
 
 	return prices, nil
@@ -86,25 +74,6 @@ func CoinCapPriceData(ctx context.Context, start, end time.Time,
 
 	coinCapBackend := newCoinCapAPI(granularity)
 	return coinCapBackend.GetPrices(ctx, start, end)
-}
-
-// getQueryableDuration gets the smallest and largest timestamp from a set of
-// requests so that we can query for an appropriate set of price data.
-func getQueryableDuration(requests []*PriceRequest) (time.Time, time.Time) {
-	var start, end time.Time
-	// Iterate through our min and max times and get the time range over
-	// which we need to get price information.
-	for _, req := range requests {
-		if start.IsZero() || start.After(req.Timestamp) {
-			start = req.Timestamp
-		}
-
-		if end.IsZero() || end.Before(req.Timestamp) {
-			end = req.Timestamp
-		}
-	}
-
-	return start, end
 }
 
 // MsatToUSD converts a msat amount to usd. Note that this function coverts

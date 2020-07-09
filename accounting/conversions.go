@@ -32,7 +32,7 @@ func invertMsat(msat int64) int64 {
 // of price data and returns a convert function which can be used to get
 // individual price points from this data.
 func getConversion(ctx context.Context, startTime, endTime time.Time,
-	disableFiat bool) (usdPrice, error) {
+	disableFiat bool, granularity fiat.Granularity) (usdPrice, error) {
 
 	// If we don't want fiat values, just return a price which will yield
 	// a zero price and timestamp.
@@ -43,11 +43,6 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 	}
 
 	err := utils.ValidateTimeRange(startTime, endTime)
-	if err != nil {
-		return nil, err
-	}
-
-	granularity, err := fiat.BestGranularity(endTime.Sub(startTime))
 	if err != nil {
 		return nil, err
 	}

@@ -26,6 +26,11 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
+	granularity, err := granularityFromRPC(req.Granularity, end.Sub(start))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	pubkey, err := route.NewVertexFromBytes(info.IdentityPubkey[:])
 	if err != nil {
 		return nil, nil, err
@@ -34,11 +39,11 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 	offChain := accounting.NewOffChainConfig(
 		ctx, cfg.Lnd, uint64(maxInvoiceQueries),
 		uint64(maxPaymentQueries), uint64(maxForwardQueries),
-		pubkey, start, end, req.DisableFiat,
+		pubkey, start, end, req.DisableFiat, granularity,
 	)
 
 	onChain := accounting.NewOnChainConfig(
-		ctx, cfg.Lnd, start, end, req.DisableFiat,
+		ctx, cfg.Lnd, start, end, req.DisableFiat, granularity,
 	)
 
 	return onChain, offChain, nil

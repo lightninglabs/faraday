@@ -168,6 +168,25 @@
             "required": false,
             "type": "boolean",
             "format": "boolean"
+          },
+          {
+            "name": "granularity",
+            "description": "The level of granularity at which we wish to produce fiat prices.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "UNKNOWN_GRANULARITY",
+              "MINUTE",
+              "FIVE_MINUTES",
+              "FIFTEEN_MINUTES",
+              "THIRTY_MINUTES",
+              "HOUR",
+              "SIX_HOURS",
+              "TWELVE_HOURS",
+              "DAY"
+            ],
+            "default": "UNKNOWN_GRANULARITY"
           }
         ],
         "tags": [

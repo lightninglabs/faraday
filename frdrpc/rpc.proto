@@ -400,6 +400,9 @@ message NodeReportRequest {
     will display as 0.
     */
     bool disable_fiat = 4;
+
+    // The level of granularity at which we wish to produce fiat prices.
+    Granularity granularity = 5;
 }
 
 enum EntryType {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/lndwrap"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/routing/route"
@@ -68,11 +69,16 @@ type CommonConfig struct {
 	// conversions. This is useful for testing, and for cases where our fiat
 	// data api may be down.
 	DisableFiat bool
+
+	// Granularity specifies the level of granularity with which we want to
+	// get fiat prices.
+	Granularity fiat.Granularity
 }
 
 // NewOnChainConfig returns an on chain config from the lnd services provided.
 func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
-	endTime time.Time, disableFiat bool) *OnChainConfig {
+	endTime time.Time, disableFiat bool,
+	granularity fiat.Granularity) *OnChainConfig {
 
 	return &OnChainConfig{
 		OpenChannels: lndwrap.ListChannels(
@@ -91,6 +97,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 			StartTime:   startTime,
 			EndTime:     endTime,
 			DisableFiat: disableFiat,
+			Granularity: granularity,
 		},
 	}
 }
@@ -100,7 +107,8 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 // lnd.
 func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 	maxInvoices, maxPayments, maxForwards uint64, ownPubkey route.Vertex,
-	startTime, endTime time.Time, disableFiat bool) *OffChainConfig {
+	startTime, endTime time.Time, disableFiat bool,
+	granularity fiat.Granularity) *OffChainConfig {
 
 	return &OffChainConfig{
 		ListInvoices: func() ([]lndclient.Invoice, error) {
@@ -131,6 +139,7 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 			StartTime:   startTime,
 			EndTime:     endTime,
 			DisableFiat: disableFiat,
+			Granularity: granularity,
 		},
 	}
 }

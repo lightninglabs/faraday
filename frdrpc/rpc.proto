@@ -480,6 +480,9 @@ message ReportEntry {
 
     // An additional note for the entry, providing additional context.
     string note = 10;
+
+    // The bitcoin price and timestamp used to calcualte our fiat value.
+    BitcoinPrice btc_price = 11;
 }
 
 message NodeReportResponse {

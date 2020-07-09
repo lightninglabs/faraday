@@ -658,6 +658,10 @@
         "note": {
           "type": "string",
           "description": "An additional note for the entry, providing additional context."
+        },
+        "btc_price": {
+          "$ref": "#/definitions/frdrpcBitcoinPrice",
+          "description": "The bitcoin price and timestamp used to calcualte our fiat value."
         }
       }
     },

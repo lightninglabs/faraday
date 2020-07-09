@@ -10,8 +10,10 @@ import (
 )
 
 var (
-	errNoPrices       = errors.New("no price data provided")
-	errDuplicateLabel = errors.New("duplicate label in request set")
+	errNoPrices        = errors.New("no price data provided")
+	errDuplicateLabel  = errors.New("duplicate label in request set")
+	errPriceOutOfRange = errors.New("timestamp before beginning of price " +
+		"dataset")
 )
 
 // PriceRequest describes a request for price information.
@@ -65,12 +67,14 @@ func GetPrices(ctx context.Context,
 	var prices = make(map[string]decimal.Decimal, len(requests))
 
 	for _, request := range requests {
-		price, err := GetPrice(priceData, request)
+		price, err := GetPrice(priceData, request.Timestamp)
 		if err != nil {
 			return nil, err
 		}
 
-		prices[request.Identifier] = price
+		prices[request.Identifier] = MsatToUSD(
+			price.Price, request.Value,
+		)
 	}
 
 	return prices, nil
@@ -115,48 +119,40 @@ func MsatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
 	return pricePerMSat.Mul(msatDecimal)
 }
 
-// GetPrice gets the price for a timestamped request from a set of price data.
-// This function expects the price data to be sorted with ascending timestamps.
-// If request lies between two price points, we simply aggregate the two prices.
-func GetPrice(prices []*USDPrice, request *PriceRequest) (decimal.Decimal,
-	error) {
-
-	lastPrice := decimal.Zero
-
+// GetPrice gets the price for a given time from a set of price data. This
+// function expects the price data to be sorted with ascending timestamps and
+// for first timestamp in the price data to be before any timestamp we are
+// querying. The last datapoint's timestamp may be before the timestamp we are
+// querying. If a request lies between two price points, we just return the
+// earlier price.
+func GetPrice(prices []*USDPrice, timestamp time.Time) (*USDPrice, error) {
 	if len(prices) == 0 {
-		return decimal.Zero, errNoPrices
+		return nil, errNoPrices
 	}
 
+	var lastPrice *USDPrice
+
+	// Run through our prices until we find a timestamp that our price
+	// point lies before. Since we always return the previous price, this
+	// also works for timestamps that are exactly equal (at the cost of a
+	// single extra iteration of this loop).
 	for _, price := range prices {
-		// Check the optimistic case where the price timestamp matches
-		// our timestamp exactly.
-		if price.Timestamp.Equal(request.Timestamp) {
-			return MsatToUSD(price.Price, request.Value), nil
+		if timestamp.Before(price.Timestamp) {
+			break
 		}
 
-		// Once we reach a price point that is before our request's
-		// timestamp, the request's timestamp lies somewhere between
-		// the current price data point and the previous on.
-		if request.Timestamp.Before(price.Timestamp) {
-			// If the last price is 0, the request is after the
-			// very first price data point. We do not aggregate in
-			// this case.
-			if lastPrice.Equal(decimal.Zero) {
-				return MsatToUSD(price.Price, request.Value),
-					nil
-			}
-
-			// Otherwise, aggregate the price over the current data
-			// point and the next one.
-			price := decimal.Avg(lastPrice, price.Price)
-			return MsatToUSD(price, request.Value), nil
-		}
-
-		lastPrice = price.Price
+		lastPrice = price
 	}
 
-	// If we have fallen through to this point, the price's timestamp falls
-	// after our last price data point's timestamp. In this case, we just
-	// return the price quoted on that price.
-	return MsatToUSD(lastPrice, request.Value), nil
+	// If we have broken our loop without setting the value of our last
+	// price, we have a timestamp that is before the first entry in our
+	// series. We expect our range of price points to start before any
+	// timestamps we query, so we fail.
+	if lastPrice == nil {
+		return nil, errPriceOutOfRange
+	}
+
+	// Otherwise, we return the last price that was before (or equal to)
+	// our timestamp.
+	return lastPrice, nil
 }

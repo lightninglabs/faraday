@@ -67,9 +67,13 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 	// Create a wrapper function which can be used to get individual price
 	// points from our set of price data as we create our report.
 	return func(amtMsat int64, ts time.Time) (decimal.Decimal, error) {
-		return fiat.GetPrice(prices, &fiat.PriceRequest{
-			Value:     lnwire.MilliSatoshi(amtMsat),
-			Timestamp: ts,
-		})
+		price, err := fiat.GetPrice(prices, ts)
+		if err != nil {
+			return decimal.Zero, err
+		}
+
+		return fiat.MsatToUSD(
+			price.Price, lnwire.MilliSatoshi(amtMsat),
+		), nil
 	}, nil
 }

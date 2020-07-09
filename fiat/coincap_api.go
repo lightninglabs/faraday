@@ -258,8 +258,8 @@ func parseCoinCapData(data []byte) ([]*USDPrice, error) {
 
 		ns := time.Duration(entry.Timestamp) * time.Millisecond
 		usdRecords[i] = &USDPrice{
-			timestamp: time.Unix(0, ns.Nanoseconds()),
-			price:     decPrice,
+			Timestamp: time.Unix(0, ns.Nanoseconds()),
+			Price:     decPrice,
 		}
 	}
 
@@ -345,8 +345,8 @@ func (c *coinCapAPI) GetPrices(ctx context.Context, startTime,
 
 	// Sort by ascending timestamp.
 	sort.SliceStable(historicalRecords, func(i, j int) bool {
-		return historicalRecords[i].timestamp.Before(
-			historicalRecords[j].timestamp,
+		return historicalRecords[i].Timestamp.Before(
+			historicalRecords[j].Timestamp,
 		)
 	})
 

@@ -38,8 +38,8 @@ func TestGetPrice(t *testing.T) {
 			name: "timestamp before range",
 			prices: []*USDPrice{
 				{
-					timestamp: now,
-					price:     price10K,
+					Timestamp: now,
+					Price:     price10K,
 				},
 			},
 			request: &PriceRequest{
@@ -53,12 +53,12 @@ func TestGetPrice(t *testing.T) {
 			name: "timestamp equals data point timestamp",
 			prices: []*USDPrice{
 				{
-					timestamp: oneHourAgo,
-					price:     price10K,
+					Timestamp: oneHourAgo,
+					Price:     price10K,
 				},
 				{
-					timestamp: now,
-					price:     price10K,
+					Timestamp: now,
+					Price:     price10K,
 				},
 			},
 			request: &PriceRequest{
@@ -72,12 +72,12 @@ func TestGetPrice(t *testing.T) {
 			name: "timestamp after range",
 			prices: []*USDPrice{
 				{
-					timestamp: twoHoursAgo,
-					price:     price10K,
+					Timestamp: twoHoursAgo,
+					Price:     price10K,
 				},
 				{
-					timestamp: oneHourAgo,
-					price:     price10K,
+					Timestamp: oneHourAgo,
+					Price:     price10K,
 				},
 			},
 			request: &PriceRequest{
@@ -91,12 +91,12 @@ func TestGetPrice(t *testing.T) {
 			name: "timestamp between prices, aggregated",
 			prices: []*USDPrice{
 				{
-					timestamp: twoHoursAgo,
-					price:     price20K,
+					Timestamp: twoHoursAgo,
+					Price:     price20K,
 				},
 				{
-					timestamp: now,
-					price:     price10K,
+					Timestamp: now,
+					Price:     price10K,
 				},
 			},
 			request: &PriceRequest{

@@ -228,12 +228,12 @@ func TestParseCoinCapData(t *testing.T) {
 
 	expectedPrices := []*USDPrice{
 		{
-			price:     price1,
-			timestamp: time1,
+			Price:     price1,
+			Timestamp: time1,
 		},
 		{
-			price:     price2,
-			timestamp: time2,
+			Price:     price2,
+			Timestamp: time2,
 		},
 	}
 

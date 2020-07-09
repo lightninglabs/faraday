@@ -130,29 +130,29 @@ func GetPrice(prices []*USDPrice, request *PriceRequest) (decimal.Decimal,
 	for _, price := range prices {
 		// Check the optimistic case where the price timestamp matches
 		// our timestamp exactly.
-		if price.timestamp.Equal(request.Timestamp) {
-			return msatToUSD(price.price, request.Value), nil
+		if price.Timestamp.Equal(request.Timestamp) {
+			return msatToUSD(price.Price, request.Value), nil
 		}
 
 		// Once we reach a price point that is before our request's
 		// timestamp, the request's timestamp lies somewhere between
 		// the current price data point and the previous on.
-		if request.Timestamp.Before(price.timestamp) {
+		if request.Timestamp.Before(price.Timestamp) {
 			// If the last price is 0, the request is after the
 			// very first price data point. We do not aggregate in
 			// this case.
 			if lastPrice.Equal(decimal.Zero) {
-				return msatToUSD(price.price, request.Value),
+				return msatToUSD(price.Price, request.Value),
 					nil
 			}
 
 			// Otherwise, aggregate the price over the current data
 			// point and the next one.
-			price := decimal.Avg(lastPrice, price.price)
+			price := decimal.Avg(lastPrice, price.Price)
 			return msatToUSD(price, request.Value), nil
 		}
 
-		lastPrice = price.price
+		lastPrice = price.Price
 	}
 
 	// If we have fallen through to this point, the price's timestamp falls

@@ -14,78 +14,43 @@ import (
 // requests required to obtain the desired granularity.
 func TestCoinCapGetPrices(t *testing.T) {
 	now := time.Now()
-	halfDayAgo := now.Add(time.Hour * -12)
-	twoDayAgo := now.Add(time.Hour * -24 * 2)
-	fiveDaysAgo := now.Add(time.Hour * -24 * 5)
-	tenDaysAgo := now.Add(time.Hour * -24 * 10)
+	twoDaysAgo := now.Add(time.Hour * -24 * 2)
 
 	tests := []struct {
 		name              string
 		granularity       Granularity
 		startTime         time.Time
 		endTime           time.Time
-		mock              *fakeQuery
 		expectedCallCount int
 		expectedErr       error
 	}{
 		{
-			name:              "unknown granularity",
-			granularity:       Granularity("unknown"),
-			mock:              &fakeQuery{},
-			expectedCallCount: 0,
-			expectedErr:       errUnknownGranularity,
-		},
-		{
-			name:              "range below minimum",
+			name:              "single point in time",
 			granularity:       GranularityMinute,
 			startTime:         now,
 			endTime:           now,
-			mock:              &fakeQuery{},
 			expectedCallCount: 1,
 			expectedErr:       nil,
 		},
 		{
-			// One minute has a maximum 24H query period, ten days
-			// will be too long.
-			name:              "10 queries - exceeded",
+			// One minute has a maximum 24H period, two days ago
+			// less the buffer we add to our start time should
+			// produce exactly 2 queries.
+			name:              "exact period including buffer",
 			granularity:       GranularityMinute,
-			startTime:         tenDaysAgo,
+			startTime:         twoDaysAgo.Add(time.Minute),
 			endTime:           now,
-			mock:              &fakeQuery{},
-			expectedCallCount: 0,
-			expectedErr:       errPeriodTooLong,
-		},
-		{
-			// One minute has a maximum 24H period, five days
-			// should be exactly fine.
-			name:              "5 queries - ok",
-			granularity:       GranularityMinute,
-			startTime:         fiveDaysAgo,
-			endTime:           now,
-			mock:              &fakeQuery{},
-			expectedCallCount: 5,
-			expectedErr:       nil,
-		},
-		{
-			// One minute has a maximum 24H period, two days should
-			// only require two queries.
-			name:              "2 queries - ok",
-			granularity:       GranularityMinute,
-			startTime:         twoDayAgo,
-			endTime:           now,
-			mock:              &fakeQuery{},
 			expectedCallCount: 2,
 			expectedErr:       nil,
 		},
 		{
-			// One minute has a maximum 24H period, half a day
-			// ago should only require one query.
-			name:              "1 query - ok",
+			// One minute has a maximum 24H period, two days ago
+			// should require 3 due to our buffer of 1 minute.
+			name:              "extra for buffer",
 			granularity:       GranularityMinute,
-			startTime:         halfDayAgo,
+			startTime:         twoDaysAgo,
 			endTime:           now,
-			mock:              &fakeQuery{},
-			expectedCallCount: 1,
+			expectedCallCount: 3,
 			expectedErr:       nil,
 		},
 	}
@@ -94,12 +59,14 @@ func TestCoinCapGetPrices(t *testing.T) {
 		test := test
 
 		t.Run(test.name, func(t *testing.T) {
+			mock := &fakeQuery{}
+
 			// Create a mocked query function which will track
 			// our call count and error as required for the test.
 			query := func(_, _ time.Time,
 				_ Granularity) ([]byte, error) {
 
-				if err := test.mock.call(); err != nil {
+				if err := mock.call(); err != nil {
 					return nil, err
 				}
 
@@ -128,10 +95,10 @@ func TestCoinCapGetPrices(t *testing.T) {
 					test.expectedErr, err)
 			}
 
-			if test.expectedCallCount != test.mock.callCount {
+			if test.expectedCallCount != mock.callCount {
 				t.Fatalf("expected call count: %v, got: %v",
 					test.expectedCallCount,
-					test.mock.callCount)
+					mock.callCount)
 			}
 		})
 	}
@@ -140,10 +107,6 @@ func TestCoinCapGetPrices(t *testing.T) {
 // TestBestGranularity tests getting of the lowest granularity possible for
 // a given query duration.
 func TestBestGranularity(t *testing.T) {
-	period1Min, _ := GranularityMinute.maxSplitDuration()
-	period15Min, _ := Granularity15Minute.maxSplitDuration()
-	periodMax, _ := GranularityDay.maxSplitDuration()
-
 	tests := []struct {
 		name        string
 		duration    time.Duration
@@ -152,7 +115,7 @@ func TestBestGranularity(t *testing.T) {
 	}{
 		{
 			name:        "equal to interval max",
-			duration:    period1Min,
+			duration:    GranularityMinute.maximumQuery,
 			granularity: GranularityMinute,
 			err:         nil,
 		},
@@ -163,15 +126,15 @@ func TestBestGranularity(t *testing.T) {
 			err:         nil,
 		},
 		{
-			name:        "multiple queries to m15",
-			duration:    period15Min - 100,
+			name:        "within 15 min period",
+			duration:    Granularity15Minute.maximumQuery - 100,
 			granularity: Granularity15Minute,
 			err:         nil,
 		},
 		{
 			name:        "too long",
-			duration:    periodMax + 1,
-			granularity: "",
+			duration:    GranularityDay.maximumQuery + 1,
+			granularity: Granularity{},
 			err:         ErrQueryTooLong,
 		},
 	}

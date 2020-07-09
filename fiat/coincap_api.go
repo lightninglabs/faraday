@@ -256,8 +256,9 @@ func parseCoinCapData(data []byte) ([]*USDPrice, error) {
 			return nil, err
 		}
 
+		ns := time.Duration(entry.Timestamp) * time.Millisecond
 		usdRecords[i] = &USDPrice{
-			timestamp: time.Unix(0, entry.Timestamp),
+			timestamp: time.Unix(0, ns.Nanoseconds()),
 			price:     decPrice,
 		}
 	}

@@ -2,9 +2,11 @@ package fiat
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -185,4 +187,55 @@ func TestBestGranularity(t *testing.T) {
 			require.Equal(t, test.granularity, best)
 		})
 	}
+}
+
+// TestParseCoinCapData adds a test which checks that we appropriately parse
+// the price and timestamp data returned by coincap's api.
+func TestParseCoinCapData(t *testing.T) {
+	var (
+		// Create two prices, one which is a float to ensure that we
+		// are correctly parsing them.
+		price1 = decimal.NewFromFloat(10.1)
+		price2 = decimal.NewFromInt(110000)
+
+		// Create two timestamps, each representing our time in
+		// milliseconds.
+		time1 = time.Unix(10000, 0)
+		time2 = time.Unix(2000, 0)
+	)
+
+	// Create the struct we expect to receive from coincap and marshal it
+	// into bytes. We set our timestamps to Unix() *1000 so that our time
+	// stamps are expressed in milliseconds.
+	resps := coinCapResponse{
+		Data: []*coinCapDataPoint{
+			{
+				Price:     price1.String(),
+				Timestamp: time1.Unix() * 1000,
+			},
+			{
+				Price:     price2.String(),
+				Timestamp: time2.Unix() * 1000,
+			},
+		},
+	}
+
+	bytes, err := json.Marshal(resps)
+	require.NoError(t, err)
+
+	prices, err := parseCoinCapData(bytes)
+	require.NoError(t, err)
+
+	expectedPrices := []*USDPrice{
+		{
+			price:     price1,
+			timestamp: time1,
+		},
+		{
+			price:     price2,
+			timestamp: time2,
+		},
+	}
+
+	require.Equal(t, expectedPrices, prices)
 }

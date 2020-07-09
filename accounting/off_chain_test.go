@@ -225,7 +225,7 @@ func TestOffChainReport(t *testing.T) {
 				},
 			}
 
-			_, err := offChainReportWithPrices(cfg, mockConvert)
+			_, err := offChainReportWithPrices(cfg, mockPrice)
 			require.Equal(t, test.err, err)
 		})
 	}

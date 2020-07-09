@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcutil"
+	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntypes"
@@ -41,8 +42,6 @@ var (
 		Fee:           channelFeesSats,
 		Timestamp:     transactionTimestamp,
 	}
-
-	mockPrice = decimal.NewFromInt(10)
 
 	closeTx = "e730b07d6121b19dd717925de82b8c76dec38517ffd85701e6735a726f5f75c3"
 
@@ -156,12 +155,18 @@ var (
 		AmountMsatIn:  fwdInMsat,
 		AmountMsatOut: fwdOutMsat,
 	}
+
+	mockPriceTimestamp = time.Unix(1594306589, 0)
+
+	mockBTCPrice = &fiat.USDPrice{
+		Timestamp: mockPriceTimestamp,
+		Price:     decimal.NewFromInt(100000),
+	}
 )
 
-// mockConvert is a mocked price function which returns mockPrice * amount.
-func mockConvert(amt int64, _ time.Time) (decimal.Decimal, error) {
-	amtDecimal := decimal.NewFromInt(amt)
-	return mockPrice.Mul(amtDecimal), nil
+// mockPrice is a mocked price function which returns mockPrice * amount.
+func mockPrice(_ time.Time) (*fiat.USDPrice, error) {
+	return mockBTCPrice, nil
 }
 
 // TestChannelOpenEntry tests creation of entries for locally and remotely
@@ -182,39 +187,41 @@ func TestChannelOpenEntry(t *testing.T) {
 			entryType = EntryTypeRemoteChannelOpen
 		}
 
-		mockFiat, _ := mockConvert(amt, transactionTimestamp)
-
 		note := channelOpenNote(
 			initiator, remotePubkey, channelCapacitySats,
 		)
 
+		amtMsat := lnwire.MilliSatoshi(amt)
 		return &HarmonyEntry{
 			Timestamp: transactionTimestamp,
-			Amount:    lnwire.MilliSatoshi(amt),
-			FiatValue: mockFiat,
+			Amount:    amtMsat,
+			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
 			TxID:      openChannelTx,
 			Reference: fmt.Sprintf("%v", channelID),
 			Note:      note,
 			Type:      entryType,
 			OnChain:   true,
 			Credit:    credit,
+			BTCPrice:  mockBTCPrice,
 		}
 
 	}
 
 	feeAmt := satsToMsat(channelFeesSats)
-	mockFee, _ := mockConvert(feeAmt, transactionTimestamp)
+	msatAmt := lnwire.MilliSatoshi(feeAmt)
+
 	// Fee entry is the expected fee entry for locally initiated channels.
 	feeEntry := &HarmonyEntry{
 		Timestamp: transactionTimestamp,
-		Amount:    lnwire.MilliSatoshi(feeAmt),
-		FiatValue: mockFee,
+		Amount:    msatAmt,
+		FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, msatAmt),
 		TxID:      openChannelTx,
 		Reference: feeReference(openChannelTx),
 		Note:      channelOpenFeeNote(channelID),
 		Type:      EntryTypeChannelOpenFee,
 		OnChain:   true,
 		Credit:    false,
+		BTCPrice:  mockBTCPrice,
 	}
 
 	tests := []struct {
@@ -251,7 +258,7 @@ func TestChannelOpenEntry(t *testing.T) {
 
 			// Get our entries.
 			entries, err := channelOpenEntries(
-				channel, tx, mockConvert,
+				channel, tx, mockPrice,
 			)
 			require.Equal(t, test.expectedErr, err)
 
@@ -280,18 +287,19 @@ func TestChannelCloseEntry(t *testing.T) {
 		note := channelCloseNote(channelID, closeType, closeInitiator)
 
 		closeAmt := satsToMsat(closeBalance)
-		closeFiat, _ := mockConvert(closeAmt, closeTimestamp)
+		amtMsat := lnwire.MilliSatoshi(closeAmt)
 
 		return &HarmonyEntry{
 			Timestamp: closeTimestamp,
-			Amount:    lnwire.MilliSatoshi(closeAmt),
-			FiatValue: closeFiat,
+			Amount:    amtMsat,
+			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
 			TxID:      closeTx,
 			Reference: closeTx,
 			Note:      note,
 			Type:      EntryTypeChannelClose,
 			OnChain:   true,
 			Credit:    true,
+			BTCPrice:  mockBTCPrice,
 		}
 	}
 
@@ -325,7 +333,7 @@ func TestChannelCloseEntry(t *testing.T) {
 			closeTx.Amount = test.closeAmt
 
 			entries, err := closedChannelEntries(
-				closeChan, closeTx, mockConvert,
+				closeChan, closeTx, mockPrice,
 			)
 			require.NoError(t, err)
 
@@ -361,18 +369,18 @@ func TestOnChainEntry(t *testing.T) {
 		}
 
 		amt := satsToMsat(onChainAmtSat)
-		fiat, _ := mockConvert(amt, onChainTimestamp)
-
+		amtMsat := lnwire.MilliSatoshi(amt)
 		entry := &HarmonyEntry{
 			Timestamp: onChainTimestamp,
-			Amount:    lnwire.MilliSatoshi(amt),
-			FiatValue: fiat,
+			Amount:    amtMsat,
+			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
 			TxID:      onChainTxID,
 			Reference: onChainTxID,
 			Note:      label,
 			Type:      entryType,
 			OnChain:   true,
 			Credit:    isReceive,
+			BTCPrice:  mockBTCPrice,
 		}
 
 		if !hasFee {
@@ -380,19 +388,20 @@ func TestOnChainEntry(t *testing.T) {
 		}
 
 		feeAmt := satsToMsat(onChainFeeSat)
-		fiat, _ = mockConvert(feeAmt, onChainTimestamp)
+		feeMsat := lnwire.MilliSatoshi(feeAmt)
 
 		// Fee entry is the fee entry we expect for this transaction.
 		feeEntry := &HarmonyEntry{
 			Timestamp: onChainTimestamp,
-			Amount:    lnwire.MilliSatoshi(feeAmt),
-			FiatValue: fiat,
+			Amount:    feeMsat,
+			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, feeMsat),
 			TxID:      onChainTxID,
 			Reference: feeReference(onChainTxID),
 			Note:      "",
 			Type:      feeType,
 			OnChain:   true,
 			Credit:    false,
+			BTCPrice:  mockBTCPrice,
 		}
 
 		return []*HarmonyEntry{entry, feeEntry}
@@ -470,7 +479,7 @@ func TestOnChainEntry(t *testing.T) {
 			chainTx.Label = test.txLabel
 
 			entries, err := onChainEntries(
-				chainTx, test.isSweep, mockConvert,
+				chainTx, test.isSweep, mockPrice,
 			)
 			require.NoError(t, err)
 
@@ -495,20 +504,19 @@ func TestInvoiceEntry(t *testing.T) {
 			invoice.IsKeysend,
 		)
 
-		fiat, _ := mockConvert(
-			int64(invoiceOverpaidAmt), invoiceSettleTime,
-		)
-
 		expectedEntry := &HarmonyEntry{
 			Timestamp: invoiceSettleTime,
 			Amount:    invoiceOverpaidAmt,
-			FiatValue: fiat,
+			FiatValue: fiat.MsatToUSD(
+				mockBTCPrice.Price, invoiceOverpaidAmt,
+			),
 			TxID:      invoiceHash,
 			Reference: invoicePreimage,
 			Note:      note,
 			Type:      EntryTypeReceipt,
 			OnChain:   false,
 			Credit:    true,
+			BTCPrice:  mockBTCPrice,
 		}
 
 		if circular {
@@ -539,7 +547,7 @@ func TestInvoiceEntry(t *testing.T) {
 			t.Parallel()
 
 			entry, err := invoiceEntry(
-				invoice, test.circular, mockConvert,
+				invoice, test.circular, mockPrice,
 			)
 			if err != nil {
 				t.Fatal(err)
@@ -557,34 +565,38 @@ func TestPaymentEntry(t *testing.T) {
 	// getEntries is a helper function which returns our expected entries
 	// based on whether we are testing a payment to ourselves or not.
 	getEntries := func(toSelf bool) []*HarmonyEntry {
-		mockFiat, _ := mockConvert(int64(paymentMsat), paymentTime)
 		paymentRef := paymentReference(
 			uint64(paymentIndex), pmtPreimage,
 		)
 
+		amtMsat := lnwire.MilliSatoshi(paymentMsat)
+
 		paymentEntry := &HarmonyEntry{
 			Timestamp: paymentTime,
-			Amount:    lnwire.MilliSatoshi(paymentMsat),
-			FiatValue: mockFiat,
+			Amount:    amtMsat,
+			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
 			TxID:      paymentHash,
 			Reference: paymentRef,
 			Note:      paymentNote(&otherPubkey),
 			Type:      EntryTypePayment,
 			OnChain:   false,
 			Credit:    false,
+			BTCPrice:  mockBTCPrice,
 		}
 
-		feeFiat, _ := mockConvert(int64(paymentFeeMsat), paymentTime)
+		feeMsat := lnwire.MilliSatoshi(paymentFeeMsat)
+
 		feeEntry := &HarmonyEntry{
 			Timestamp: paymentTime,
-			Amount:    lnwire.MilliSatoshi(paymentFeeMsat),
-			FiatValue: feeFiat,
+			Amount:    feeMsat,
+			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, feeMsat),
 			TxID:      paymentHash,
 			Reference: feeReference(paymentRef),
 			Note:      paymentNote(&otherPubkey),
 			Type:      EntryTypeFee,
 			OnChain:   false,
 			Credit:    false,
+			BTCPrice:  mockBTCPrice,
 		}
 
 		if toSelf {
@@ -614,7 +626,7 @@ func TestPaymentEntry(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 			entries, err := paymentEntry(
-				payInfo, test.toSelf, mockConvert,
+				payInfo, test.toSelf, mockPrice,
 			)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -629,37 +641,36 @@ func TestPaymentEntry(t *testing.T) {
 
 // TestForwardingEntry tests creation of a forwarding and forwarding fee entry.
 func TestForwardingEntry(t *testing.T) {
-	entries, err := forwardingEntry(fwdEntry, mockConvert)
+	entries, err := forwardingEntry(fwdEntry, mockPrice)
 	require.NoError(t, err)
 
 	txid := forwardTxid(fwdEntry)
 	note := forwardNote(fwdInMsat, fwdOutMsat)
 
-	fwdFiat, _ := mockConvert(int64(0), forwardTs)
 	fwdEntry := &HarmonyEntry{
 		Timestamp: forwardTs,
 		Amount:    0,
-		FiatValue: fwdFiat,
+		FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, 0),
 		TxID:      txid,
 		Reference: "",
 		Note:      note,
 		Type:      EntryTypeForward,
 		OnChain:   false,
 		Credit:    true,
+		BTCPrice:  mockBTCPrice,
 	}
-
-	feeFiat, _ := mockConvert(int64(fwdFeeMsat), forwardTs)
 
 	feeEntry := &HarmonyEntry{
 		Timestamp: forwardTs,
 		Amount:    fwdFeeMsat,
-		FiatValue: feeFiat,
+		FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, fwdFeeMsat),
 		TxID:      txid,
 		Reference: "",
 		Note:      "",
 		Type:      EntryTypeForwardFee,
 		OnChain:   false,
 		Credit:    true,
+		BTCPrice:  mockBTCPrice,
 	}
 
 	expectedEntries := []*HarmonyEntry{fwdEntry, feeEntry}

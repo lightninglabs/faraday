@@ -7,13 +7,10 @@ import (
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/utils"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/shopspring/decimal"
 )
 
-// msatToFiat is a function which converts a timestamped millisatoshi balance to
-// a fiat value.
-type msatToFiat func(amount int64, timestamp time.Time) (decimal.Decimal, error)
+// usdPrice is a function which gets the USD price of bitcoin at a given time.
+type usdPrice func(timestamp time.Time) (*fiat.USDPrice, error)
 
 // satsToMsat converts an amount expressed in sats to msat.
 func satsToMsat(sats btcutil.Amount) int64 {
@@ -35,12 +32,13 @@ func invertMsat(msat int64) int64 {
 // of price data and returns a convert function which can be used to get
 // individual price points from this data.
 func getConversion(ctx context.Context, startTime, endTime time.Time,
-	disableFiat bool) (msatToFiat, error) {
+	disableFiat bool) (usdPrice, error) {
 
-	// If we don't want fiat values, just return a no-op function.
+	// If we don't want fiat values, just return a price which will yield
+	// a zero price and timestamp.
 	if disableFiat {
-		return func(_ int64, _ time.Time) (decimal.Decimal, error) {
-			return decimal.Zero, nil
+		return func(_ time.Time) (*fiat.USDPrice, error) {
+			return &fiat.USDPrice{}, nil
 		}, nil
 	}
 
@@ -66,14 +64,7 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 
 	// Create a wrapper function which can be used to get individual price
 	// points from our set of price data as we create our report.
-	return func(amtMsat int64, ts time.Time) (decimal.Decimal, error) {
-		price, err := fiat.GetPrice(prices, ts)
-		if err != nil {
-			return decimal.Zero, err
-		}
-
-		return fiat.MsatToUSD(
-			price.Price, lnwire.MilliSatoshi(amtMsat),
-		), nil
+	return func(ts time.Time) (*fiat.USDPrice, error) {
+		return fiat.GetPrice(prices, ts)
 	}, nil
 }

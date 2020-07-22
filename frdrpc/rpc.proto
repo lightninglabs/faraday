@@ -344,7 +344,7 @@ message FiatEstimateRequest {
 
     repeated PriceRequest requests = 1;
 
-    reserved  2;
+    reserved 2;
 }
 
 message FiatEstimateResponse {
@@ -358,7 +358,7 @@ message NodeReportRequest {
     // The unix time until which to produce the report, exclusive.
     uint64 end_time = 2;
 
-    reserved  3;
+    reserved 3;
 
     /*
     Set to generate a report without conversion to fiat. If set, fiat values
@@ -460,7 +460,7 @@ message CloseReportRequest {
     string channel_point = 1;
 }
 
-message CloseReportResponse{
+message CloseReportResponse {
     // The funding outpoint of the channel.
     string channel_point = 1;
 

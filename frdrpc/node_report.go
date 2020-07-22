@@ -26,6 +26,11 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
+	granularity, err := granularityFromRPC(req.Granularity, end.Sub(start))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	pubkey, err := route.NewVertexFromBytes(info.IdentityPubkey[:])
 	if err != nil {
 		return nil, nil, err
@@ -34,11 +39,11 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 	offChain := accounting.NewOffChainConfig(
 		ctx, cfg.Lnd, uint64(maxInvoiceQueries),
 		uint64(maxPaymentQueries), uint64(maxForwardQueries),
-		pubkey, start, end, req.DisableFiat,
+		pubkey, start, end, req.DisableFiat, granularity,
 	)
 
 	onChain := accounting.NewOnChainConfig(
-		ctx, cfg.Lnd, start, end, req.DisableFiat,
+		ctx, cfg.Lnd, start, end, req.DisableFiat, granularity,
 	)
 
 	return onChain, offChain, nil
@@ -60,6 +65,10 @@ func rpcReportResponse(report accounting.Report) (*NodeReportResponse,
 			Fiat:      entry.FiatValue.String(),
 			Reference: entry.Reference,
 			Note:      entry.Note,
+			BtcPrice: &BitcoinPrice{
+				Price:          entry.BTCPrice.Price.String(),
+				PriceTimestamp: uint64(entry.BTCPrice.Timestamp.Unix()),
+			},
 		}
 
 		rpcType, err := rpcEntryType(entry.Type)

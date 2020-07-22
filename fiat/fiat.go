@@ -25,8 +25,11 @@ var (
 
 // USDPrice represents the Bitcoin price in USD at a certain time.
 type USDPrice struct {
-	timestamp time.Time
-	price     decimal.Decimal
+	// Timestamp is the time at which the BTC price is quoted.
+	Timestamp time.Time
+
+	// Price is the price in USD for 1 BTC at the given timestamp.
+	Price decimal.Decimal
 }
 
 // retryQuery calls an api until it succeeds, or we hit our maximum retries.

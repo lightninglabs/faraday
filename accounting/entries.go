@@ -41,7 +41,7 @@ func channelOpenFeeNote(channelID uint64) string {
 // channelOpenEntries produces the relevant set of entries for a currently open
 // channel.
 func channelOpenEntries(channel lndclient.ChannelInfo, tx lndclient.Transaction,
-	convert msatToFiat) ([]*HarmonyEntry, error) {
+	convert usdPrice) ([]*HarmonyEntry, error) {
 
 	var (
 		amtMsat   = satsToMsat(tx.Amount)
@@ -65,7 +65,7 @@ func channelOpenEntries(channel lndclient.ChannelInfo, tx lndclient.Transaction,
 // already been closed, we need to produce channel opening records from the
 // close summary.
 func openChannelFromCloseSummary(channel lndclient.ClosedChannel,
-	tx lndclient.Transaction, convert msatToFiat) ([]*HarmonyEntry, error) {
+	tx lndclient.Transaction, convert usdPrice) ([]*HarmonyEntry, error) {
 
 	// If the transaction has a negative amount, we can infer that this
 	// transaction was a local channel open, because a remote party opening
@@ -88,7 +88,7 @@ func openChannelFromCloseSummary(channel lndclient.ClosedChannel,
 // fields. This is required because we create channel open entries from already
 // open channels using lnrpc.Channel and from closed channels using
 // lnrpc.ChannelCloseSummary.
-func openEntries(tx lndclient.Transaction, convert msatToFiat, amtMsat int64,
+func openEntries(tx lndclient.Transaction, convert usdPrice, amtMsat int64,
 	capacity btcutil.Amount, entryType EntryType, remote string,
 	channelID uint64, initiator bool) ([]*HarmonyEntry, error) {
 
@@ -139,7 +139,7 @@ func channelCloseNote(channelID uint64, closeType, initiated string) string {
 // it is excluding htlcs that are resolved on chain, and will not reflect our
 // balance when we force close (because it is behind a timelock).
 func closedChannelEntries(channel lndclient.ClosedChannel,
-	tx lndclient.Transaction, convert msatToFiat) ([]*HarmonyEntry, error) {
+	tx lndclient.Transaction, convert usdPrice) ([]*HarmonyEntry, error) {
 
 	amtMsat := satsToMsat(tx.Amount)
 	note := channelCloseNote(
@@ -163,7 +163,7 @@ func closedChannelEntries(channel lndclient.ClosedChannel,
 
 // onChainEntries produces relevant entries for an on chain transaction.
 func onChainEntries(tx lndclient.Transaction, isSweep bool,
-	convert msatToFiat) ([]*HarmonyEntry, error) {
+	convert usdPrice) ([]*HarmonyEntry, error) {
 
 	var (
 		amtMsat   = satsToMsat(tx.Amount)
@@ -244,7 +244,7 @@ func invoiceNote(memo string, amt, amtPaid lnwire.MilliSatoshi,
 
 // invoiceEntry creates an entry for an invoice.
 func invoiceEntry(invoice lndclient.Invoice, circularReceipt bool,
-	convert msatToFiat) (*HarmonyEntry, error) {
+	convert usdPrice) (*HarmonyEntry, error) {
 
 	eventType := EntryTypeReceipt
 	if circularReceipt {
@@ -282,7 +282,7 @@ func paymentNote(dest *route.Vertex) string {
 // paymentEntry creates an entry for an off chain payment, including fee entries
 // where required.
 func paymentEntry(payment paymentInfo, paidToSelf bool,
-	convert msatToFiat) ([]*HarmonyEntry, error) {
+	convert usdPrice) ([]*HarmonyEntry, error) {
 
 	// It is possible to make a payment to ourselves as part of a circular
 	// rebalance which is operationally used to shift funds between
@@ -356,7 +356,7 @@ func forwardNote(amtIn, amtOut lnwire.MilliSatoshi) string {
 // shifting of funds in our channels, and fees entry which reflects the fees we
 // earned form the forward.
 func forwardingEntry(forward lndclient.ForwardingEvent,
-	convert msatToFiat) ([]*HarmonyEntry, error) {
+	convert usdPrice) ([]*HarmonyEntry, error) {
 
 	txid := forwardTxid(forward)
 	note := forwardNote(forward.AmountMsatIn, forward.AmountMsatOut)

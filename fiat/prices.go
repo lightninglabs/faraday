@@ -3,6 +3,7 @@ package fiat
 import (
 	"context"
 	"errors"
+	"sort"
 	"time"
 
 	"github.com/lightningnetwork/lnd/lnwire"
@@ -10,8 +11,9 @@ import (
 )
 
 var (
-	errNoPrices       = errors.New("no price data provided")
-	errDuplicateLabel = errors.New("duplicate label in request set")
+	errNoPrices        = errors.New("no price data provided")
+	errPriceOutOfRange = errors.New("timestamp before beginning of price " +
+		"dataset")
 )
 
 // PriceRequest describes a request for price information.
@@ -26,51 +28,41 @@ type PriceRequest struct {
 	Timestamp time.Time
 }
 
-// GetPrices gets a set of prices for a set of timestamped requests.
-func GetPrices(ctx context.Context,
-	requests []*PriceRequest) (map[string]decimal.Decimal, error) {
+// GetPrices gets a set of prices for a set of timestamps.
+func GetPrices(ctx context.Context, timestamps []time.Time,
+	granularity Granularity) (map[time.Time]*USDPrice, error) {
 
-	if len(requests) == 0 {
+	if len(timestamps) == 0 {
 		return nil, nil
 	}
 
-	log.Debugf("getting prices for: %v requests", len(requests))
+	log.Debugf("getting prices for: %v requests", len(timestamps))
 
-	// Make sure that every label that in the request set is unique.
-	uniqueLabels := make(map[string]bool, len(requests))
-	for _, request := range requests {
-		_, ok := uniqueLabels[request.Identifier]
-		if ok {
-			return nil, errDuplicateLabel
-		}
+	// Sort our timestamps in ascending order so that we can get the start
+	// and end period we need.
+	sort.SliceStable(timestamps, func(i, j int) bool {
+		return timestamps[i].Before(timestamps[j])
+	})
 
-		uniqueLabels[request.Identifier] = true
-	}
-
-	// Get the minimum and maximum timestamps for our set of requests
-	// so that we can efficiently query for price data.
-	start, end := getQueryableDuration(requests)
-
-	granularity, err := BestGranularity(end.Sub(start))
-	if err != nil {
-		return nil, err
-	}
+	// Get the earliest and latest timestamps we can, these may be the same
+	// timestamp if we have 1 entry, but that's ok.
+	start, end := timestamps[0], timestamps[len(timestamps)-1]
 
 	priceData, err := CoinCapPriceData(ctx, start, end, granularity)
 	if err != nil {
 		return nil, err
 	}
 
-	// Prices will map transaction identifiers to their USD prices.
-	var prices = make(map[string]decimal.Decimal, len(requests))
+	// Prices will map transaction timestamps to their USD prices.
+	var prices = make(map[time.Time]*USDPrice, len(timestamps))
 
-	for _, request := range requests {
-		price, err := GetPrice(priceData, request)
+	for _, ts := range timestamps {
+		price, err := GetPrice(priceData, ts)
 		if err != nil {
 			return nil, err
 		}
 
-		prices[request.Identifier] = price
+		prices[ts] = price
 	}
 
 	return prices, nil
@@ -84,28 +76,9 @@ func CoinCapPriceData(ctx context.Context, start, end time.Time,
 	return coinCapBackend.GetPrices(ctx, start, end)
 }
 
-// getQueryableDuration gets the smallest and largest timestamp from a set of
-// requests so that we can query for an appropriate set of price data.
-func getQueryableDuration(requests []*PriceRequest) (time.Time, time.Time) {
-	var start, end time.Time
-	// Iterate through our min and max times and get the time range over
-	// which we need to get price information.
-	for _, req := range requests {
-		if start.IsZero() || start.After(req.Timestamp) {
-			start = req.Timestamp
-		}
-
-		if end.IsZero() || end.Before(req.Timestamp) {
-			end = req.Timestamp
-		}
-	}
-
-	return start, end
-}
-
-// msatToUSD converts a msat amount to usd. Note that this function coverts
+// MsatToUSD converts a msat amount to usd. Note that this function coverts
 // values to Bitcoin values, then gets the fiat price for that BTC value.
-func msatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
+func MsatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
 	msatDecimal := decimal.NewFromInt(int64(amt))
 
 	// We are quoted price per whole bitcoin. We need to scale this price
@@ -115,48 +88,40 @@ func msatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
 	return pricePerMSat.Mul(msatDecimal)
 }
 
-// GetPrice gets the price for a timestamped request from a set of price data.
-// This function expects the price data to be sorted with ascending timestamps.
-// If request lies between two price points, we simply aggregate the two prices.
-func GetPrice(prices []*USDPrice, request *PriceRequest) (decimal.Decimal,
-	error) {
-
-	lastPrice := decimal.Zero
-
+// GetPrice gets the price for a given time from a set of price data. This
+// function expects the price data to be sorted with ascending timestamps and
+// for first timestamp in the price data to be before any timestamp we are
+// querying. The last datapoint's timestamp may be before the timestamp we are
+// querying. If a request lies between two price points, we just return the
+// earlier price.
+func GetPrice(prices []*USDPrice, timestamp time.Time) (*USDPrice, error) {
 	if len(prices) == 0 {
-		return decimal.Zero, errNoPrices
+		return nil, errNoPrices
 	}
 
+	var lastPrice *USDPrice
+
+	// Run through our prices until we find a timestamp that our price
+	// point lies before. Since we always return the previous price, this
+	// also works for timestamps that are exactly equal (at the cost of a
+	// single extra iteration of this loop).
 	for _, price := range prices {
-		// Check the optimistic case where the price timestamp matches
-		// our timestamp exactly.
-		if price.timestamp.Equal(request.Timestamp) {
-			return msatToUSD(price.price, request.Value), nil
+		if timestamp.Before(price.Timestamp) {
+			break
 		}
 
-		// Once we reach a price point that is before our request's
-		// timestamp, the request's timestamp lies somewhere between
-		// the current price data point and the previous on.
-		if request.Timestamp.Before(price.timestamp) {
-			// If the last price is 0, the request is after the
-			// very first price data point. We do not aggregate in
-			// this case.
-			if lastPrice.Equal(decimal.Zero) {
-				return msatToUSD(price.price, request.Value),
-					nil
-			}
-
-			// Otherwise, aggregate the price over the current data
-			// point and the next one.
-			price := decimal.Avg(lastPrice, price.price)
-			return msatToUSD(price, request.Value), nil
-		}
-
-		lastPrice = price.price
+		lastPrice = price
 	}
 
-	// If we have fallen through to this point, the price's timestamp falls
-	// after our last price data point's timestamp. In this case, we just
-	// return the price quoted on that price.
-	return msatToUSD(lastPrice, request.Value), nil
+	// If we have broken our loop without setting the value of our last
+	// price, we have a timestamp that is before the first entry in our
+	// series. We expect our range of price points to start before any
+	// timestamps we query, so we fail.
+	if lastPrice == nil {
+		return nil, errPriceOutOfRange
+	}
+
+	// Otherwise, we return the last price that was before (or equal to)
+	// our timestamp.
+	return lastPrice, nil
 }

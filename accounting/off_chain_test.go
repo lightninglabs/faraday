@@ -219,11 +219,13 @@ func TestOffChainReport(t *testing.T) {
 
 					return nil, nil
 				},
-				StartTime: time.Unix(startTime, 0),
-				EndTime:   time.Unix(endTime, 0),
+				CommonConfig: CommonConfig{
+					StartTime: time.Unix(startTime, 0),
+					EndTime:   time.Unix(endTime, 0),
+				},
 			}
 
-			_, err := offChainReportWithPrices(cfg, mockConvert)
+			_, err := offChainReportWithPrices(cfg, mockPrice)
 			require.Equal(t, test.err, err)
 		})
 	}

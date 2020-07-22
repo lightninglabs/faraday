@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/frdrpc"
+	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/shopspring/decimal"
 	"github.com/urfave/cli"
 )
 
@@ -43,26 +46,37 @@ func queryFiatEstimate(ctx *cli.Context) error {
 
 	// Set start and end times from user specified values, defaulting
 	// to zero if they are not set.
-	req := &frdrpc.FiatEstimateRequest{
-		Requests: []*frdrpc.FiatEstimateRequest_PriceRequest{
-			{
-				Id:         fmt.Sprintf("%v msat", amt),
-				AmountMsat: amt,
-				Timestamp:  ts,
-			},
-		},
+	req := &frdrpc.ExchangeRateRequest{
+		Timestamps: []uint64{uint64(ts)},
 	}
 
 	rpcCtx := context.Background()
-	recs, err := client.FiatEstimate(rpcCtx, req)
+	recs, err := client.ExchangeRate(rpcCtx, req)
 	if err != nil {
 		return err
 	}
 
-	// Print response with USD suffix so it is more readable.
-	for label, value := range recs.FiatValues {
-		fmt.Printf("%v: %v USD\n", label, value)
+	count := len(recs.Rates)
+	if count != 1 {
+		return fmt.Errorf("unexpected number of fiat estimates: %v",
+			count)
 	}
+
+	estimate := recs.Rates[0]
+	if estimate.Timestamp != uint64(ts) {
+		return fmt.Errorf("expected price for: %v, got: %v", ts,
+			estimate.Timestamp)
+	}
+
+	bitcoinPrice, err := decimal.NewFromString(estimate.BtcPrice.Price)
+	if err != nil {
+		return err
+	}
+
+	usdVal := fiat.MsatToUSD(bitcoinPrice, lnwire.MilliSatoshi(amt))
+	priceTs := time.Unix(int64(estimate.BtcPrice.PriceTimestamp), 0)
+
+	fmt.Printf("%v msat = %v USD, priced at %v\n", amt, usdVal, priceTs)
 
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 )
 
 // TestGetPrice tests getting price from a set of price data.
@@ -16,95 +17,63 @@ func TestGetPrice(t *testing.T) {
 
 	price10K := decimal.New(10000, 1)
 	price20K := decimal.New(20000, 1)
-	avg := decimal.Avg(price10K, price20K)
+
+	now10k := &USDPrice{
+		Timestamp: now,
+		Price:     price10K,
+	}
+
+	hourAgo20K := &USDPrice{
+		Timestamp: oneHourAgo,
+		Price:     price20K,
+	}
 
 	tests := []struct {
 		name          string
 		prices        []*USDPrice
-		request       *PriceRequest
+		request       time.Time
 		expectedErr   error
-		expectedPrice decimal.Decimal
+		expectedPrice *USDPrice
 	}{
 		{
-			name:   "no prices",
-			prices: nil,
-			request: &PriceRequest{
-				Value:     1,
-				Timestamp: oneHourAgo,
-			},
+			name:        "no prices",
+			prices:      nil,
+			request:     oneHourAgo,
 			expectedErr: errNoPrices,
 		},
 		{
-			name: "timestamp before range",
-			prices: []*USDPrice{
-				{
-					timestamp: now,
-					price:     price10K,
-				},
-			},
-			request: &PriceRequest{
-				Value:     1,
-				Timestamp: oneHourAgo,
-			},
-			expectedErr:   nil,
-			expectedPrice: msatToUSD(price10K, 1),
+			name:          "timestamp before range",
+			prices:        []*USDPrice{now10k},
+			request:       oneHourAgo,
+			expectedErr:   errPriceOutOfRange,
+			expectedPrice: nil,
 		},
 		{
-			name: "timestamp equals data point timestamp",
-			prices: []*USDPrice{
-				{
-					timestamp: oneHourAgo,
-					price:     price10K,
-				},
-				{
-					timestamp: now,
-					price:     price10K,
-				},
-			},
-			request: &PriceRequest{
-				Value:     2,
-				Timestamp: now,
-			},
+			name:          "timestamp equals data point timestamp",
+			prices:        []*USDPrice{hourAgo20K, now10k},
+			request:       now,
 			expectedErr:   nil,
-			expectedPrice: msatToUSD(price10K, 2),
+			expectedPrice: now10k,
 		},
 		{
 			name: "timestamp after range",
 			prices: []*USDPrice{
 				{
-					timestamp: twoHoursAgo,
-					price:     price10K,
+					Timestamp: twoHoursAgo,
+					Price:     price10K,
 				},
-				{
-					timestamp: oneHourAgo,
-					price:     price10K,
-				},
+				hourAgo20K,
 			},
-			request: &PriceRequest{
-				Value:     3,
-				Timestamp: now,
-			},
+			request:       now,
 			expectedErr:   nil,
-			expectedPrice: msatToUSD(price10K, 3),
+			expectedPrice: hourAgo20K,
 		},
 		{
-			name: "timestamp between prices, aggregated",
-			prices: []*USDPrice{
-				{
-					timestamp: twoHoursAgo,
-					price:     price20K,
-				},
-				{
-					timestamp: now,
-					price:     price10K,
-				},
-			},
-			request: &PriceRequest{
-				Value:     3,
-				Timestamp: oneHourAgo,
-			},
+			name:          "timestamp between prices, pick earlier",
+			prices:        []*USDPrice{hourAgo20K, now10k},
+			request:       now.Add(time.Minute * -30),
 			expectedErr:   nil,
-			expectedPrice: msatToUSD(avg, 3),
+			expectedPrice: hourAgo20K,
 		},
 	}
 
@@ -118,82 +87,7 @@ func TestGetPrice(t *testing.T) {
 					test.expectedErr, err)
 			}
 
-			if !price.Equal(test.expectedPrice) {
-				t.Fatalf("expected: %v, got: %v",
-					test.expectedPrice, price)
-			}
-		})
-	}
-}
-
-// TestGetQueryableDuration tests getting min/max from a set of timestamps.
-func TestGetQueryableDuration(t *testing.T) {
-	now := time.Now()
-	yesterday := now.Add(time.Hour * -24)
-
-	tests := []struct {
-		name        string
-		requests    []*PriceRequest
-		expectStart time.Time
-		expectEnd   time.Time
-	}{
-		{
-			name: "single ts",
-			requests: []*PriceRequest{
-				{
-					Timestamp: now,
-				},
-			},
-			expectStart: now,
-			expectEnd:   now,
-		},
-		{
-			name: "different ts",
-			requests: []*PriceRequest{
-				{
-					Timestamp: now,
-				},
-				{
-					Timestamp: yesterday,
-				},
-			},
-			expectStart: yesterday,
-			expectEnd:   now,
-		},
-		{
-			name: "duplicate ts",
-			requests: []*PriceRequest{
-				{
-					Timestamp: now,
-				},
-				{
-					Timestamp: now,
-				},
-				{
-					Timestamp: yesterday,
-				},
-			},
-			expectStart: yesterday,
-			expectEnd:   now,
-		},
-	}
-
-	for _, test := range tests {
-		test := test
-
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			start, end := getQueryableDuration(test.requests)
-			if !start.Equal(test.expectStart) {
-				t.Fatalf("expected: %v, got: %v",
-					test.expectStart, start)
-			}
-
-			if !end.Equal(test.expectEnd) {
-				t.Fatalf("expected: %v, got: %v",
-					test.expectEnd, end)
-			}
+			require.Equal(t, test.expectedPrice, price)
 		})
 	}
 }
@@ -232,7 +126,7 @@ func TestMSatToUsd(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			amt := msatToUSD(test.price, test.amount)
+			amt := MsatToUSD(test.price, test.amount)
 			if !amt.Equals(test.expectedFiat) {
 				t.Fatalf("expected: %v, got: %v",
 					test.expectedFiat, amt)

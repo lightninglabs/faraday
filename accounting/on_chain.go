@@ -16,6 +16,7 @@ func OnChainReport(ctx context.Context, cfg *OnChainConfig) (Report, error) {
 	// or a no-op function if we do not want prices.
 	getPrice, err := getConversion(
 		ctx, cfg.StartTime, cfg.EndTime, cfg.DisableFiat,
+		cfg.Granularity,
 	)
 	if err != nil {
 		return nil, err
@@ -27,7 +28,7 @@ func OnChainReport(ctx context.Context, cfg *OnChainConfig) (Report, error) {
 // onChainReportWithPrices produces off chain reports using the getPrice
 // function provided. This allows testing of our report creation without calling
 // the actual price API.
-func onChainReportWithPrices(cfg *OnChainConfig, getPrice msatToFiat) (Report,
+func onChainReportWithPrices(cfg *OnChainConfig, getPrice usdPrice) (Report,
 	error) {
 	onChainTxns, err := cfg.OnChainTransactions()
 	if err != nil {
@@ -108,7 +109,7 @@ func onChainReportWithPrices(cfg *OnChainConfig, getPrice msatToFiat) (Report,
 }
 
 // onChainReport produces an on chain transaction report.
-func onChainReport(txns []lndclient.Transaction, priceFunc msatToFiat,
+func onChainReport(txns []lndclient.Transaction, priceFunc usdPrice,
 	currentlyOpenChannels map[string]lndclient.ChannelInfo,
 	sweeps map[string]bool, channelOpenTransactions,
 	channelCloseTransactions map[string]lndclient.ClosedChannel) (

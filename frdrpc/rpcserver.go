@@ -304,16 +304,20 @@ func (s *RPCServer) ChannelInsights(ctx context.Context,
 
 // FiatEstimate provides a fiat estimate for a set of timestamped bitcoin
 // prices.
-func (s *RPCServer) FiatEstimate(ctx context.Context,
-	req *FiatEstimateRequest) (*FiatEstimateResponse, error) {
+func (s *RPCServer) ExchangeRate(ctx context.Context,
+	req *ExchangeRateRequest) (*ExchangeRateResponse, error) {
 
-	reqs := parseFiatRequest(req)
-	prices, err := fiat.GetPrices(ctx, reqs)
+	timestamps, granularity, err := parseExchangeRateRequest(req)
 	if err != nil {
 		return nil, err
 	}
 
-	return fiatEstimateResponse(prices), nil
+	prices, err := fiat.GetPrices(ctx, timestamps, granularity)
+	if err != nil {
+		return nil, err
+	}
+
+	return exchangeRateResponse(prices), nil
 }
 
 // NodeReport returns an on chain report for the period requested.

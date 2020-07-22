@@ -3,6 +3,7 @@ package accounting
 import (
 	"time"
 
+	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/shopspring/decimal"
 )
@@ -43,6 +44,10 @@ type HarmonyEntry struct {
 	// Credit is true if the amount listed is a credit, and false if it is
 	// a debit.
 	Credit bool
+
+	// BTCPrice is the timestamped bitcoin price we used to get our fiat
+	// value.
+	BTCPrice *fiat.USDPrice
 }
 
 // newHarmonyEntry produces a harmony entry. If provided with a negative amount,
@@ -52,7 +57,7 @@ type HarmonyEntry struct {
 // changes to the amount will be made. Zero value entries will be recorded as
 // a credit.
 func newHarmonyEntry(ts time.Time, amountMsat int64, e EntryType, txid,
-	reference, note string, onChain bool, convert msatToFiat) (*HarmonyEntry,
+	reference, note string, onChain bool, convert usdPrice) (*HarmonyEntry,
 	error) {
 
 	var (
@@ -65,21 +70,23 @@ func newHarmonyEntry(ts time.Time, amountMsat int64, e EntryType, txid,
 		credit = false
 	}
 
-	fiat, err := convert(absAmt, ts)
+	btcPrice, err := convert(ts)
 	if err != nil {
 		return nil, err
 	}
+	amtMsat := lnwire.MilliSatoshi(absAmt)
 
 	return &HarmonyEntry{
 		Timestamp: ts,
-		Amount:    lnwire.MilliSatoshi(absAmt),
-		FiatValue: fiat,
+		Amount:    amtMsat,
+		FiatValue: fiat.MsatToUSD(btcPrice.Price, amtMsat),
 		TxID:      txid,
 		Reference: reference,
 		Note:      note,
 		Type:      e,
 		OnChain:   onChain,
 		Credit:    credit,
+		BTCPrice:  btcPrice,
 	}, nil
 }
 

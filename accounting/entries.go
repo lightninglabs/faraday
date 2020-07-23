@@ -166,7 +166,7 @@ func closedChannelEntries(channel lndclient.ClosedChannel,
 }
 
 // sweepEntry creates the entries required for a sweep transaction.
-func sweepEntry(tx lndclient.Transaction,
+func sweepEntry(tx lndclient.Transaction, fee btcutil.Amount,
 	convert usdPrice) ([]*HarmonyEntry, error) {
 
 	amtMsat := satsToMsat(tx.Amount)
@@ -180,11 +180,11 @@ func sweepEntry(tx lndclient.Transaction,
 	}
 
 	// If our fee is zero, we do not create an entry for it.
-	if tx.Fee == 0 {
+	if fee == 0 {
 		return []*HarmonyEntry{sweepEntry}, nil
 	}
 
-	feeAmt := invertedSatsToMsats(tx.Fee)
+	feeAmt := invertedSatsToMsats(fee)
 
 	feeEntry, err := newHarmonyEntry(
 		tx.Timestamp, feeAmt, EntryTypeSweepFee, tx.TxHash,

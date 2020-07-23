@@ -3,6 +3,8 @@ package accounting
 import (
 	"context"
 
+	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/faraday/utils"
 	"github.com/lightninglabs/lndclient"
 )
@@ -103,13 +105,14 @@ func onChainReportWithPrices(cfg *OnChainConfig, getPrice usdPrice) (Report,
 	}
 
 	return onChainReport(
-		filtered, getPrice, openChannels, isSweep, channelOpens,
-		channelCloses,
+		filtered, getPrice, cfg.GetFee, openChannels, isSweep,
+		channelOpens, channelCloses,
 	)
 }
 
 // onChainReport produces an on chain transaction report.
 func onChainReport(txns []lndclient.Transaction, priceFunc usdPrice,
+	sweepFee func(tx *wire.MsgTx) (btcutil.Amount, error),
 	currentlyOpenChannels map[string]lndclient.ChannelInfo,
 	sweeps map[string]bool, channelOpenTransactions,
 	channelCloseTransactions map[string]lndclient.ClosedChannel) (
@@ -173,7 +176,17 @@ func onChainReport(txns []lndclient.Transaction, priceFunc usdPrice,
 		// the operational cost of sweeps from other transactions.
 		isSweep := sweeps[txn.TxHash]
 		if isSweep {
-			entries, err := sweepEntry(txn, priceFunc)
+			// Our wallet currently does not recognize fees for
+			// sweeps because they use the swept inputs to provide
+			// fees rather than an input from the wallet. We lookup
+			// our fee separately so that it will reflect in our
+			// report.
+			fee, err := sweepFee(txn.Tx)
+			if err != nil {
+				return nil, err
+			}
+
+			entries, err := sweepEntry(txn, fee, priceFunc)
 			if err != nil {
 				return nil, err
 			}

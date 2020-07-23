@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/lndwrap"
 	"github.com/lightninglabs/lndclient"
@@ -53,6 +55,11 @@ type OnChainConfig struct {
 	// ListSweeps returns the transaction ids of the list of sweeps known
 	// to lnd.
 	ListSweeps func() ([]string, error)
+
+	// GetFee allows us to get the fees for transactions that are already
+	// confirmed. This function *will* fail if the transaction provided
+	// has not confirmed yet.
+	GetFee func(*wire.MsgTx) (btcutil.Amount, error)
 }
 
 // CommonConfig contains the items that are common to both types of requests.
@@ -76,8 +83,10 @@ type CommonConfig struct {
 }
 
 // NewOnChainConfig returns an on chain config from the lnd services provided.
+// It takes a fee timeout value which determines how much time we are willing
+// to wait when we need to do transaction lookups to get fees for our sweeps.
 func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
-	endTime time.Time, disableFiat bool,
+	endTime time.Time, disableFiat bool, feeTimeout time.Duration,
 	granularity fiat.Granularity) *OnChainConfig {
 
 	return &OnChainConfig{
@@ -99,6 +108,9 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 			DisableFiat: disableFiat,
 			Granularity: granularity,
 		},
+		GetFee: lndwrap.GetTransactionFee(
+			ctx, lnd.ChainNotifier.RegisterSpendNtfn, feeTimeout,
+		),
 	}
 }
 

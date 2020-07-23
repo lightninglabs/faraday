@@ -365,10 +365,6 @@ func TestChannelCloseEntry(t *testing.T) {
 
 // TestSweepEntry tests creation of entries for a sweep.
 func TestSweepEntry(t *testing.T) {
-	sweepWithOutFee := sweep
-	sweepWithFee := sweep
-	sweepWithFee.Fee = onChainFeeSat
-
 	expectedSweep := &HarmonyEntry{
 		Timestamp: onChainTimestamp,
 		Amount:    onChainAmtMsat,
@@ -387,11 +383,13 @@ func TestSweepEntry(t *testing.T) {
 	tests := []struct {
 		name     string
 		tx       lndclient.Transaction
+		fee      btcutil.Amount
 		expected []*HarmonyEntry
 	}{
 		{
 			name: "sweep with fee",
-			tx:   sweepWithFee,
+			tx:   sweep,
+			fee:  onChainFeeSat,
 			expected: []*HarmonyEntry{
 				expectedSweep,
 				{
@@ -413,7 +411,7 @@ func TestSweepEntry(t *testing.T) {
 		},
 		{
 			name: "sweep without fee",
-			tx:   sweepWithOutFee,
+			tx:   sweep,
 			expected: []*HarmonyEntry{
 				expectedSweep,
 			},
@@ -426,7 +424,7 @@ func TestSweepEntry(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			entries, err := sweepEntry(test.tx, mockPrice)
+			entries, err := sweepEntry(test.tx, test.fee, mockPrice)
 			require.NoError(t, err)
 			require.Equal(t, test.expected, entries)
 		})

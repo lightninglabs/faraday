@@ -3,6 +3,7 @@ package frdrpc
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightningnetwork/lnd/routing/route"
@@ -43,7 +44,8 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 	)
 
 	onChain := accounting.NewOnChainConfig(
-		ctx, cfg.Lnd, start, end, req.DisableFiat, granularity,
+		ctx, cfg.Lnd, start, end, req.DisableFiat, time.Second*5,
+		granularity,
 	)
 
 	return onChain, offChain, nil

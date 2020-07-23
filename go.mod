@@ -4,6 +4,7 @@ require (
 	github.com/btcsuite/btcd v0.20.1-beta.0.20200515232429-9f0179fd2c46
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f
 	github.com/btcsuite/btcutil v1.0.2
+	github.com/fortytw2/leaktest v1.3.0
 	github.com/golang/protobuf v1.3.3
 	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.14.3

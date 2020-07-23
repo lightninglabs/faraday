@@ -82,7 +82,7 @@ var (
 
 	onChainSend = lndclient.Transaction{
 		TxHash:    onChainTxID,
-		Amount:    -onChainAmtSat,
+		Amount:    -onChainAmtSat - onChainFeeSat,
 		Timestamp: onChainTimestamp,
 		Fee:       onChainFeeSat,
 	}
@@ -436,12 +436,17 @@ func TestSweepEntry(t *testing.T) {
 // TestOnChainEntry tests creation of entries for receipts and payments, and the
 // generation of a fee entry where applicable.
 func TestOnChainEntry(t *testing.T) {
+	onChainReceiveWithFee := onChainReceive
+	onChainReceiveWithFee.Fee = onChainFeeSat
+
 	tests := []struct {
 		name string
 
 		tx lndclient.Transaction
 
 		expectedEntries []*HarmonyEntry
+
+		err error
 	}{
 		{
 			name: "receive without fee",
@@ -462,6 +467,13 @@ func TestOnChainEntry(t *testing.T) {
 					BTCPrice:  mockBTCPrice,
 				},
 			},
+			err: nil,
+		},
+		{
+			name:            "receive with fee",
+			tx:              onChainReceiveWithFee,
+			expectedEntries: nil,
+			err:             ErrReceiveWithFees,
 		},
 		{
 			name: "payment with fee",
@@ -497,6 +509,7 @@ func TestOnChainEntry(t *testing.T) {
 					BTCPrice:  mockBTCPrice,
 				},
 			},
+			err: nil,
 		},
 	}
 
@@ -505,7 +518,7 @@ func TestOnChainEntry(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 			entries, err := onChainEntries(test.tx, mockPrice)
-			require.NoError(t, err)
+			require.Equal(t, test.err, err)
 
 			require.Equal(t, test.expectedEntries, entries)
 		})

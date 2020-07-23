@@ -1,16 +1,20 @@
 package accounting
 
 import (
+	"errors"
 	"fmt"
 	"strings"
-
-	"github.com/lightningnetwork/lnd/routing/route"
 
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/lightningnetwork/lnd/routing/route"
 )
+
+// ErrReceiveWithFees is returned when we get an on chain receive which has
+// fees attached, we do not expect this.
+var ErrReceiveWithFees = errors.New("on chain receive with fees present")
 
 // feeReference returns a special unique reference for the fee paid on a
 // transaction. We use the reference of the original entry with :-1 to denote
@@ -207,9 +211,16 @@ func onChainEntries(tx lndclient.Transaction, convert usdPrice) ([]*HarmonyEntry
 		entryType = EntryTypeReceipt
 	)
 
-	// If our amount is less than zero, we have made a payment.
+	// If our amount is less than zero, we have made a payment. The total
+	// amount for our sends is inclusive of fees, so we subtract our fee
+	// from the total amount.
 	if amtMsat < 0 {
 		entryType = EntryTypePayment
+		amtMsat -= feeAmt
+	} else if feeAmt != 0 {
+		// We do not expect receives that are not sweeps to have fees
+		// attached, so we fail if we have a receive with fees.
+		return nil, ErrReceiveWithFees
 	}
 
 	txEntry, err := newHarmonyEntry(

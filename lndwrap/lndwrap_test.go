@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/faraday/test"
@@ -20,15 +22,28 @@ const (
 )
 
 var (
+	hash0, _ = chainhash.NewHashFromStr("ec93b43fe648fadb20aa171172d02d69a46b5b59d6131ab6fe589cf0fe564027")
+	hash1, _ = chainhash.NewHashFromStr("18113e9c070bcec1a1efeac7b9d6728a6da31d16913c7660fac40823d20ced18")
+	hash2, _ = chainhash.NewHashFromStr("7636ceaa0c460f6654d5de4d85e2d723064a17c6617f7974bd7bb4308fd97257")
+
 	// Create some outpoints that we can use to test our input total
 	// calculation.
-	outpoint0      = &wire.OutPoint{Index: 0}
+	outpoint0 = &wire.OutPoint{
+		Hash:  *hash0,
+		Index: 0,
+	}
 	outpoint0Value = btcutil.Amount(39)
 
-	outpoint1      = &wire.OutPoint{Index: 1}
+	outpoint1 = &wire.OutPoint{
+		Hash:  *hash1,
+		Index: 1,
+	}
 	outpoint1Value = btcutil.Amount(33)
 
-	outpoint2      = &wire.OutPoint{Index: 2}
+	outpoint2 = &wire.OutPoint{
+		Hash:  *hash2,
+		Index: 2,
+	}
 	outpoint2Value = btcutil.Amount(94)
 
 	// Create a set of inputs that uses all three of our outpoints.
@@ -107,6 +122,8 @@ type testInputsCtx struct {
 	notificationMap   map[wire.OutPoint]notifications
 	notificationMutex sync.Mutex
 
+	cache *OutputCache
+
 	inputValue     btcutil.Amount
 	executionError error
 }
@@ -131,6 +148,7 @@ func newTestInputsCtx(t *testing.T) *testInputsCtx {
 		timeoutGetInputs: time.Second * 5,
 		done:             make(chan struct{}),
 		notificationMap:  make(map[wire.OutPoint]notifications),
+		cache:            NewOutputCache(),
 	}
 }
 
@@ -140,7 +158,7 @@ func (c *testInputsCtx) start(inputs []*wire.TxIn) {
 	// function in a goroutine with a done that closes once we've run it
 	// to make sure our test does not complete before this
 	go func() {
-		c.inputValue, c.executionError = getInputTotal(
+		c.inputValue, c.executionError = c.cache.getInputTotal(
 			context.Background(), c.register, c.timeoutGetInputs,
 			inputs,
 		)
@@ -289,4 +307,25 @@ func TestFailingGetInputs(t *testing.T) {
 
 	// Assert that get an error.
 	c.assertFinished(0, err)
+}
+
+// TestCachedOutput tests the case where we already have one of our outputs in
+// our cache.
+func TestCachedOutput(t *testing.T) {
+	defer test.Guard(t)()
+
+	c := newTestInputsCtx(t)
+	c.cache.transactions[outpoint2.Hash] = outpoint2Spend.SpendingTx.TxOut
+
+	c.start(allInputs)
+
+	// Send spend notifications for our two un-cached outpoints. We do not
+	// send for our third outpoint because it is cached, and should have
+	// registered a spend notification.
+	c.notifySpend(outpoint0Spend)
+	c.notifySpend(outpoint1Spend)
+
+	// Assert that we finish with the correct values without the need for
+	// a final notification.
+	c.assertFinished(outpoint0Value+outpoint1Value+outpoint2Value, nil)
 }

@@ -4,6 +4,8 @@ package faraday
 import (
 	"fmt"
 
+	"github.com/lightninglabs/faraday/lndwrap"
+
 	"github.com/lightninglabs/faraday/chain"
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/lndclient"
@@ -41,6 +43,7 @@ func Main() error {
 		RPCListen:  config.RPCListen,
 		RESTListen: config.RESTListen,
 		CORSOrigin: config.CORSOrigin,
+		Cache:      lndwrap.NewOutputCache(),
 	}
 
 	// If the client chose to connect to a bitcoin client, get one now.

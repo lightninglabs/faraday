@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/faraday/paginater"
@@ -162,12 +163,50 @@ type registerSpendNtfnFunc func(ctx context.Context,
 	outpoint *wire.OutPoint, pkScript []byte, heightHint int32) (
 	chan *chainntnfs.SpendDetail, chan error, error)
 
+// OutputCache caches previously looked up transactions and their output set so that
+// we can minimize the number of lookups we require. It is thread safe.
+type OutputCache struct {
+	transactions map[chainhash.Hash][]*wire.TxOut
+	txLock       sync.Mutex
+}
+
+// OutputCache creates an output cache.
+func NewOutputCache() *OutputCache {
+	return &OutputCache{
+		transactions: make(map[chainhash.Hash][]*wire.TxOut),
+	}
+}
+
+// Lookup performs thread-safe transaction lookup in our cache.
+func (t *OutputCache) Lookup(hash chainhash.Hash) ([]*wire.TxOut, bool) {
+	t.txLock.Lock()
+	defer t.txLock.Unlock()
+
+	outputs, ok := t.transactions[hash]
+	return outputs, ok
+}
+
+// Add performs a thread-safe addition of an entry to our cache. If a txid is
+// already in the cache, we return early.
+func (t *OutputCache) Add(hash chainhash.Hash, outputs []*wire.TxOut) {
+	t.txLock.Lock()
+	defer t.txLock.Unlock()
+
+	_, ok := t.transactions[hash]
+	if ok {
+		return
+	}
+
+	t.transactions[hash] = outputs
+}
+
 // GetTransactionFee returns a function which gets the fees paid for a
 // transaction by looking up each of its inputs using lnd's spend notification
 // api. This is a workaround that allows us to get our fees without connecting
 // to a bitcoin node (which would also require txindex).
 func GetTransactionFee(ctx context.Context, registerSpend registerSpendNtfnFunc,
-	timeout time.Duration) func(tx *wire.MsgTx) (btcutil.Amount, error) {
+	timeout time.Duration, cache *OutputCache) func(tx *wire.MsgTx) (
+	btcutil.Amount, error) {
 
 	return func(tx *wire.MsgTx) (btcutil.Amount, error) {
 		var fee btcutil.Amount
@@ -175,7 +214,7 @@ func GetTransactionFee(ctx context.Context, registerSpend registerSpendNtfnFunc,
 			fee -= btcutil.Amount(txout.Value)
 		}
 
-		inputTotal, err := getInputTotal(
+		inputTotal, err := cache.getInputTotal(
 			ctx, registerSpend, timeout, tx.TxIn,
 		)
 		if err != nil {
@@ -198,8 +237,9 @@ func GetTransactionFee(ctx context.Context, registerSpend registerSpendNtfnFunc,
 // in time. We dispatch our spend notification registration and consume their
 // results in goroutines so that we do not need to wait for each respective
 // registration to return.
-func getInputTotal(ctx context.Context, registerSpend registerSpendNtfnFunc,
-	timeout time.Duration, inputs []*wire.TxIn) (btcutil.Amount, error) {
+func (t *OutputCache) getInputTotal(ctx context.Context,
+	registerSpend registerSpendNtfnFunc, timeout time.Duration,
+	inputs []*wire.TxIn) (btcutil.Amount, error) {
 
 	var (
 		// Create channels that will consume values or errors for each
@@ -246,6 +286,16 @@ func getInputTotal(ctx context.Context, registerSpend registerSpendNtfnFunc,
 		go func() {
 			defer wg.Done()
 
+			// Before we register a spend notification for this
+			// outpoint, check whether we have cached it. If this
+			// is the case, we can just get its value from the
+			// cache and return early.
+			cache, ok := t.Lookup(targetOutpoint.Hash)
+			if ok {
+				sendValue(cache[targetOutpoint.Index].Value)
+				return
+			}
+
 			// If we have not already looked up this transaction's
 			// spend, we register a spend notification.
 			spendChan, spendErr, err := registerSpend(
@@ -262,6 +312,15 @@ func getInputTotal(ctx context.Context, registerSpend registerSpendNtfnFunc,
 			// its amount.
 			select {
 			case spend := <-spendChan:
+				// Add our spend and its outputs to our cache,
+				// so that future lookups for outpoints on this
+				// tx will not need to register a spend
+				// notification.
+				t.Add(
+					spend.SpendingTx.TxHash(),
+					spend.SpendingTx.TxOut,
+				)
+
 				output := spend.SpendingTx.TxOut[targetOutpoint.Index]
 				sendValue(output.Value)
 

@@ -18,6 +18,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/lightninglabs/faraday/lndwrap"
+
 	proxy "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/chain"
@@ -113,6 +115,10 @@ type Config struct {
 	// BitcoinClient is set if the client opted to connect to a bitcoin
 	// backend, if not, it will be nil.
 	BitcoinClient chain.BitcoinClient
+
+	// Cache contains cached transactions so that we can minimize our lnd
+	// lookups.
+	Cache *lndwrap.OutputCache
 }
 
 // NewRPCServer returns a server which will listen for rpc requests on the

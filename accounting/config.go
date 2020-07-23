@@ -87,7 +87,7 @@ type CommonConfig struct {
 // to wait when we need to do transaction lookups to get fees for our sweeps.
 func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 	endTime time.Time, disableFiat bool, feeTimeout time.Duration,
-	granularity fiat.Granularity) *OnChainConfig {
+	cache *lndwrap.OutputCache, granularity fiat.Granularity) *OnChainConfig {
 
 	return &OnChainConfig{
 		OpenChannels: lndwrap.ListChannels(
@@ -110,6 +110,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 		},
 		GetFee: lndwrap.GetTransactionFee(
 			ctx, lnd.ChainNotifier.RegisterSpendNtfn, feeTimeout,
+			cache,
 		),
 	}
 }

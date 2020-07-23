@@ -45,7 +45,7 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 
 	onChain := accounting.NewOnChainConfig(
 		ctx, cfg.Lnd, start, end, req.DisableFiat, time.Second*5,
-		granularity,
+		cfg.Cache, granularity,
 	)
 
 	return onChain, offChain, nil

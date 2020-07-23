@@ -161,29 +161,55 @@ func closedChannelEntries(channel lndclient.ClosedChannel,
 	return []*HarmonyEntry{closeEntry}, nil
 }
 
-// onChainEntries produces relevant entries for an on chain transaction.
-func onChainEntries(tx lndclient.Transaction, isSweep bool,
+// sweepEntry creates the entries required for a sweep transaction.
+func sweepEntry(tx lndclient.Transaction,
 	convert usdPrice) ([]*HarmonyEntry, error) {
 
+	amtMsat := satsToMsat(tx.Amount)
+
+	sweepEntry, err := newHarmonyEntry(
+		tx.Timestamp, amtMsat, EntryTypeSweep, tx.TxHash, tx.TxHash,
+		tx.Label, true, convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// If our fee is zero, we do not create an entry for it.
+	if tx.Fee == 0 {
+		return []*HarmonyEntry{sweepEntry}, nil
+	}
+
+	feeAmt := invertedSatsToMsats(tx.Fee)
+
+	feeEntry, err := newHarmonyEntry(
+		tx.Timestamp, feeAmt, EntryTypeSweepFee, tx.TxHash,
+		feeReference(tx.TxHash), "", true, convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return []*HarmonyEntry{sweepEntry, feeEntry}, nil
+}
+
+// onChainEntries produces relevant entries for an on chain transaction.
+func onChainEntries(tx lndclient.Transaction, convert usdPrice) ([]*HarmonyEntry,
+	error) {
+
 	var (
+		// Convert out amount and fee to msat, flipping the sign on
+		// our fee, because it is presented as a positive value. Our
+		// amount is already provided as positive/negative so does
+		// not need to be changes.
 		amtMsat   = satsToMsat(tx.Amount)
-		entryType EntryType
-		feeType   = EntryTypeFee
+		feeAmt    = invertedSatsToMsats(tx.Fee)
+		entryType = EntryTypeReceipt
 	)
 
-	// Determine the type of entry we are creating. If this is a sweep, we
-	// set our fee as well, otherwise we set type based on the amount of the
-	// transaction.
-	switch {
-	case isSweep:
-		entryType = EntryTypeSweep
-		feeType = EntryTypeSweepFee
-
-	case amtMsat < 0:
+	// If our amount is less than zero, we have made a payment.
+	if amtMsat < 0 {
 		entryType = EntryTypePayment
-
-	case amtMsat >= 0:
-		entryType = EntryTypeReceipt
 	}
 
 	txEntry, err := newHarmonyEntry(
@@ -199,13 +225,8 @@ func onChainEntries(tx lndclient.Transaction, isSweep bool,
 		return []*HarmonyEntry{txEntry}, nil
 	}
 
-	// Total fees are expressed as a positive value in sats, we convert to
-	// msat here and make the value negative so that it reflects as a
-	// debit.
-	feeAmt := invertedSatsToMsats(tx.Fee)
-
 	feeEntry, err := newHarmonyEntry(
-		tx.Timestamp, feeAmt, feeType, tx.TxHash,
+		tx.Timestamp, feeAmt, EntryTypeFee, tx.TxHash,
 		feeReference(tx.TxHash), "", true, convert,
 	)
 	if err != nil {

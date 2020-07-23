@@ -168,13 +168,23 @@ func onChainReport(txns []lndclient.Transaction, priceFunc usdPrice,
 			continue
 		}
 
-		// Finally, if the transaction is unrelated to channel opens or
-		// closes, we create a generic on chain entry for it. We check
-		// our list of known sweeps for this tx so that we can separate
-		// it our from regular chain sends.
+		// If our transaction is listed as a sweep, we create a special
+		// sweep entry type for it. This allows us to differentiate
+		// the operational cost of sweeps from other transactions.
 		isSweep := sweeps[txn.TxHash]
+		if isSweep {
+			entries, err := sweepEntry(txn, priceFunc)
+			if err != nil {
+				return nil, err
+			}
 
-		entries, err := onChainEntries(txn, isSweep, priceFunc)
+			report = append(report, entries...)
+			continue
+		}
+
+		// Finally, if the transaction is unrelated to channel opens,
+		// closes or sweeps, we create a generic entry for it.
+		entries, err := onChainEntries(txn, priceFunc)
 		if err != nil {
 			return nil, err
 		}

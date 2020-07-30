@@ -8,11 +8,17 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/channeldb"
+	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
+	"github.com/lightningnetwork/lnd/lntypes"
+	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/stretchr/testify/require"
 )
@@ -31,6 +37,10 @@ var (
 		"--macaroondir=lnd-alice/data/chain/bitcoin/regtest",
 		"--tlscertpath=lnd-alice/tls.cert",
 		"--debuglevel=debug",
+		"--connect_bitcoin",
+		"--bitcoin.user=devuser",
+		"--bitcoin.password=devpass",
+		"--bitcoin.host=localhost:18443",
 	}
 )
 
@@ -215,6 +225,196 @@ func (c *testContext) eventuallyf(condition func() bool, msg string,
 	require.Eventuallyf(
 		c.t, condition, waitDuration, waitTick, msg, args,
 	)
+}
+
+func (c *testContext) addInvoice(client lndclient.LightningClient,
+	amt lnwire.MilliSatoshi) (lntypes.Hash, string) {
+
+	// Add an invoice to the receiving client.
+	hash, payreq, err := client.AddInvoice(
+		context.Background(), &invoicesrpc.AddInvoiceData{
+			Value: amt,
+		},
+	)
+	require.NoError(c.t, err, "could not add invoice")
+
+	return hash, payreq
+}
+
+// makePayment takes a source and destination node and makes a payment of the
+// amount provided from the source to the destination node. Liquidity should be
+// sufficiently balanced to make the payment. The function returns the payment
+// preimage used and the total fees paid by the sender.
+func (c *testContext) makePayment(src, dest lndclient.LndServices,
+	payreq lndclient.SendPaymentRequest,
+	targetState lnrpc.Payment_PaymentStatus) lntypes.Preimage {
+
+	paymentChan, errChan, err := src.Router.SendPayment(
+		context.Background(), payreq,
+	)
+	require.NoError(c.t, err, "could not send payment")
+
+	// Wait for the payment to report as a success on the payer's side.
+	var preimage lntypes.Preimage
+
+	c.eventuallyf(func() bool {
+		select {
+		case status := <-paymentChan:
+			preimage = status.Preimage
+			return status.State == targetState
+
+		case <-errChan:
+			require.NoError(c.t, err, "error sending payment")
+			return false
+		}
+	}, "payment did not reach: %v", targetState)
+
+	// Wait for the recipient to settle the invoice if our target state was
+	// to settle the payment.
+	if targetState == lnrpc.Payment_SUCCEEDED {
+		c.eventuallyf(func() bool {
+			inv, err := dest.Client.LookupInvoice(
+				context.Background(), *payreq.PaymentHash,
+			)
+			if err != nil {
+				return false
+			}
+
+			return inv.State == channeldb.ContractSettled
+		}, "payment not received")
+	}
+
+	return preimage
+}
+
+// closeChannel closes a channel, mines blocks until the channel is completely
+// resolved and returns the closed txid.
+func (c *testContext) closeChannel(client lndclient.LightningClient,
+	channel *wire.OutPoint, force bool) (chainhash.Hash, btcutil.Amount) {
+
+	closeChan, errChan, err := client.CloseChannel(
+		context.Background(), channel, force,
+	)
+	require.NoError(c.t, err, "could not close channel")
+
+	var (
+		closeTx  chainhash.Hash
+		closeFee btcutil.Amount
+	)
+
+	// Wait for us to get an update from our channel indicating that it is
+	// pending close.
+	c.eventuallyf(func() bool {
+		select {
+		case update := <-closeChan:
+			closeTx = update.CloseTxid()
+
+			switch update.(type) {
+			case *lndclient.PendingCloseUpdate:
+				// Get our close tx from the mempool to get its fee
+				// and add an expected entry because we opened the
+				// channel so we pay the fees.
+				close, err := c.bitcoindClient.GetMempoolEntry(
+					closeTx.String(),
+				)
+				require.NoError(c.t, err, "could not get mempool")
+
+				closeFee, err = btcutil.NewAmount(close.Fee)
+				require.NoError(c.t, err, "could not get fee")
+
+			case *lndclient.ChannelClosedUpdate:
+				return true
+			}
+
+		case <-errChan:
+			c.t.Fatalf("error closing channel: %v, %v", channel,
+				err)
+
+		// If we have not received an update yet, mine a block.
+		default:
+			c.mine()
+		}
+
+		return false
+	}, "channel did not enter pending close state")
+
+	// Now, we want to wait to for our channel to resolve. This can take
+	// much longer than getting a pending close, because our force closed
+	// channels need to wait for their outputs to unlock. We use a custom
+	// timeout in this case.
+	waitForClose := func() bool {
+		channels, err := client.ClosedChannels(context.Background())
+		require.NoError(c.t, err, "could not get closed channels")
+
+		for _, channel := range channels {
+			if channel.ClosingTxHash == closeTx.String() {
+				return true
+			}
+		}
+
+		// If we did not find our channel, mine another block then
+		// return.
+		c.mine()
+		return false
+	}
+	require.Eventuallyf(
+		c.t, waitForClose, time.Minute*2, waitTick,
+		"could not resolve force closed channel: %v", channel,
+	)
+
+	return closeTx, closeFee
+}
+
+// waitForWalletsSynced waits for both nodes to report their wallets as synced
+// to the graph.
+func (c *testContext) waitForWalletsSynced() {
+	c.eventuallyf(func() bool {
+		info, err := c.aliceClient.Client.GetInfo(context.Background())
+		if err != nil {
+			return false
+		}
+
+		if !info.SyncedToGraph {
+			return false
+		}
+
+		info, err = c.bobClient.Client.GetInfo(context.Background())
+		if err != nil {
+			return false
+		}
+
+		return info.SyncedToGraph
+	}, "wallets never synced to chain")
+}
+
+// openChannel opens a channel and waits for both sides to see it.
+func (c *testContext) openChannel(src lndclient.LightningClient,
+	destKey route.Vertex, amount btcutil.Amount) (*wire.OutPoint,
+	btcutil.Amount) {
+
+	// Wait for both of our nodes to report that their wallets are synced
+	// so that we can open a channel between them.
+	c.waitForWalletsSynced()
+
+	channel, err := src.OpenChannel(
+		context.Background(), destKey, amount, 0,
+	)
+	require.NoError(c.t, err, "could not open channel")
+
+	// Once we have initiated opening node's channel, we get it from the
+	// mempool so that we can get our tx fee.
+	c.waitForMempoolTxCount(1, "channel not in mempool")
+
+	tx, err := c.bitcoindClient.GetMempoolEntry(channel.Hash.String())
+	require.NoError(c.t, err, "could not get mempool")
+
+	fee, err := btcutil.NewAmount(tx.Fee)
+	require.NoError(c.t, err, "channel fee failed")
+
+	// Wait for both nodes to see the channel.
+	c.waitForChannelOpen(channel)
+
+	return channel, fee
 }
 
 // waitForChannelOpen waits for a channel between alice and bob to become

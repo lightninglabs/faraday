@@ -8,7 +8,7 @@ function waitnoerror() {
 
 function start_bitcoind() {
         echo "Starting bitcoind"
-        bitcoind -regtest -txindex -rpcuser=devuser -rpcpassword=devpass \
+        bitcoind -regtest -txindex=1 -rpcuser=devuser -rpcpassword=devpass \
         -zmqpubrawblock=tcp://0.0.0.0:29332 -zmqpubrawtx=tcp://0.0.0.0:29333 &
 
         BTCD_PID=$!

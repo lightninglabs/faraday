@@ -77,6 +77,10 @@ scratch: build
 
 check: unit
 
+itest:
+	@$(call print, "Running integration tests.")
+	./run_itest.sh
+
 unit:
 	@$(call print, "Running unit tests.")
 	$(UNIT)
@@ -151,3 +155,7 @@ clean:
 	$(RM) ./faraday
 	$(RM) ./frcli
 	$(RM) coverage.txt
+
+# Instruct make to not interpret these as file/folder related targets, otherwise
+# it will behave weirdly if a file or folder exists with that name.
+.PHONY: itest

@@ -1,3 +1,9 @@
 /faraday
 /frcli
 node_report.csv
+
+*.exe
+
+itest/itest.test
+itest/*.log
+itest/faraday

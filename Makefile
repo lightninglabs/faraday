@@ -23,7 +23,7 @@ GOTEST := GO111MODULE=on go test -v
 GOMOD := GO111MODULE=on go mod
 
 GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
-GOLIST := go list -deps $(PKG)/... | grep '$(PKG)'| grep -v '/vendor/'
+GOLIST := go list -deps $(PKG)/... | grep '$(PKG)'| grep -v '/vendor/' | grep -v '/itest'
 GOLISTCOVER := $(shell go list -deps -f '{{.ImportPath}}' ./... | grep '$(PKG)' | sed -e 's/^$(ESCPKG)/./')
 
 RM := rm -f

@@ -247,6 +247,9 @@ func (s *RPCServer) OutlierRecommendations(ctx context.Context,
 	req *OutlierRecommendationsRequest) (*CloseRecommendationsResponse,
 	error) {
 
+	log.Debugf("[OutlierRecommendations]: metric: %v, multiplier: %v",
+		req.RecRequest.Metric, req.OutlierMultiplier)
+
 	cfg, multiplier := parseOutlierRequest(ctx, s.cfg, req)
 
 	report, err := recommend.OutlierRecommendations(cfg, multiplier)
@@ -264,6 +267,9 @@ func (s *RPCServer) ThresholdRecommendations(ctx context.Context,
 	req *ThresholdRecommendationsRequest) (*CloseRecommendationsResponse,
 	error) {
 
+	log.Debugf("[ThresholdRecommendations]: metric: %v, threshold: %v",
+		req.RecRequest.Metric, req.ThresholdValue)
+
 	cfg, threshold := parseThresholdRequest(ctx, s.cfg, req)
 
 	report, err := recommend.ThresholdRecommendations(cfg, threshold)
@@ -279,6 +285,9 @@ func (s *RPCServer) ThresholdRecommendations(ctx context.Context,
 func (s *RPCServer) RevenueReport(ctx context.Context,
 	req *RevenueReportRequest) (*RevenueReportResponse, error) {
 
+	log.Debugf("[RevenueReport]: range: %v-%v, channels: %v", req.StartTime,
+		req.EndTime, req.ChanPoints)
+
 	revenueConfig := parseRevenueRequest(ctx, s.cfg, req)
 
 	report, err := revenue.GetRevenueReport(revenueConfig)
@@ -292,7 +301,9 @@ func (s *RPCServer) RevenueReport(ctx context.Context,
 // ChannelInsights returns the channel insights for our currently open set
 // of channels.
 func (s *RPCServer) ChannelInsights(ctx context.Context,
-	req *ChannelInsightsRequest) (*ChannelInsightsResponse, error) {
+	_ *ChannelInsightsRequest) (*ChannelInsightsResponse, error) {
+
+	log.Debugf("[ChannelInsights]")
 
 	insights, err := channelInsights(ctx, s.cfg)
 	if err != nil {
@@ -306,6 +317,8 @@ func (s *RPCServer) ChannelInsights(ctx context.Context,
 // prices.
 func (s *RPCServer) ExchangeRate(ctx context.Context,
 	req *ExchangeRateRequest) (*ExchangeRateResponse, error) {
+
+	log.Debugf("[FiatEstimate]: %v requests", len(req.Timestamps))
 
 	timestamps, granularity, err := parseExchangeRateRequest(req)
 	if err != nil {
@@ -323,6 +336,9 @@ func (s *RPCServer) ExchangeRate(ctx context.Context,
 // NodeReport returns an on chain report for the period requested.
 func (s *RPCServer) NodeReport(ctx context.Context,
 	req *NodeReportRequest) (*NodeReportResponse, error) {
+
+	log.Debugf("[NodeReport]: range: %v-%v, fiat: %v", req.StartTime,
+		req.EndTime, req.DisableFiat)
 
 	if err := s.requireNode(); err != nil {
 		return nil, err
@@ -350,6 +366,8 @@ func (s *RPCServer) NodeReport(ctx context.Context,
 // endpoint requires connection to an external bitcoind node.
 func (s *RPCServer) CloseReport(ctx context.Context,
 	req *CloseReportRequest) (*CloseReportResponse, error) {
+
+	log.Debugf("[CloseReport]: %v", req.ChannelPoint)
 
 	if err := s.requireNode(); err != nil {
 		return nil, err

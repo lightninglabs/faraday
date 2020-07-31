@@ -3,6 +3,7 @@ package accounting
 import (
 	"testing"
 
+	"github.com/btcsuite/btcd/wire"
 	"github.com/lightninglabs/lndclient"
 	"github.com/stretchr/testify/require"
 )
@@ -60,12 +61,35 @@ func TestOnChainReport(t *testing.T) {
 			},
 		},
 		{
-			name: "closed channel",
+			name: "closed channel that we opened",
 			tx: lndclient.Transaction{
 				TxHash: hash.String(),
+				Tx:     &wire.MsgTx{},
 			},
 			closedChannels: map[string]closedChannelInfo{
-				hash.String(): {},
+				hash.String(): {
+					channelInfo: channelInfo{
+						initiator: lndclient.InitiatorLocal,
+					},
+				},
+			},
+			expectedEntries: map[EntryType]bool{
+				EntryTypeChannelClose:    true,
+				EntryTypeChannelCloseFee: true,
+			},
+		},
+		{
+			name: "closed channel that remote opened",
+			tx: lndclient.Transaction{
+				TxHash: hash.String(),
+				Tx:     &wire.MsgTx{},
+			},
+			closedChannels: map[string]closedChannelInfo{
+				hash.String(): {
+					channelInfo: channelInfo{
+						initiator: lndclient.InitiatorRemote,
+					},
+				},
 			},
 			expectedEntries: map[EntryType]bool{
 				EntryTypeChannelClose: true,
@@ -82,6 +106,7 @@ func TestOnChainReport(t *testing.T) {
 			info := &onChainInformation{
 				txns:           []lndclient.Transaction{test.tx},
 				priceFunc:      mockPrice,
+				feeFunc:        mockFeeFunc,
 				sweeps:         test.sweeps,
 				openedChannels: test.openedChannels,
 				closedChannels: test.closedChannels,

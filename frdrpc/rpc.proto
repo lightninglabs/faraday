@@ -451,6 +451,9 @@ enum EntryType {
 
     // The amount of fees paid for a sweep transaction.
     SWEEP_FEE = 14;
+
+    // The fees paid to close a channel.
+    CHANNEL_CLOSE_FEE = 15;
 }
 
 message ReportEntry {

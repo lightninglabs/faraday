@@ -528,10 +528,11 @@
         "CIRCULAR_PAYMENT",
         "CIRCULAR_FEE",
         "SWEEP",
-        "SWEEP_FEE"
+        "SWEEP_FEE",
+        "CHANNEL_CLOSE_FEE"
       ],
       "default": "UNKNOWN",
-      "description": " - LOCAL_CHANNEL_OPEN: A channel opening transaction for a channel opened by our node.\n - REMOTE_CHANNEL_OPEN: A channel opening transaction for a channel opened by a remote node.\n - CHANNEL_OPEN_FEE: The on chain fee paid to open a channel.\n - CHANNEL_CLOSE: A channel closing transaction.\n - RECEIPT: Receipt of funds. On chain this reflects receives, off chain settlement\nof invoices.\n - PAYMENT: Payment of funds. On chain this reflects sends, off chain settlement\nof our payments.\n - FEE: Payment of fees.\n - CIRCULAR_RECEIPT: Receipt of a payment to ourselves.\n - FORWARD: A forward through our node.\n - FORWARD_FEE: Fees earned from forwarding.\n - CIRCULAR_PAYMENT: Sending of a payment to ourselves.\n - CIRCULAR_FEE: The fees paid to send an off chain payment to ourselves.\n - SWEEP: A transaction that sweeps funds back into our wallet's control.\n - SWEEP_FEE: The amount of fees paid for a sweep transaction."
+      "description": " - LOCAL_CHANNEL_OPEN: A channel opening transaction for a channel opened by our node.\n - REMOTE_CHANNEL_OPEN: A channel opening transaction for a channel opened by a remote node.\n - CHANNEL_OPEN_FEE: The on chain fee paid to open a channel.\n - CHANNEL_CLOSE: A channel closing transaction.\n - RECEIPT: Receipt of funds. On chain this reflects receives, off chain settlement\nof invoices.\n - PAYMENT: Payment of funds. On chain this reflects sends, off chain settlement\nof our payments.\n - FEE: Payment of fees.\n - CIRCULAR_RECEIPT: Receipt of a payment to ourselves.\n - FORWARD: A forward through our node.\n - FORWARD_FEE: Fees earned from forwarding.\n - CIRCULAR_PAYMENT: Sending of a payment to ourselves.\n - CIRCULAR_FEE: The fees paid to send an off chain payment to ourselves.\n - SWEEP: A transaction that sweeps funds back into our wallet's control.\n - SWEEP_FEE: The amount of fees paid for a sweep transaction.\n - CHANNEL_CLOSE_FEE: The fees paid to close a channel."
     },
     "frdrpcExchangeRate": {
       "type": "object",

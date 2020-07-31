@@ -104,8 +104,8 @@ func channelCloseNote(channelID lnwire.ShortChannelID, closeType,
 // in the close transaction. It *does not* include any on chain resolutions, so
 // it is excluding htlcs that are resolved on chain, and will not reflect our
 // balance when we force close (because it is behind a timelock).
-func closedChannelEntries(channel closedChannelInfo,
-	tx lndclient.Transaction, convert usdPrice) ([]*HarmonyEntry, error) {
+func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
+	getFee getFeeFunc, convert usdPrice) ([]*HarmonyEntry, error) {
 
 	amtMsat := satsToMsat(tx.Amount)
 	note := channelCloseNote(
@@ -120,9 +120,45 @@ func closedChannelEntries(channel closedChannelInfo,
 		return nil, err
 	}
 
-	// TODO(carla): add channel close fee entry.
+	switch channel.initiator {
+	// If the remote party opened the channel, we can just return the
+	// channel close as is, because we did not pay fees for it.
+	case lndclient.InitiatorRemote:
+		return []*HarmonyEntry{closeEntry}, nil
 
-	return []*HarmonyEntry{closeEntry}, nil
+	// If we originally opened the channel, we continue to create a fee
+	// entry.
+	case lndclient.InitiatorLocal:
+
+	// If we do not know who opened the channel, we log a warning and
+	// return. This is only expected to happen for channels closed by
+	// lnd<0.9.
+	default:
+		log.Warnf("channel: %v initiator unknown, fee entry may be "+
+			"missing", channel.channelPoint)
+
+		return []*HarmonyEntry{closeEntry}, nil
+	}
+
+	fees, err := getFee(tx.Tx.TxHash())
+	if err != nil {
+		return nil, err
+	}
+
+	// Our fees are provided as a positive amount in sats. Convert this to
+	// a negative msat value.
+	feeAmt := invertedSatsToMsats(fees)
+
+	feeEntry, err := newHarmonyEntry(
+		tx.Timestamp, feeAmt, EntryTypeChannelCloseFee,
+		tx.TxHash, feeReference(tx.TxHash), "",
+		true, convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return []*HarmonyEntry{closeEntry, feeEntry}, nil
 }
 
 // onChainEntries produces relevant entries for an on chain transaction.

@@ -67,6 +67,7 @@ var (
 		// Total fees for closes will always reflect as 0 because they
 		// come from the 2-2 multisig funding output.
 		Fee: 0,
+		Tx:  &wire.MsgTx{},
 	}
 
 	onChainTxID      = "e75760156b04234535e6170f152697de28b73917c69dda53c60baabdae571457"
@@ -164,11 +165,19 @@ var (
 		Timestamp: mockPriceTimestamp,
 		Price:     decimal.NewFromInt(100000),
 	}
+
+	mockFee     = btcutil.Amount(44)
+	mockFeeMSat = lnwire.MilliSatoshi(mockFee * 1000)
 )
 
 // mockPrice is a mocked price function which returns mockPrice * amount.
 func mockPrice(_ time.Time) (*fiat.USDPrice, error) {
 	return mockBTCPrice, nil
+}
+
+// mockFeeFunc is a mocked fee function.
+func mockFeeFunc(chainhash.Hash) (btcutil.Amount, error) {
+	return mockFee, nil
 }
 
 // TestChannelOpenEntry tests creation of entries for locally and remotely
@@ -288,14 +297,15 @@ func TestChannelCloseEntry(t *testing.T) {
 	// getCloseEntry returns a close entry for the global close var with
 	// correct close type and amount.
 	getCloseEntry := func(closeType, closeInitiator string,
-		closeBalance btcutil.Amount) *HarmonyEntry {
+		closeBalance btcutil.Amount,
+		chanInitiator lndclient.Initiator) []*HarmonyEntry {
 
 		note := channelCloseNote(channelID, closeType, closeInitiator)
 
 		closeAmt := satsToMsat(closeBalance)
 		amtMsat := lnwire.MilliSatoshi(closeAmt)
 
-		return &HarmonyEntry{
+		chanEntry := &HarmonyEntry{
 			Timestamp: closeTimestamp,
 			Amount:    amtMsat,
 			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
@@ -307,22 +317,56 @@ func TestChannelCloseEntry(t *testing.T) {
 			Credit:    true,
 			BTCPrice:  mockBTCPrice,
 		}
+
+		if chanInitiator != lndclient.InitiatorLocal {
+			return []*HarmonyEntry{chanEntry}
+		}
+
+		feeEntry := &HarmonyEntry{
+			Timestamp: closeTimestamp,
+			Amount:    mockFeeMSat,
+			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, mockFeeMSat),
+			TxID:      closeTx,
+			Reference: feeReference(closeTx),
+			Note:      "",
+			Type:      EntryTypeChannelCloseFee,
+			OnChain:   true,
+			Credit:    false,
+			BTCPrice:  mockBTCPrice,
+		}
+
+		return []*HarmonyEntry{chanEntry, feeEntry}
 	}
 
 	tests := []struct {
 		name      string
 		closeAmt  btcutil.Amount
 		closeType lndclient.CloseType
+		initiator lndclient.Initiator
 	}{
 		{
 			name:      "coop close, has balance",
 			closeType: lndclient.CloseTypeCooperative,
 			closeAmt:  closeBalanceSat,
+			initiator: lndclient.InitiatorRemote,
 		},
 		{
 			name:      "force close, has no balance",
 			closeType: lndclient.CloseTypeLocalForce,
 			closeAmt:  0,
+			initiator: lndclient.InitiatorRemote,
+		},
+		{
+			name:      "coop close, we opened",
+			closeType: lndclient.CloseTypeCooperative,
+			closeAmt:  closeBalanceSat,
+			initiator: lndclient.InitiatorLocal,
+		},
+		{
+			name:      "coop close, they opened",
+			closeType: lndclient.CloseTypeCooperative,
+			closeAmt:  closeBalanceSat,
+			initiator: lndclient.InitiatorRemote,
 		},
 	}
 
@@ -333,21 +377,21 @@ func TestChannelCloseEntry(t *testing.T) {
 			// Make copies of the global vars so we can change some
 			// fields.
 			closeChan := channelClose
-			closeTx := channelCloseTx
-
+			closeChan.initiator = test.initiator
 			closeChan.closeType = test.closeType.String()
+
+			closeTx := channelCloseTx
 			closeTx.Amount = test.closeAmt
 
 			entries, err := closedChannelEntries(
-				closeChan, closeTx, mockPrice,
+				closeChan, closeTx, mockFeeFunc, mockPrice,
 			)
 			require.NoError(t, err)
 
-			expected := []*HarmonyEntry{getCloseEntry(
-				test.closeType.String(),
-				closeChan.closeInitiator,
-				test.closeAmt,
-			)}
+			expected := getCloseEntry(
+				closeChan.closeType, closeChan.closeInitiator,
+				test.closeAmt, test.initiator,
+			)
 
 			require.Equal(t, expected, entries)
 		})

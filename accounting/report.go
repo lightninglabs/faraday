@@ -159,4 +159,8 @@ const (
 	// EntryTypeSweepFee represents the fees that were paid to sweep funds
 	// back to our own wallet.
 	EntryTypeSweepFee
+
+	// EntryTypeChannelCloseFee represents fees our node paid to close a
+	// channel.
+	EntryTypeChannelCloseFee
 )

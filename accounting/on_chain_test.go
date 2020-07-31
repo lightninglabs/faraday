@@ -24,12 +24,14 @@ func TestOnChainReport(t *testing.T) {
 			name: "sweep tx",
 			tx: lndclient.Transaction{
 				TxHash: hash.String(),
+				Tx:     &wire.MsgTx{},
 			},
 			sweeps: map[string]bool{
 				hash.String(): true,
 			},
 			expectedEntries: map[EntryType]bool{
-				EntryTypeSweep: true,
+				EntryTypeSweep:    true,
+				EntryTypeSweepFee: true,
 			},
 		},
 		{

@@ -115,9 +115,6 @@ A fee entry represents the on chain fees we paid for a sweep.
 - Reference: TransactionID:-1. 
 - Note: Not set for fees. 
 
-Known Omissions: 
-- If the wallet did not have knowledge that an input was owned by lnd (which is the case for more complex scripts, like htlcs), then it will not record fees that are siphoned off the input amount here because it does not know that we control those funds. 
-
 ## Off Chain Reports
 
 ### Receipt

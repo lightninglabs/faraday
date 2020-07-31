@@ -80,6 +80,7 @@ var (
 		Amount:    onChainAmtSat,
 		Timestamp: onChainTimestamp,
 		Fee:       onChainFeeSat,
+		Tx:        &wire.MsgTx{},
 	}
 
 	paymentRequest = "lnbcrt10n1p0t6nmypp547evsfyrakg0nmyw59ud9cegkt99yccn5nnp4suq3ac4qyzzgevsdqqcqzpgsp54hvffpajcyddm20k3ptu53930425hpnv8m06nh5jrd6qhq53anrq9qy9qsqphhzyenspf7kfwvm3wyu04fa8cjkmvndyexlnrmh52huwa4tntppjmak703gfln76rvswmsx2cz3utsypzfx40dltesy8nj64ttgemgqtwfnj9"
@@ -398,10 +399,73 @@ func TestChannelCloseEntry(t *testing.T) {
 	}
 }
 
+// TestSweepEntry tests creation of sweep entries that calculate their fees
+// separately to the transaction that lnd provided.
+func TestSweepEntry(t *testing.T) {
+	amt := satsToMsat(onChainAmtSat)
+	amtMsat := lnwire.MilliSatoshi(amt)
+
+	entries := []*HarmonyEntry{
+		{
+			Timestamp: onChainTimestamp,
+			Amount:    amtMsat,
+			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
+			TxID:      onChainTxID,
+			Reference: onChainTxID,
+			Note:      "",
+			Type:      EntryTypeSweep,
+			OnChain:   true,
+			Credit:    true,
+			BTCPrice:  mockBTCPrice,
+		},
+		{
+			Timestamp: onChainTimestamp,
+			Amount:    mockFeeMSat,
+			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, mockFeeMSat),
+			TxID:      onChainTxID,
+			Reference: feeReference(onChainTxID),
+			Note:      "",
+			Type:      EntryTypeSweepFee,
+			OnChain:   true,
+			Credit:    false,
+			BTCPrice:  mockBTCPrice,
+		},
+	}
+
+	tests := []struct {
+		name    string
+		err     error
+		fee     btcutil.Amount
+		entries []*HarmonyEntry
+	}{
+		{
+			name:    "fee not set in tx",
+			fee:     0,
+			entries: entries,
+			err:     nil,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			sweep := onChainTx
+			sweep.Fee = test.fee
+
+			entries, err := sweepEntries(
+				sweep, mockFeeFunc, mockPrice,
+			)
+			require.Equal(t, test.err, err)
+			require.Equal(t, test.entries, entries)
+		})
+	}
+}
+
 // TestOnChainEntry tests creation of entries for receipts and payments, and the
 // generation of a fee entry where applicable.
 func TestOnChainEntry(t *testing.T) {
-	getOnChainEntry := func(amount btcutil.Amount, isSweep,
+	getOnChainEntry := func(amount btcutil.Amount,
 		hasFee bool, label string) []*HarmonyEntry {
 
 		var (
@@ -418,11 +482,6 @@ func TestOnChainEntry(t *testing.T) {
 
 		default:
 			return nil
-		}
-
-		if isSweep {
-			entryType = EntryTypeSweep
-			feeType = EntryTypeSweepFee
 		}
 
 		amt := satsToMsat(onChainAmtSat)
@@ -471,10 +530,6 @@ func TestOnChainEntry(t *testing.T) {
 		// receives and negative for payments.
 		amount btcutil.Amount
 
-		// isSweep returns true if the transaction should be identified
-		// as a sweep by lnd.
-		isSweep bool
-
 		// Whether the transaction has a fee attached.
 		hasFee bool
 
@@ -482,40 +537,29 @@ func TestOnChainEntry(t *testing.T) {
 		txLabel string
 	}{
 		{
-			name:    "receive with fee",
-			amount:  onChainAmtSat,
-			hasFee:  true,
-			isSweep: false,
+			name:   "receive with fee",
+			amount: onChainAmtSat,
+			hasFee: true,
 		},
 		{
-			name:    "receive without fee",
-			amount:  onChainAmtSat,
-			hasFee:  false,
-			isSweep: false,
+			name:   "receive without fee",
+			amount: onChainAmtSat,
+			hasFee: false,
 		},
 		{
-			name:    "payment without fee",
-			amount:  onChainAmtSat * -1,
-			hasFee:  false,
-			isSweep: false,
+			name:   "payment without fee",
+			amount: onChainAmtSat * -1,
+			hasFee: false,
 		},
 		{
-			name:    "payment with fee",
-			amount:  onChainAmtSat * -1,
-			hasFee:  true,
-			isSweep: false,
+			name:   "payment with fee",
+			amount: onChainAmtSat * -1,
+			hasFee: true,
 		},
 		{
-			name:    "sweep with fee",
-			amount:  onChainAmtSat,
-			hasFee:  true,
-			isSweep: true,
-		},
-		{
-			name:    "zero amount tx",
-			amount:  0,
-			hasFee:  false,
-			isSweep: false,
+			name:   "zero amount tx",
+			amount: 0,
+			hasFee: false,
 		},
 	}
 
@@ -538,16 +582,13 @@ func TestOnChainEntry(t *testing.T) {
 			// Set the label as per the test.
 			chainTx.Label = test.txLabel
 
-			entries, err := onChainEntries(
-				chainTx, test.isSweep, mockPrice,
-			)
+			entries, err := onChainEntries(chainTx, mockPrice)
 			require.NoError(t, err)
 
 			// Create the entries we expect based on the test
 			// params.
 			expected := getOnChainEntry(
-				test.amount, test.isSweep, test.hasFee,
-				test.txLabel,
+				test.amount, test.hasFee, test.txLabel,
 			)
 
 			require.Equal(t, expected, entries)

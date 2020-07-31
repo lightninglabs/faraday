@@ -161,8 +161,37 @@ func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
 	return []*HarmonyEntry{closeEntry, feeEntry}, nil
 }
 
+// sweepEntries creates a sweep entry and looks up its fee to create a fee
+// entry.
+func sweepEntries(tx lndclient.Transaction, getFees getFeeFunc,
+	convert usdPrice) ([]*HarmonyEntry, error) {
+
+	txEntry, err := newHarmonyEntry(
+		tx.Timestamp, satsToMsat(tx.Amount), EntryTypeSweep, tx.TxHash,
+		tx.TxHash, tx.Label, true, convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	fee, err := getFees(tx.Tx.TxHash())
+	if err != nil {
+		return nil, err
+	}
+
+	feeEntry, err := newHarmonyEntry(
+		tx.Timestamp, invertedSatsToMsats(fee), EntryTypeSweepFee,
+		tx.TxHash, feeReference(tx.TxHash), "", true, convert,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return []*HarmonyEntry{txEntry, feeEntry}, nil
+}
+
 // onChainEntries produces relevant entries for an on chain transaction.
-func onChainEntries(tx lndclient.Transaction, isSweep bool,
+func onChainEntries(tx lndclient.Transaction,
 	convert usdPrice) ([]*HarmonyEntry, error) {
 
 	var (
@@ -175,10 +204,6 @@ func onChainEntries(tx lndclient.Transaction, isSweep bool,
 	// set our fee as well, otherwise we set type based on the amount of the
 	// transaction.
 	switch {
-	case isSweep:
-		entryType = EntryTypeSweep
-		feeType = EntryTypeSweepFee
-
 	case amtMsat < 0:
 		entryType = EntryTypePayment
 

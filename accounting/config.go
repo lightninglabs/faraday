@@ -46,6 +46,9 @@ type OnChainConfig struct {
 	// ClosedChannels provides a list of all closed channels.
 	ClosedChannels func() ([]lndclient.ClosedChannel, error)
 
+	// PendingChannels provides a list of our pending channels.
+	PendingChannels func() (*lndclient.PendingChannels, error)
+
 	// OnChainTransactions provides a list of all on chain transactions
 	// relevant to our wallet over a block range.
 	OnChainTransactions func() ([]lndclient.Transaction, error)
@@ -86,6 +89,9 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 		),
 		ClosedChannels: func() ([]lndclient.ClosedChannel, error) {
 			return lnd.Client.ClosedChannels(ctx)
+		},
+		PendingChannels: func() (*lndclient.PendingChannels, error) {
+			return lnd.Client.PendingChannels(ctx)
 		},
 		OnChainTransactions: func() ([]lndclient.Transaction, error) {
 			return lnd.Client.ListTransactions(ctx, 0, 0)

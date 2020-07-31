@@ -34,38 +34,13 @@ func channelOpenNote(initiator bool, remotePubkey string,
 }
 
 // channelOpenFeeNote creates a note for channel open types.
-func channelOpenFeeNote(channelID uint64) string {
+func channelOpenFeeNote(channelID lnwire.ShortChannelID) string {
 	return fmt.Sprintf("fees to open channel: %v", channelID)
 }
 
-// channelOpenEntries produces the relevant set of entries for a currently open
-// channel.
-func channelOpenEntries(channel lndclient.ChannelInfo, tx lndclient.Transaction,
+// channelOpenEntries produces entries for channel opens and their fees.
+func channelOpenEntries(channel channelInfo, tx lndclient.Transaction,
 	convert usdPrice) ([]*HarmonyEntry, error) {
-
-	var (
-		amtMsat   = satsToMsat(tx.Amount)
-		entryType = EntryTypeLocalChannelOpen
-	)
-
-	if !channel.Initiator {
-		amtMsat = 0
-		entryType = EntryTypeRemoteChannelOpen
-	}
-
-	return openEntries(
-		tx, convert, amtMsat, channel.Capacity, entryType,
-		channel.PubKeyBytes.String(), channel.ChannelID,
-		channel.Initiator,
-	)
-}
-
-// openChannelFromCloseSummary returns entries for a channel that was opened
-// and closed within the period we are reporting on. Since the channel has
-// already been closed, we need to produce channel opening records from the
-// close summary.
-func openChannelFromCloseSummary(channel lndclient.ClosedChannel,
-	tx lndclient.Transaction, convert usdPrice) ([]*HarmonyEntry, error) {
 
 	// If the transaction has a negative amount, we can infer that this
 	// transaction was a local channel open, because a remote party opening
@@ -78,25 +53,14 @@ func openChannelFromCloseSummary(channel lndclient.ClosedChannel,
 		entryType = EntryTypeRemoteChannelOpen
 	}
 
-	return openEntries(
-		tx, convert, amtMsat, channel.Capacity, entryType,
-		channel.PubKeyBytes.String(), channel.ChannelID, initiator,
+	note := channelOpenNote(
+		initiator, channel.pubKeyBytes.String(),
+		channel.capacity,
 	)
-}
-
-// openEntries creates channel open entries from a set of rpc-indifferent
-// fields. This is required because we create channel open entries from already
-// open channels using lnrpc.Channel and from closed channels using
-// lnrpc.ChannelCloseSummary.
-func openEntries(tx lndclient.Transaction, convert usdPrice, amtMsat int64,
-	capacity btcutil.Amount, entryType EntryType, remote string,
-	channelID uint64, initiator bool) ([]*HarmonyEntry, error) {
-
-	ref := fmt.Sprintf("%v", channelID)
-	note := channelOpenNote(initiator, remote, capacity)
 
 	openEntry, err := newHarmonyEntry(
-		tx.Timestamp, amtMsat, entryType, tx.TxHash, ref, note,
+		tx.Timestamp, amtMsat, entryType, tx.TxHash,
+		channel.channelID.String(), note,
 		true, convert,
 	)
 	if err != nil {
@@ -115,7 +79,7 @@ func openEntries(tx lndclient.Transaction, convert usdPrice, amtMsat int64,
 	// records as a debit.
 	feeMsat := invertedSatsToMsats(tx.Fee)
 
-	note = channelOpenFeeNote(channelID)
+	note = channelOpenFeeNote(channel.channelID)
 	feeEntry, err := newHarmonyEntry(
 		tx.Timestamp, feeMsat, EntryTypeChannelOpenFee,
 		tx.TxHash, feeReference(tx.TxHash), note, true, convert,
@@ -128,7 +92,9 @@ func openEntries(tx lndclient.Transaction, convert usdPrice, amtMsat int64,
 }
 
 // channelCloseNote creates a close note for a channel close entry type.
-func channelCloseNote(channelID uint64, closeType, initiated string) string {
+func channelCloseNote(channelID lnwire.ShortChannelID, closeType,
+	initiated string) string {
+
 	return fmt.Sprintf("close channel: %v close type: %v closed by: %v",
 		channelID, closeType, initiated)
 }
@@ -138,19 +104,17 @@ func channelCloseNote(channelID uint64, closeType, initiated string) string {
 // in the close transaction. It *does not* include any on chain resolutions, so
 // it is excluding htlcs that are resolved on chain, and will not reflect our
 // balance when we force close (because it is behind a timelock).
-func closedChannelEntries(channel lndclient.ClosedChannel,
+func closedChannelEntries(channel closedChannelInfo,
 	tx lndclient.Transaction, convert usdPrice) ([]*HarmonyEntry, error) {
 
 	amtMsat := satsToMsat(tx.Amount)
 	note := channelCloseNote(
-		channel.ChannelID, channel.CloseType.String(),
-		channel.CloseInitiator.String(),
+		channel.channelID, channel.closeType, channel.closeInitiator,
 	)
 
 	closeEntry, err := newHarmonyEntry(
-		tx.Timestamp, amtMsat, EntryTypeChannelClose,
-		channel.ClosingTxHash, channel.ClosingTxHash, note, true,
-		convert,
+		tx.Timestamp, amtMsat, EntryTypeChannelClose, tx.TxHash,
+		tx.TxHash, note, true, convert,
 	)
 	if err != nil {
 		return nil, err

@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/lndclient"
@@ -17,19 +19,22 @@ import (
 )
 
 var (
-	openChannelTx              = "44183bc482d5b7be031739ce39b6c91562edd882ba5a9e3647341262328a2228"
-	remotePubkey               = "02f6a7664ca2a2178b422a058af651075de2e5bdfff028ac8e1fcd96153cba636b"
-	remoteVertex, _            = route.NewVertexFromStr(remotePubkey)
-	channelID           uint64 = 124244814004224
-	channelCapacitySats        = btcutil.Amount(500000)
-	channelFeesSats            = btcutil.Amount(10000)
+	openChannelTx       = "44183bc482d5b7be031739ce39b6c91562edd882ba5a9e3647341262328a2228"
+	openChanTx, _       = chainhash.NewHashFromStr(openChannelTx)
+	remotePubkey        = "02f6a7664ca2a2178b422a058af651075de2e5bdfff028ac8e1fcd96153cba636b"
+	remoteVertex, _     = route.NewVertexFromStr(remotePubkey)
+	channelID           = lnwire.NewShortChanIDFromInt(124244814004224)
+	channelCapacitySats = btcutil.Amount(500000)
+	channelFeesSats     = btcutil.Amount(10000)
 
-	openChannel = lndclient.ChannelInfo{
-		PubKeyBytes:  remoteVertex,
-		ChannelPoint: fmt.Sprintf("%v:%v", openChannelTx, 1),
-		ChannelID:    channelID,
-		Capacity:     channelCapacitySats,
-		Initiator:    false,
+	openChannel = channelInfo{
+		pubKeyBytes: remoteVertex,
+		channelPoint: &wire.OutPoint{
+			Hash:  *openChanTx,
+			Index: 1,
+		},
+		channelID: channelID,
+		capacity:  channelCapacitySats,
 	}
 
 	transactionTimestamp = time.Unix(1588145604, 0)
@@ -47,13 +52,10 @@ var (
 
 	closeBalanceSat = btcutil.Amount(50000)
 
-	channelClose = lndclient.ClosedChannel{
-		ChannelPoint:   openChannel.ChannelPoint,
-		ChannelID:      openChannel.ChannelID,
-		ClosingTxHash:  closeTx,
-		PubKeyBytes:    remoteVertex,
-		SettledBalance: closeBalanceSat,
-		CloseInitiator: lndclient.InitiatorLocal,
+	channelClose = closedChannelInfo{
+		channelInfo:    openChannel,
+		closeType:      lndclient.CloseTypeCooperative.String(),
+		closeInitiator: lndclient.InitiatorLocal.String(),
 	}
 
 	closeTimestamp = time.Unix(1588159722, 0)
@@ -227,8 +229,9 @@ func TestChannelOpenEntry(t *testing.T) {
 	tests := []struct {
 		name string
 
-		// initiator is used to set the initiator bool on the open
-		// channel struct we use.
+		// initiator indicates whether we initiated the channel. The
+		// amount on our on chain tx will be set to 0 if this bool is
+		// false, because this is how we identify remote opens.
 		initiator bool
 
 		expectedErr error
@@ -252,9 +255,12 @@ func TestChannelOpenEntry(t *testing.T) {
 			channel := openChannel
 			tx := openChannelTransaction
 
-			// Set the initiator field according to test
-			// requirement.
-			channel.Initiator = test.initiator
+			// If we did not initiate the channel, our tx amount
+			// should be 0 (because our wallet did not contribute
+			// funds).
+			if !test.initiator {
+				tx.Amount = 0
+			}
 
 			// Get our entries.
 			entries, err := channelOpenEntries(
@@ -305,8 +311,8 @@ func TestChannelCloseEntry(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		closeType lndclient.CloseType
 		closeAmt  btcutil.Amount
+		closeType lndclient.CloseType
 	}{
 		{
 			name:      "coop close, has balance",
@@ -329,7 +335,7 @@ func TestChannelCloseEntry(t *testing.T) {
 			closeChan := channelClose
 			closeTx := channelCloseTx
 
-			closeChan.CloseType = test.closeType
+			closeChan.closeType = test.closeType.String()
 			closeTx.Amount = test.closeAmt
 
 			entries, err := closedChannelEntries(
@@ -339,7 +345,7 @@ func TestChannelCloseEntry(t *testing.T) {
 
 			expected := []*HarmonyEntry{getCloseEntry(
 				test.closeType.String(),
-				closeChan.CloseInitiator.String(),
+				closeChan.closeInitiator,
 				test.closeAmt,
 			)}
 

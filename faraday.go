@@ -26,7 +26,7 @@ func Main() error {
 		MacaroonDir: config.MacaroonDir,
 		TLSPath:     config.TLSCertPath,
 		// Use the default lnd version check which checks for version
-		// 10.1 and requires all build tags.
+		// v0.11.0 and requires all build tags.
 		CheckVersion: nil,
 	})
 	if err != nil {

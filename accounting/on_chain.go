@@ -97,7 +97,11 @@ func getOnChainInfo(cfg *OnChainConfig, getPrice usdPrice) (*onChainInformation,
 	// Filter our on chain transactions by start and end time. If we have
 	// no confirmed on chain transactions over this period, we can return
 	// early.
-	info.txns = filterOnChain(cfg.StartTime, cfg.EndTime, onChainTxns)
+	info.txns, err = filterOnChain(cfg.StartTime, cfg.EndTime, onChainTxns)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(info.txns) == 0 {
 		return info, nil
 	}

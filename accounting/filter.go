@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"errors"
 	"time"
 
 	"github.com/lightninglabs/lndclient"
@@ -8,6 +9,10 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/routing/route"
 )
+
+// ErrReceiveWithFee is returned if we get an on chain receive with a fee, which
+// we do not expect.
+var ErrReceiveWithFee = errors.New("on chain receive with non-zero fee")
 
 // inRange returns a boolean that indicates whether a timestamp lies in a
 // range with an inclusive start time and exclusive end time.
@@ -31,7 +36,7 @@ func inRange(timestamp, startTime, endTime time.Time) bool {
 // which lie within [startTime, endTime). Unconfirmed transactions are also
 // excluded from this set.
 func filterOnChain(startTime, endTime time.Time,
-	txns []lndclient.Transaction) []lndclient.Transaction {
+	txns []lndclient.Transaction) ([]lndclient.Transaction, error) {
 
 	// nolint: prealloc
 	var filtered []lndclient.Transaction
@@ -47,10 +52,31 @@ func filterOnChain(startTime, endTime time.Time,
 			continue
 		}
 
+		// Account for double counting of our fees in transaction
+		// amounts. We do not skip over zero value transactions here
+		// because it is possible for us to have channel closes where
+		// we are paid out zero (in the case of our own force close),
+		// but we still need to account for fees.
+		switch {
+		// Fees are included in the total amount for sends from our
+		// wallet. Since our amount is expressed as a negative value,
+		// we just add our positive fee amount to prevent double
+		// counting.
+		case tx.Amount < 0:
+			tx.Amount += tx.Fee
+
+		// We do not expect to have fees for on chain receives, fail if
+		// we encounter them.
+		case tx.Amount > 0:
+			if tx.Fee != 0 {
+				return nil, ErrReceiveWithFee
+			}
+		}
+
 		filtered = append(filtered, tx)
 	}
 
-	return filtered
+	return filtered, nil
 }
 
 // filterInvoices filters out unsettled invoices and those that are outside of

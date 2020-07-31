@@ -182,8 +182,15 @@ func onChainEntries(tx lndclient.Transaction, isSweep bool,
 	case amtMsat < 0:
 		entryType = EntryTypePayment
 
-	case amtMsat >= 0:
+	case amtMsat > 0:
 		entryType = EntryTypeReceipt
+
+	// If we have a zero amount on chain transaction, we do not create an
+	// entry for it. This may happen when the remote party claims a htlc on
+	// our commitment. We do not want to report 0 value transactions that
+	// are not relevant to us, so we just exit early.
+	default:
+		return nil, nil
 	}
 
 	txEntry, err := newHarmonyEntry(

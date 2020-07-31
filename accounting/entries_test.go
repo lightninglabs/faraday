@@ -401,16 +401,23 @@ func TestChannelCloseEntry(t *testing.T) {
 // TestOnChainEntry tests creation of entries for receipts and payments, and the
 // generation of a fee entry where applicable.
 func TestOnChainEntry(t *testing.T) {
-	getOnChainEntry := func(isReceive, isSweep,
+	getOnChainEntry := func(amount btcutil.Amount, isSweep,
 		hasFee bool, label string) []*HarmonyEntry {
 
 		var (
-			entryType = EntryTypePayment
+			entryType EntryType
 			feeType   = EntryTypeFee
 		)
 
-		if isReceive {
+		switch {
+		case amount < 0:
+			entryType = EntryTypePayment
+
+		case amount > 0:
 			entryType = EntryTypeReceipt
+
+		default:
+			return nil
 		}
 
 		if isSweep {
@@ -429,7 +436,7 @@ func TestOnChainEntry(t *testing.T) {
 			Note:      label,
 			Type:      entryType,
 			OnChain:   true,
-			Credit:    isReceive,
+			Credit:    amount > 0,
 			BTCPrice:  mockBTCPrice,
 		}
 
@@ -460,8 +467,9 @@ func TestOnChainEntry(t *testing.T) {
 	tests := []struct {
 		name string
 
-		// Whether the transaction paid us, or was our payment.
-		isReceive bool
+		// The amount for our transaction. This should be positive for
+		// receives and negative for payments.
+		amount btcutil.Amount
 
 		// isSweep returns true if the transaction should be identified
 		// as a sweep by lnd.
@@ -474,34 +482,40 @@ func TestOnChainEntry(t *testing.T) {
 		txLabel string
 	}{
 		{
-			name:      "receive with fee",
-			isReceive: true,
-			hasFee:    true,
-			isSweep:   false,
+			name:    "receive with fee",
+			amount:  onChainAmtSat,
+			hasFee:  true,
+			isSweep: false,
 		},
 		{
-			name:      "receive without fee",
-			isReceive: true,
-			hasFee:    false,
-			isSweep:   false,
+			name:    "receive without fee",
+			amount:  onChainAmtSat,
+			hasFee:  false,
+			isSweep: false,
 		},
 		{
-			name:      "payment without fee",
-			isReceive: true,
-			hasFee:    false,
-			isSweep:   false,
+			name:    "payment without fee",
+			amount:  onChainAmtSat * -1,
+			hasFee:  false,
+			isSweep: false,
 		},
 		{
-			name:      "payment with fee",
-			isReceive: true,
-			hasFee:    true,
-			isSweep:   false,
+			name:    "payment with fee",
+			amount:  onChainAmtSat * -1,
+			hasFee:  true,
+			isSweep: false,
 		},
 		{
-			name:      "sweep with fee",
-			isReceive: true,
-			hasFee:    true,
-			isSweep:   true,
+			name:    "sweep with fee",
+			amount:  onChainAmtSat,
+			hasFee:  true,
+			isSweep: true,
+		},
+		{
+			name:    "zero amount tx",
+			amount:  0,
+			hasFee:  false,
+			isSweep: false,
 		},
 	}
 
@@ -509,14 +523,10 @@ func TestOnChainEntry(t *testing.T) {
 		test := test
 
 		t.Run(test.name, func(t *testing.T) {
-			// Make a copy so that we can change fields.
+			// Make a copy so that we can change fields and set our
+			// desired amount.
 			chainTx := onChainTx
-
-			// If we are testing a payment, the amount should be
-			// negative.
-			if !test.isReceive {
-				chainTx.Amount *= -1
-			}
+			chainTx.Amount = test.amount
 
 			// If we should not have a fee present, remove it,
 			// also add the fee entry to our expected set of
@@ -536,7 +546,7 @@ func TestOnChainEntry(t *testing.T) {
 			// Create the entries we expect based on the test
 			// params.
 			expected := getOnChainEntry(
-				test.isReceive, test.isSweep, test.hasFee,
+				test.amount, test.isSweep, test.hasFee,
 				test.txLabel,
 			)
 

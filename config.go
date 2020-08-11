@@ -2,6 +2,9 @@ package faraday
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/jessevdk/go-flags"
@@ -43,6 +46,8 @@ type Config struct {
 
 	// ChainConn specifies whether to attempt connecting to a bitcoin backend.
 	ChainConn bool `long:"connect_bitcoin" description:"Whether to attempt to connect to a backing bitcoin node. Some endpoints will not be available if this option is not enabled."`
+
+	ShowVersion bool `long:"version" description:"Display version information and exit"`
 
 	// MinimumMonitored is the minimum amount of time that a channel must be monitored for before we consider it for termination.
 	MinimumMonitored time.Duration `long:"min_monitored" description:"The minimum amount of time that a channel must be monitored for before recommending termination. Valid time units are {s, m, h}."`
@@ -91,6 +96,14 @@ func LoadConfig() (*Config, error) {
 	// Parse command line options to obtain user specified values.
 	if _, err := flags.Parse(&config); err != nil {
 		return nil, err
+	}
+
+	// Show the version and exit if the version flag was specified.
+	appName := filepath.Base(os.Args[0])
+	appName = strings.TrimSuffix(appName, filepath.Ext(appName))
+	if config.ShowVersion {
+		fmt.Println(appName, "version", Version())
+		os.Exit(0)
 	}
 
 	var netCount int

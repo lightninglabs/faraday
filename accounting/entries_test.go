@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/lndclient"
@@ -17,19 +19,22 @@ import (
 )
 
 var (
-	openChannelTx              = "44183bc482d5b7be031739ce39b6c91562edd882ba5a9e3647341262328a2228"
-	remotePubkey               = "02f6a7664ca2a2178b422a058af651075de2e5bdfff028ac8e1fcd96153cba636b"
-	remoteVertex, _            = route.NewVertexFromStr(remotePubkey)
-	channelID           uint64 = 124244814004224
-	channelCapacitySats        = btcutil.Amount(500000)
-	channelFeesSats            = btcutil.Amount(10000)
+	openChannelTx       = "44183bc482d5b7be031739ce39b6c91562edd882ba5a9e3647341262328a2228"
+	openChanTx, _       = chainhash.NewHashFromStr(openChannelTx)
+	remotePubkey        = "02f6a7664ca2a2178b422a058af651075de2e5bdfff028ac8e1fcd96153cba636b"
+	remoteVertex, _     = route.NewVertexFromStr(remotePubkey)
+	channelID           = lnwire.NewShortChanIDFromInt(124244814004224)
+	channelCapacitySats = btcutil.Amount(500000)
+	channelFeesSats     = btcutil.Amount(10000)
 
-	openChannel = lndclient.ChannelInfo{
-		PubKeyBytes:  remoteVertex,
-		ChannelPoint: fmt.Sprintf("%v:%v", openChannelTx, 1),
-		ChannelID:    channelID,
-		Capacity:     channelCapacitySats,
-		Initiator:    false,
+	openChannel = channelInfo{
+		pubKeyBytes: remoteVertex,
+		channelPoint: &wire.OutPoint{
+			Hash:  *openChanTx,
+			Index: 1,
+		},
+		channelID: channelID,
+		capacity:  channelCapacitySats,
 	}
 
 	transactionTimestamp = time.Unix(1588145604, 0)
@@ -47,13 +52,10 @@ var (
 
 	closeBalanceSat = btcutil.Amount(50000)
 
-	channelClose = lndclient.ClosedChannel{
-		ChannelPoint:   openChannel.ChannelPoint,
-		ChannelID:      openChannel.ChannelID,
-		ClosingTxHash:  closeTx,
-		PubKeyBytes:    remoteVertex,
-		SettledBalance: closeBalanceSat,
-		CloseInitiator: lndclient.InitiatorLocal,
+	channelClose = closedChannelInfo{
+		channelInfo:    openChannel,
+		closeType:      lndclient.CloseTypeCooperative.String(),
+		closeInitiator: lndclient.InitiatorLocal.String(),
 	}
 
 	closeTimestamp = time.Unix(1588159722, 0)
@@ -65,6 +67,7 @@ var (
 		// Total fees for closes will always reflect as 0 because they
 		// come from the 2-2 multisig funding output.
 		Fee: 0,
+		Tx:  &wire.MsgTx{},
 	}
 
 	onChainTxID      = "e75760156b04234535e6170f152697de28b73917c69dda53c60baabdae571457"
@@ -77,6 +80,7 @@ var (
 		Amount:    onChainAmtSat,
 		Timestamp: onChainTimestamp,
 		Fee:       onChainFeeSat,
+		Tx:        &wire.MsgTx{},
 	}
 
 	paymentRequest = "lnbcrt10n1p0t6nmypp547evsfyrakg0nmyw59ud9cegkt99yccn5nnp4suq3ac4qyzzgevsdqqcqzpgsp54hvffpajcyddm20k3ptu53930425hpnv8m06nh5jrd6qhq53anrq9qy9qsqphhzyenspf7kfwvm3wyu04fa8cjkmvndyexlnrmh52huwa4tntppjmak703gfln76rvswmsx2cz3utsypzfx40dltesy8nj64ttgemgqtwfnj9"
@@ -162,11 +166,19 @@ var (
 		Timestamp: mockPriceTimestamp,
 		Price:     decimal.NewFromInt(100000),
 	}
+
+	mockFee     = btcutil.Amount(44)
+	mockFeeMSat = lnwire.MilliSatoshi(mockFee * 1000)
 )
 
 // mockPrice is a mocked price function which returns mockPrice * amount.
 func mockPrice(_ time.Time) (*fiat.USDPrice, error) {
 	return mockBTCPrice, nil
+}
+
+// mockFeeFunc is a mocked fee function.
+func mockFeeFunc(chainhash.Hash) (btcutil.Amount, error) {
+	return mockFee, nil
 }
 
 // TestChannelOpenEntry tests creation of entries for locally and remotely
@@ -227,8 +239,9 @@ func TestChannelOpenEntry(t *testing.T) {
 	tests := []struct {
 		name string
 
-		// initiator is used to set the initiator bool on the open
-		// channel struct we use.
+		// initiator indicates whether we initiated the channel. The
+		// amount on our on chain tx will be set to 0 if this bool is
+		// false, because this is how we identify remote opens.
 		initiator bool
 
 		expectedErr error
@@ -252,9 +265,12 @@ func TestChannelOpenEntry(t *testing.T) {
 			channel := openChannel
 			tx := openChannelTransaction
 
-			// Set the initiator field according to test
-			// requirement.
-			channel.Initiator = test.initiator
+			// If we did not initiate the channel, our tx amount
+			// should be 0 (because our wallet did not contribute
+			// funds).
+			if !test.initiator {
+				tx.Amount = 0
+			}
 
 			// Get our entries.
 			entries, err := channelOpenEntries(
@@ -282,14 +298,15 @@ func TestChannelCloseEntry(t *testing.T) {
 	// getCloseEntry returns a close entry for the global close var with
 	// correct close type and amount.
 	getCloseEntry := func(closeType, closeInitiator string,
-		closeBalance btcutil.Amount) *HarmonyEntry {
+		closeBalance btcutil.Amount,
+		chanInitiator lndclient.Initiator) []*HarmonyEntry {
 
 		note := channelCloseNote(channelID, closeType, closeInitiator)
 
 		closeAmt := satsToMsat(closeBalance)
 		amtMsat := lnwire.MilliSatoshi(closeAmt)
 
-		return &HarmonyEntry{
+		chanEntry := &HarmonyEntry{
 			Timestamp: closeTimestamp,
 			Amount:    amtMsat,
 			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
@@ -301,22 +318,56 @@ func TestChannelCloseEntry(t *testing.T) {
 			Credit:    true,
 			BTCPrice:  mockBTCPrice,
 		}
+
+		if chanInitiator != lndclient.InitiatorLocal {
+			return []*HarmonyEntry{chanEntry}
+		}
+
+		feeEntry := &HarmonyEntry{
+			Timestamp: closeTimestamp,
+			Amount:    mockFeeMSat,
+			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, mockFeeMSat),
+			TxID:      closeTx,
+			Reference: feeReference(closeTx),
+			Note:      "",
+			Type:      EntryTypeChannelCloseFee,
+			OnChain:   true,
+			Credit:    false,
+			BTCPrice:  mockBTCPrice,
+		}
+
+		return []*HarmonyEntry{chanEntry, feeEntry}
 	}
 
 	tests := []struct {
 		name      string
-		closeType lndclient.CloseType
 		closeAmt  btcutil.Amount
+		closeType lndclient.CloseType
+		initiator lndclient.Initiator
 	}{
 		{
 			name:      "coop close, has balance",
 			closeType: lndclient.CloseTypeCooperative,
 			closeAmt:  closeBalanceSat,
+			initiator: lndclient.InitiatorRemote,
 		},
 		{
 			name:      "force close, has no balance",
 			closeType: lndclient.CloseTypeLocalForce,
 			closeAmt:  0,
+			initiator: lndclient.InitiatorRemote,
+		},
+		{
+			name:      "coop close, we opened",
+			closeType: lndclient.CloseTypeCooperative,
+			closeAmt:  closeBalanceSat,
+			initiator: lndclient.InitiatorLocal,
+		},
+		{
+			name:      "coop close, they opened",
+			closeType: lndclient.CloseTypeCooperative,
+			closeAmt:  closeBalanceSat,
+			initiator: lndclient.InitiatorRemote,
 		},
 	}
 
@@ -327,23 +378,86 @@ func TestChannelCloseEntry(t *testing.T) {
 			// Make copies of the global vars so we can change some
 			// fields.
 			closeChan := channelClose
-			closeTx := channelCloseTx
+			closeChan.initiator = test.initiator
+			closeChan.closeType = test.closeType.String()
 
-			closeChan.CloseType = test.closeType
+			closeTx := channelCloseTx
 			closeTx.Amount = test.closeAmt
 
 			entries, err := closedChannelEntries(
-				closeChan, closeTx, mockPrice,
+				closeChan, closeTx, mockFeeFunc, mockPrice,
 			)
 			require.NoError(t, err)
 
-			expected := []*HarmonyEntry{getCloseEntry(
-				test.closeType.String(),
-				closeChan.CloseInitiator.String(),
-				test.closeAmt,
-			)}
+			expected := getCloseEntry(
+				closeChan.closeType, closeChan.closeInitiator,
+				test.closeAmt, test.initiator,
+			)
 
 			require.Equal(t, expected, entries)
+		})
+	}
+}
+
+// TestSweepEntry tests creation of sweep entries that calculate their fees
+// separately to the transaction that lnd provided.
+func TestSweepEntry(t *testing.T) {
+	amt := satsToMsat(onChainAmtSat)
+	amtMsat := lnwire.MilliSatoshi(amt)
+
+	entries := []*HarmonyEntry{
+		{
+			Timestamp: onChainTimestamp,
+			Amount:    amtMsat,
+			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
+			TxID:      onChainTxID,
+			Reference: onChainTxID,
+			Note:      "",
+			Type:      EntryTypeSweep,
+			OnChain:   true,
+			Credit:    true,
+			BTCPrice:  mockBTCPrice,
+		},
+		{
+			Timestamp: onChainTimestamp,
+			Amount:    mockFeeMSat,
+			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, mockFeeMSat),
+			TxID:      onChainTxID,
+			Reference: feeReference(onChainTxID),
+			Note:      "",
+			Type:      EntryTypeSweepFee,
+			OnChain:   true,
+			Credit:    false,
+			BTCPrice:  mockBTCPrice,
+		},
+	}
+
+	tests := []struct {
+		name    string
+		err     error
+		fee     btcutil.Amount
+		entries []*HarmonyEntry
+	}{
+		{
+			name:    "fee not set in tx",
+			fee:     0,
+			entries: entries,
+			err:     nil,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			sweep := onChainTx
+			sweep.Fee = test.fee
+
+			entries, err := sweepEntries(
+				sweep, mockFeeFunc, mockPrice,
+			)
+			require.Equal(t, test.err, err)
+			require.Equal(t, test.entries, entries)
 		})
 	}
 }
@@ -351,21 +465,23 @@ func TestChannelCloseEntry(t *testing.T) {
 // TestOnChainEntry tests creation of entries for receipts and payments, and the
 // generation of a fee entry where applicable.
 func TestOnChainEntry(t *testing.T) {
-	getOnChainEntry := func(isReceive, isSweep,
+	getOnChainEntry := func(amount btcutil.Amount,
 		hasFee bool, label string) []*HarmonyEntry {
 
 		var (
-			entryType = EntryTypePayment
+			entryType EntryType
 			feeType   = EntryTypeFee
 		)
 
-		if isReceive {
-			entryType = EntryTypeReceipt
-		}
+		switch {
+		case amount < 0:
+			entryType = EntryTypePayment
 
-		if isSweep {
-			entryType = EntryTypeSweep
-			feeType = EntryTypeSweepFee
+		case amount > 0:
+			entryType = EntryTypeReceipt
+
+		default:
+			return nil
 		}
 
 		amt := satsToMsat(onChainAmtSat)
@@ -379,7 +495,7 @@ func TestOnChainEntry(t *testing.T) {
 			Note:      label,
 			Type:      entryType,
 			OnChain:   true,
-			Credit:    isReceive,
+			Credit:    amount > 0,
 			BTCPrice:  mockBTCPrice,
 		}
 
@@ -410,12 +526,9 @@ func TestOnChainEntry(t *testing.T) {
 	tests := []struct {
 		name string
 
-		// Whether the transaction paid us, or was our payment.
-		isReceive bool
-
-		// isSweep returns true if the transaction should be identified
-		// as a sweep by lnd.
-		isSweep bool
+		// The amount for our transaction. This should be positive for
+		// receives and negative for payments.
+		amount btcutil.Amount
 
 		// Whether the transaction has a fee attached.
 		hasFee bool
@@ -424,34 +537,29 @@ func TestOnChainEntry(t *testing.T) {
 		txLabel string
 	}{
 		{
-			name:      "receive with fee",
-			isReceive: true,
-			hasFee:    true,
-			isSweep:   false,
+			name:   "receive with fee",
+			amount: onChainAmtSat,
+			hasFee: true,
 		},
 		{
-			name:      "receive without fee",
-			isReceive: true,
-			hasFee:    false,
-			isSweep:   false,
+			name:   "receive without fee",
+			amount: onChainAmtSat,
+			hasFee: false,
 		},
 		{
-			name:      "payment without fee",
-			isReceive: true,
-			hasFee:    false,
-			isSweep:   false,
+			name:   "payment without fee",
+			amount: onChainAmtSat * -1,
+			hasFee: false,
 		},
 		{
-			name:      "payment with fee",
-			isReceive: true,
-			hasFee:    true,
-			isSweep:   false,
+			name:   "payment with fee",
+			amount: onChainAmtSat * -1,
+			hasFee: true,
 		},
 		{
-			name:      "sweep with fee",
-			isReceive: true,
-			hasFee:    true,
-			isSweep:   true,
+			name:   "zero amount tx",
+			amount: 0,
+			hasFee: false,
 		},
 	}
 
@@ -459,14 +567,10 @@ func TestOnChainEntry(t *testing.T) {
 		test := test
 
 		t.Run(test.name, func(t *testing.T) {
-			// Make a copy so that we can change fields.
+			// Make a copy so that we can change fields and set our
+			// desired amount.
 			chainTx := onChainTx
-
-			// If we are testing a payment, the amount should be
-			// negative.
-			if !test.isReceive {
-				chainTx.Amount *= -1
-			}
+			chainTx.Amount = test.amount
 
 			// If we should not have a fee present, remove it,
 			// also add the fee entry to our expected set of
@@ -478,16 +582,13 @@ func TestOnChainEntry(t *testing.T) {
 			// Set the label as per the test.
 			chainTx.Label = test.txLabel
 
-			entries, err := onChainEntries(
-				chainTx, test.isSweep, mockPrice,
-			)
+			entries, err := onChainEntries(chainTx, mockPrice)
 			require.NoError(t, err)
 
 			// Create the entries we expect based on the test
 			// params.
 			expected := getOnChainEntry(
-				test.isReceive, test.isSweep, test.hasFee,
-				test.txLabel,
+				test.amount, test.hasFee, test.txLabel,
 			)
 
 			require.Equal(t, expected, entries)

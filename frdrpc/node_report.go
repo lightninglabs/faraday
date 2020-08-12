@@ -43,7 +43,8 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 	)
 
 	onChain := accounting.NewOnChainConfig(
-		ctx, cfg.Lnd, start, end, req.DisableFiat, granularity,
+		ctx, cfg.Lnd, start, end, req.DisableFiat,
+		cfg.BitcoinClient.GetTxDetail, granularity,
 	)
 
 	return onChain, offChain, nil
@@ -126,6 +127,9 @@ func rpcEntryType(t accounting.EntryType) (EntryType, error) {
 
 	case accounting.EntryTypeSweepFee:
 		return EntryType_SWEEP_FEE, nil
+
+	case accounting.EntryTypeChannelCloseFee:
+		return EntryType_CHANNEL_CLOSE_FEE, nil
 
 	default:
 		return 0, fmt.Errorf("unknown entrytype: %v", t)

@@ -95,12 +95,44 @@ func TestFilterOnChain(t *testing.T) {
 	unfiltered := []lndclient.Transaction{
 		confirmedTx, noConfTx, confirmedTxOutOfRange,
 	}
-	filtered := filterOnChain(start, end, unfiltered)
+	filtered, err := filterOnChain(start, end, unfiltered)
+	require.NoError(t, err)
 
 	// We only expect our confirmed transaction in the time range we
 	// specified to be included.
 	expected := []lndclient.Transaction{confirmedTx}
 	require.Equal(t, expected, filtered)
+
+	// Test the case where we have a receive which has a non-zero fee.
+	receiveWithFee := []lndclient.Transaction{
+		{
+			Timestamp:     time.Unix(inRangeTime, 0),
+			Amount:        100,
+			Fee:           10,
+			Confirmations: 1,
+		},
+	}
+	_, err = filterOnChain(start, end, receiveWithFee)
+	require.Equal(t, ErrReceiveWithFee, err)
+
+	// Finally, test that we subtract our fee amount off payments, since it
+	// is double counted in lnd's api.
+	payment := lndclient.Transaction{
+		Timestamp:     time.Unix(inRangeTime, 0),
+		Amount:        -100,
+		Fee:           10,
+		Confirmations: 1,
+	}
+
+	filtered, err = filterOnChain(
+		start, end, []lndclient.Transaction{payment},
+	)
+	require.NoError(t, err)
+
+	expctedAmount := payment.Amount + payment.Fee
+
+	require.Equal(t, expctedAmount, filtered[0].Amount)
+
 }
 
 // TestFilterInvoices tests filtering out of invoices that are not settled.

@@ -7,6 +7,7 @@ import (
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/faraday/utils"
 	"github.com/lightninglabs/lndclient"
 	"github.com/shopspring/decimal"
@@ -23,6 +24,12 @@ var (
 	// creation of close reports for the channel type provided.
 	ErrCloseTypeNotSupported = errors.New("close reports for type not " +
 		"supported")
+
+	// errBatchedTx is returned when we are trying to get the fees for a
+	// transaction but it is not of the format we expect (max 2 outputs,
+	// one change one output).
+	errBatchedTx = errors.New("cannot calculate fees for batched " +
+		"transaction")
 )
 
 // Config provides all the external functions and parameters required to produce
@@ -39,6 +46,9 @@ type Config struct {
 	// tx result which contains a detailed set of information about the
 	// transaction.
 	GetTxDetail func(txHash *chainhash.Hash) (*btcjson.TxRawResult, error)
+
+	// CalculateFees gets the total on chain fees for a transaction.
+	CalculateFees func(*chainhash.Hash) (btcutil.Amount, error)
 }
 
 // ChannelCloseReport returns a full report on a closed channel.
@@ -66,9 +76,27 @@ func ChannelCloseReport(cfg *Config, chanPoint string) (*CloseReport, error) {
 		return nil, ErrChannelNotClosed
 	}
 
+	outpoint, err := utils.GetOutPointFromString(closedChannel.ChannelPoint)
+	if err != nil {
+		return nil, err
+	}
+
+	// Lookup our transaction and check that it has at most two outputs,
+	// allowing for a funding outpoint and change address. Our current
+	// fee calculations do not account for batched transactions.
+	tx, err := cfg.GetTxDetail(&outpoint.Hash)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(carla): support batched transactions.
+	if len(tx.Vout) > 2 {
+		return nil, errBatchedTx
+	}
+
 	switch closedChannel.CloseType {
 	case lndclient.CloseTypeCooperative:
-		return coopCloseReport(cfg, &closedChannel)
+		return coopCloseReport(cfg, outpoint, &closedChannel)
 
 	default:
 		return nil, ErrCloseTypeNotSupported
@@ -102,13 +130,8 @@ type CloseReport struct {
 
 // coopCloseReport creates a channel report for a cooperatively closed channel
 // where we do not need to worry about on chain resolutions.
-func coopCloseReport(cfg *Config,
+func coopCloseReport(cfg *Config, chanPoint *wire.OutPoint,
 	channel *lndclient.ClosedChannel) (*CloseReport, error) {
-
-	chanPoint, err := utils.GetOutPointFromString(channel.ChannelPoint)
-	if err != nil {
-		return nil, err
-	}
 
 	report := &CloseReport{
 		ChannelPoint:     chanPoint,
@@ -139,6 +162,7 @@ func coopCloseReport(cfg *Config,
 	// not. If it isn't ours, we just return the report as is. If it is, we
 	// fallthrough to get additional information about the close.
 	case lndclient.InitiatorUnrecorded:
+		var err error
 		report.ChannelInitiator, err = getCloseInitiatorFromWallet(
 			cfg, report.ChannelPoint.Hash.String(),
 		)
@@ -161,10 +185,12 @@ func coopCloseReport(cfg *Config,
 
 	// At this stage, we know that we opened the channel. We now lookup our
 	// open and close transactions to get the fees we paid for them.
-	report.OpenFee, err = totalFees(cfg.GetTxDetail, &chanPoint.Hash)
+	var err error
+	openFee, err := cfg.CalculateFees(&chanPoint.Hash)
 	if err != nil {
 		return nil, err
 	}
+	report.OpenFee = decimal.NewFromInt(int64(openFee))
 
 	closeHash, err := chainhash.NewHashFromStr(channel.ClosingTxHash)
 	if err != nil {
@@ -175,10 +201,11 @@ func coopCloseReport(cfg *Config,
 	// for the full close transaction (regardless of whether we have an
 	// output), we get our total fees for this transaction rather than for
 	// a specific outpoint.
-	report.CloseFee, err = totalFees(cfg.GetTxDetail, closeHash)
+	closeFee, err := cfg.CalculateFees(closeHash)
 	if err != nil {
 		return nil, err
 	}
+	report.CloseFee = decimal.NewFromInt(int64(closeFee))
 
 	return report, nil
 }

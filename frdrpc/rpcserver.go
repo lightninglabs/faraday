@@ -324,6 +324,10 @@ func (s *RPCServer) ExchangeRate(ctx context.Context,
 func (s *RPCServer) NodeReport(ctx context.Context,
 	req *NodeReportRequest) (*NodeReportResponse, error) {
 
+	if err := s.requireNode(); err != nil {
+		return nil, err
+	}
+
 	onChain, offChain, err := parseNodeReportRequest(ctx, s.cfg, req)
 	if err != nil {
 		return nil, err

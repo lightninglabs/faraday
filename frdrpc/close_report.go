@@ -3,6 +3,9 @@ package frdrpc
 import (
 	"context"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcutil"
+	"github.com/lightninglabs/faraday/fees"
 	"github.com/lightninglabs/faraday/resolutions"
 	"github.com/lightninglabs/lndclient"
 )
@@ -15,6 +18,11 @@ func parseCloseReportRequest(ctx context.Context, cfg *Config) *resolutions.Conf
 		GetTxDetail: cfg.BitcoinClient.GetTxDetail,
 		WalletTransactions: func() ([]lndclient.Transaction, error) {
 			return cfg.Lnd.Client.ListTransactions(ctx, 0, 0)
+		},
+		CalculateFees: func(hash *chainhash.Hash) (btcutil.Amount, error) {
+			return fees.CalculateFee(
+				cfg.BitcoinClient.GetTxDetail, hash,
+			)
 		},
 	}
 }

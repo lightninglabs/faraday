@@ -54,7 +54,17 @@ Channel close entries represent the on chain close of a channel.
 
 Known Omissions: 
 - If our balance is encumbered behind a timelock, or in an unresolved htlc, it will not be paid out as part of this transaction and must be resolved by follow up on chain transactions. 
-- The fees paid to close channels that we initiated are not currently recorded, this is because balances are taken from the funding output rather than being supplied by the wallet.
+
+### Channel Close Fee
+Channel close fee entries represent the fees we paid on chain to close channels that we initiated. Note that this includes the case where we opened the channel but the remote party closed the channel.
+
+- Amount: The amount in millisatoshis that we paid in on chain fees to close the channel. 
+- TxID: The on chain transaction ID for the channel close. 
+- Reference: The channel close transaction ID:-1.
+- Note: Not set for close fees. 
+
+Known Omissions: 
+- If a channel was closed before we started saving our channel information for use after close (<lnd 0.9), we will not know which party opened the channel, so fees may be omitted.
 
 ### Receipt
 A receipt is an on chain transaction which paid to our wallet which was not related to the opening/closing of channels.
@@ -104,9 +114,6 @@ A fee entry represents the on chain fees we paid for a sweep.
 - TxID: The on chain transaction ID.
 - Reference: TransactionID:-1. 
 - Note: Not set for fees. 
-
-Known Omissions: 
-- If the wallet did not have knowledge that an input was owned by lnd (which is the case for more complex scripts, like htlcs), then it will not record fees that are siphoned off the input amount here because it does not know that we control those funds. 
 
 ## Off Chain Reports
 

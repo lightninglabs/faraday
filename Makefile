@@ -23,7 +23,7 @@ GOTEST := GO111MODULE=on go test -v
 GOMOD := GO111MODULE=on go mod
 
 GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
-GOLIST := go list -deps $(PKG)/... | grep '$(PKG)'| grep -v '/vendor/'
+GOLIST := go list -deps $(PKG)/... | grep '$(PKG)'| grep -v '/vendor/' | grep -v '/itest'
 GOLISTCOVER := $(shell go list -deps -f '{{.ImportPath}}' ./... | grep '$(PKG)' | sed -e 's/^$(ESCPKG)/./')
 
 RM := rm -f
@@ -76,6 +76,10 @@ scratch: build
 # =======
 
 check: unit
+
+itest:
+	@$(call print, "Running integration tests.")
+	./run_itest.sh
 
 unit:
 	@$(call print, "Running unit tests.")
@@ -151,3 +155,7 @@ clean:
 	$(RM) ./faraday
 	$(RM) ./frcli
 	$(RM) coverage.txt
+
+# Instruct make to not interpret these as file/folder related targets, otherwise
+# it will behave weirdly if a file or folder exists with that name.
+.PHONY: itest

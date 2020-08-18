@@ -18,11 +18,23 @@ sudo: required
 before_script:
   - bash ./scripts/install_travis_proto.sh
 
-script:
-  - export GO111MODULE=on
-  - make rpc-check
-  - make mod-check
-  - make lint unit
+jobs:
+  include:
+    - stage: Build
+      script:
+        - make lint
+        - make mod-check
+        - make rpc-check
+        - make build
+      name: Build and lint
+    - stage: Tests
+      script: make unit
+      name: Unit
+    - script: make unit-race
+      name: Unit race
+    - stage: Integration
+      script: make itest
+      name: Test integraton
 
 after_script:
   - echo "Uploading to termbin.com..." && find *.log | xargs -I{} sh -c "cat {} | nc termbin.com 9999 | xargs -r0 printf '{} uploaded to %s'"

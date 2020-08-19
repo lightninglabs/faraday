@@ -26,7 +26,9 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
-	granularity, err := granularityFromRPC(req.Granularity, end.Sub(start))
+	granularity, err := granularityFromRPC(
+		req.Granularity, req.DisableFiat, end.Sub(start),
+	)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -85,13 +85,13 @@ type CommonConfig struct {
 
 	// Granularity specifies the level of granularity with which we want to
 	// get fiat prices.
-	Granularity fiat.Granularity
+	Granularity *fiat.Granularity
 }
 
 // NewOnChainConfig returns an on chain config from the lnd services provided.
 func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 	endTime time.Time, disableFiat bool, txLookup fees.GetDetailsFunc,
-	granularity fiat.Granularity) *OnChainConfig {
+	granularity *fiat.Granularity) *OnChainConfig {
 
 	return &OnChainConfig{
 		OpenChannels: lndwrap.ListChannels(
@@ -127,7 +127,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 	maxInvoices, maxPayments, maxForwards uint64, ownPubkey route.Vertex,
 	startTime, endTime time.Time, disableFiat bool,
-	granularity fiat.Granularity) *OffChainConfig {
+	granularity *fiat.Granularity) *OffChainConfig {
 
 	return &OffChainConfig{
 		ListInvoices: func() ([]lndclient.Invoice, error) {

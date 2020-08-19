@@ -30,10 +30,10 @@ make check
 ## Usage
 Faraday connects to a single instance of lnd. It requires access to macaroons for each subserver and a valid TLS certificate. It will attempt to use the default lnd values if no command line flags are specified.
 ```
-./faraday                                    \
+./faraday                                       \
 --macaroondir={directory containing macaroon}   \
 --tlscertpath={path to lnd cert}                \
---rpserver={host:port of lnd's rpserver} 
+--rpcserver={host:port of lnd's rpcserver} 
 ```
 
 By default, faraday runs on mainnet. The `--testnet`, `--simnet` or `--regtest` flags can be used to run in test environments.

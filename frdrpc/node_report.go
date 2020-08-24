@@ -26,7 +26,9 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
-	granularity, err := granularityFromRPC(req.Granularity, end.Sub(start))
+	granularity, err := granularityFromRPC(
+		req.Granularity, req.DisableFiat, end.Sub(start),
+	)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -67,9 +69,14 @@ func rpcReportResponse(report accounting.Report) (*NodeReportResponse,
 			Reference: entry.Reference,
 			Note:      entry.Note,
 			BtcPrice: &BitcoinPrice{
-				Price:          entry.BTCPrice.Price.String(),
-				PriceTimestamp: uint64(entry.BTCPrice.Timestamp.Unix()),
+				Price: entry.BTCPrice.Price.String(),
 			},
+		}
+
+		if !entry.BTCPrice.Timestamp.IsZero() {
+			rpcEntry.BtcPrice.PriceTimestamp = uint64(
+				entry.BTCPrice.Timestamp.Unix(),
+			)
 		}
 
 		rpcType, err := rpcEntryType(entry.Type)

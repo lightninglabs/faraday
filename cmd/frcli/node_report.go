@@ -37,8 +37,8 @@ var onChainReportCommand = cli.Command{
 				"Note that write permissions are required.",
 		},
 		cli.BoolFlag{
-			Name:  "disable_fiat",
-			Usage: "Create a report without fiat conversions.",
+			Name:  "enable_fiat",
+			Usage: "Create a report with fiat conversions.",
 		},
 	},
 	Action: queryOnChainReport,
@@ -53,7 +53,7 @@ func queryOnChainReport(ctx *cli.Context) error {
 	req := &frdrpc.NodeReportRequest{
 		StartTime:   uint64(ctx.Int64("start_time")),
 		EndTime:     uint64(ctx.Int64("end_time")),
-		DisableFiat: ctx.IsSet("disable_fiat"),
+		DisableFiat: !ctx.IsSet("enable_fiat"),
 	}
 
 	// If start time is zero, default to a week ago.

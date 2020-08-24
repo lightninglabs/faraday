@@ -10,46 +10,56 @@ import (
 
 // granularityFromRPC gets a granularity enum value from a rpc request,
 // defaulting getting the best granularity for the period being queried.
-func granularityFromRPC(g Granularity,
-	duration time.Duration) (fiat.Granularity, error) {
+func granularityFromRPC(g Granularity, disableFiat bool,
+	duration time.Duration) (*fiat.Granularity, error) {
+
+	// If we do not need fiat prices, we can return nil granularity.
+	if disableFiat {
+		return nil, nil
+	}
 
 	switch g {
-	// If granularity is not set, allow it to default t
+	// If granularity is not set, allow it to default to the best
+	// granularity that we can get for the query period.
 	case Granularity_UNKNOWN_GRANULARITY:
-		return fiat.BestGranularity(duration)
+		best, err := fiat.BestGranularity(duration)
+		if err != nil {
+			return nil, err
+		}
+
+		return &best, nil
 
 	case Granularity_MINUTE:
-		return fiat.GranularityMinute, nil
+		return &fiat.GranularityMinute, nil
 
 	case Granularity_FIVE_MINUTES:
-		return fiat.Granularity5Minute, nil
+		return &fiat.Granularity5Minute, nil
 
 	case Granularity_FIFTEEN_MINUTES:
-		return fiat.Granularity15Minute, nil
+		return &fiat.Granularity15Minute, nil
 
 	case Granularity_THIRTY_MINUTES:
-		return fiat.Granularity30Minute, nil
+		return &fiat.Granularity30Minute, nil
 
 	case Granularity_HOUR:
-		return fiat.GranularityHour, nil
+		return &fiat.GranularityHour, nil
 
 	case Granularity_SIX_HOURS:
-		return fiat.Granularity6Hour, nil
+		return &fiat.Granularity6Hour, nil
 
 	case Granularity_TWELVE_HOURS:
-		return fiat.Granularity12Hour, nil
+		return &fiat.Granularity12Hour, nil
 
 	case Granularity_DAY:
-		return fiat.GranularityDay, nil
+		return &fiat.GranularityDay, nil
 
 	default:
-		return fiat.Granularity{},
-			fmt.Errorf("unknown granularity: %v", g)
+		return nil, fmt.Errorf("unknown granularity: %v", g)
 	}
 }
 
 func parseExchangeRateRequest(req *ExchangeRateRequest) ([]time.Time,
-	fiat.Granularity, error) {
+	*fiat.Granularity, error) {
 
 	timestamps := make([]time.Time, len(req.Timestamps))
 
@@ -67,9 +77,11 @@ func parseExchangeRateRequest(req *ExchangeRateRequest) ([]time.Time,
 	// single timestamp.
 	start, end := timestamps[0], timestamps[len(timestamps)-1]
 
-	granularity, err := granularityFromRPC(req.Granularity, end.Sub(start))
+	granularity, err := granularityFromRPC(
+		req.Granularity, false, end.Sub(start),
+	)
 	if err != nil {
-		return nil, granularity, err
+		return nil, nil, err
 	}
 
 	return timestamps, granularity, nil

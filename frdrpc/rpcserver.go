@@ -325,7 +325,7 @@ func (s *RPCServer) ExchangeRate(ctx context.Context,
 		return nil, err
 	}
 
-	prices, err := fiat.GetPrices(ctx, timestamps, granularity)
+	prices, err := fiat.GetPrices(ctx, timestamps, *granularity)
 	if err != nil {
 		return nil, err
 	}

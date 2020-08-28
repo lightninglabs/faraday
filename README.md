@@ -17,6 +17,7 @@ A [Makefile](https://github.com/lightninglabs/faraday/blob/master/Makefile) is p
 ```
 go get -d github.com/lightninglabs/faraday
 cd $GOPATH/src/github.com/lightninglabs/faraday
+git pull
 make && make install
 ```
 

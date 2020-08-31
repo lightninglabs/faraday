@@ -31,25 +31,17 @@ func parseRevenueRequest(ctx context.Context, cfg *Config,
 func getRevenueConfig(ctx context.Context, cfg *Config,
 	start, end time.Time) *revenue.Config {
 
-	forwardingHistory := func(offset, maxEvents uint32) (
-		*lndclient.ForwardingHistoryResponse, error) {
-
-		return cfg.Lnd.Client.ForwardingHistory(
-			ctx, lndclient.ForwardingHistoryRequest{
-				StartTime: start,
-				EndTime:   end,
-				MaxEvents: maxEvents,
-				Offset:    offset,
-			},
-		)
-	}
-
 	return &revenue.Config{
 		ListChannels: lndwrap.ListChannels(ctx, cfg.Lnd.Client, false),
 		ClosedChannels: func() ([]lndclient.ClosedChannel, error) {
 			return cfg.Lnd.Client.ClosedChannels(ctx)
 		},
-		ForwardingHistory: forwardingHistory,
+		ForwardingHistory: func() ([]lndclient.ForwardingEvent, error) {
+			return lndwrap.ListForwards(
+				ctx, uint64(maxForwardQueries), start, end,
+				cfg.Lnd.Client,
+			)
+		},
 	}
 }
 

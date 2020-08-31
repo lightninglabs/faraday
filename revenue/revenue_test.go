@@ -115,13 +115,8 @@ func TestGetRevenueReport(t *testing.T) {
 				ClosedChannels: func() ([]lndclient.ClosedChannel, error) {
 					return test.closedChannels, test.closedChanErr
 				},
-				ForwardingHistory: func(offset,
-					max uint32) (*lndclient.ForwardingHistoryResponse, error) {
-
-					return &lndclient.ForwardingHistoryResponse{
-						LastIndexOffset: offset,
-						Events:          test.fwdHistory,
-					}, test.forwardHistErr
+				ForwardingHistory: func() ([]lndclient.ForwardingEvent, error) {
+					return test.fwdHistory, test.forwardHistErr
 				},
 			}
 
@@ -158,16 +153,6 @@ func TestGetEvents(t *testing.T) {
 		},
 	}
 
-	// mockQuery returns our set of mocked events.
-	mockQuery := func(_, _ uint32) (*lndclient.ForwardingHistoryResponse,
-		error) {
-
-		return &lndclient.ForwardingHistoryResponse{
-			LastIndexOffset: 0,
-			Events:          mockedEvents,
-		}, nil
-	}
-
 	// channelIDFound is a map that will successfully lookup an outpoint for
 	// out mocked events channels.
 	var chanInOutpoint, chanOutOutpoint = "a:1", "b:1"
@@ -176,10 +161,7 @@ func TestGetEvents(t *testing.T) {
 		chanOutID: chanOutOutpoint,
 	}
 
-	events, err := getEvents(channelIDFound, mockQuery)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	events := getRevenueEvents(channelIDFound, mockedEvents)
 
 	// expectedEvents is the set of events we expect to get when we can
 	// lookup all our channels.
@@ -196,13 +178,10 @@ func TestGetEvents(t *testing.T) {
 
 	// Now, we make a query with an empty channel map (which means we cannot
 	// lookup the mapping from short channel ID to channel point). We expect
-	// getEvents to skip this event and succeed with an empty set of events.
+	// getRevenueEvents to skip this event and succeed with an empty set of
+	// events.
 	channelNotFound := make(map[lnwire.ShortChannelID]string)
-	events, err = getEvents(channelNotFound, mockQuery)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
+	events = getRevenueEvents(channelNotFound, mockedEvents)
 	require.Len(t, events, 0)
 }
 

@@ -1,16 +1,9 @@
 package revenue
 
 import (
-	"context"
-
-	"github.com/lightninglabs/faraday/paginater"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
-
-// maxQueryEvents is the number of events to query the forward log for at
-// a time.
-const maxQueryEvents uint64 = 500
 
 // Config contains all the functions required to calculate revenue.
 type Config struct {
@@ -23,13 +16,11 @@ type Config struct {
 	// ForwardingHistory returns paginated forwarding history results.
 	// The period that these results queried over determines the period
 	// that the report is generated for.
-	ForwardingHistory func(offset, maxEvents uint32) (
-		*lndclient.ForwardingHistoryResponse, error)
+	ForwardingHistory func() ([]lndclient.ForwardingEvent, error)
 }
 
 // GetRevenueReport produces a revenue report over the period specified.
 func GetRevenueReport(cfg *Config) (*Report, error) {
-
 	// To provide the user with a revenue report by outpoint, we need to map
 	// short channel ids in the forwarding log to outpoints. Lookup all open
 	// and closed channels to produce a map of short channel id to outpoint.
@@ -56,91 +47,68 @@ func GetRevenueReport(cfg *Config) (*Report, error) {
 		channelIDs[id] = closedChannel.ChannelPoint
 	}
 
-	events, err := getEvents(channelIDs, cfg.ForwardingHistory)
+	fwds, err := cfg.ForwardingHistory()
 	if err != nil {
 		return nil, err
 	}
 
+	events := getRevenueEvents(channelIDs, fwds)
 	return getReport(events), nil
 }
 
-// getEvents gets calls the paginated query function until it has all the
-// forwarding events for the period provided. It takes a map of shortChannelIDs
-// to outpoints which is used to convert forwarding events short ids to
-// outpoint strings.
-func getEvents(channelIDs map[lnwire.ShortChannelID]string, queryForwards func(
-	offset, maxEvents uint32) (*lndclient.ForwardingHistoryResponse,
-	error)) ([]revenueEvent, error) {
+// getRevenueEvents produces a set of revenue events from a set of forwarding
+// events that can be used to create a report.
+func getRevenueEvents(channelIDs map[lnwire.ShortChannelID]string,
+	fwdEvents []lndclient.ForwardingEvent) []revenueEvent {
 
+	// Do not prealloc because we may not add events if we cannot get their
+	// channel ID from the channelIDs map.
+	// nolint: prealloc
 	var events []revenueEvent
 
-	// Query is a helper function which adds forwarding events to our set
-	// of events, and returns the new offset and number of events returned.
-	// We use this function with our generic paginater to build up a set of
-	// forwarding events from the paginated api.
-	query := func(offset, maxEvents uint64) (uint64, uint64, error) {
-		resp, err := queryForwards(
-			uint32(offset), uint32(maxQueryEvents),
+	// Get the event's channel outpoints from out known list of maps and
+	// create a revenue event. Return an error if the short channel id's
+	// outpoint cannot be found, because we expect all known short channel
+	// ids to be provided.
+	for _, fwd := range fwdEvents {
+		shortChanIn := lnwire.NewShortChanIDFromInt(
+			fwd.ChannelIn,
 		)
-		if err != nil {
-			return 0, 0, err
+		shortChanOut := lnwire.NewShortChanIDFromInt(
+			fwd.ChannelOut,
+		)
+
+		incoming, ok := channelIDs[shortChanIn]
+		if !ok {
+			log.Errorf("cannot find channel "+
+				"incoming outpoint for forward: %v(%v "+
+				"msat) -> %v(%v msat)", shortChanIn,
+				fwd.AmountMsatIn, shortChanOut,
+				fwd.AmountMsatOut)
+
+			continue
 		}
 
-		// Get the event's channel outpoints from out known list of maps
-		// and create a revenue event. Return an error if the short
-		// channel id's outpoint cannot be found, because we expect all
-		// known short channel ids to be provided.
-		for _, fwd := range resp.Events {
-			shortChanIn := lnwire.NewShortChanIDFromInt(
-				fwd.ChannelIn,
-			)
-			shortChanOut := lnwire.NewShortChanIDFromInt(
-				fwd.ChannelOut,
-			)
+		outgoing, ok := channelIDs[shortChanOut]
+		if !ok {
+			log.Errorf("cannot find channel "+
+				"outgoing outpoint for forward: %v(%v "+
+				"msat) -> %v(%v msat)", shortChanIn,
+				fwd.AmountMsatIn, shortChanOut,
+				fwd.AmountMsatOut)
 
-			incoming, ok := channelIDs[shortChanIn]
-			if !ok {
-				log.Errorf("cannot find channel "+
-					"incoming outpoint for forward: %v(%v "+
-					"msat) -> %v(%v msat)", shortChanIn,
-					fwd.AmountMsatIn, shortChanOut,
-					fwd.AmountMsatOut)
-
-				continue
-			}
-
-			outgoing, ok := channelIDs[shortChanOut]
-			if !ok {
-				log.Errorf("cannot find channel "+
-					"outgoing outpoint for forward: %v(%v "+
-					"msat) -> %v(%v msat)", shortChanIn,
-					fwd.AmountMsatIn, shortChanOut,
-					fwd.AmountMsatOut)
-
-				continue
-			}
-
-			events = append(events, revenueEvent{
-				incomingChannel: incoming,
-				outgoingChannel: outgoing,
-				incomingAmt:     fwd.AmountMsatIn,
-				outgoingAmt:     fwd.AmountMsatOut,
-			})
+			continue
 		}
 
-		return offset, uint64(len(resp.Events)), nil
+		events = append(events, revenueEvent{
+			incomingChannel: incoming,
+			outgoingChannel: outgoing,
+			incomingAmt:     fwd.AmountMsatIn,
+			outgoingAmt:     fwd.AmountMsatOut,
+		})
 	}
 
-	// Pass our query which accumulates events to our generic paginated
-	// query function to acumulate all the events we need.
-	err := paginater.QueryPaginated(
-		context.Background(), query, 0, maxQueryEvents,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return events, nil
+	return events
 }
 
 // Report provides a pairwise report on channel revenue. It maps a

@@ -9,13 +9,14 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/lightninglabs/faraday/chain"
+	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/build"
 )
 
 const (
 	defaultRPCPort        = "10009"
 	defaultRPCHostPort    = "localhost:" + defaultRPCPort
-	defaultNetwork        = "mainnet"
+	DefaultNetwork        = "mainnet"
 	defaultMinimumMonitor = time.Hour * 24 * 7 * 4 // four weeks in hours
 	defaultDebugLevel     = "info"
 	defaultRPCListen      = "localhost:8465"
@@ -40,15 +41,6 @@ type Config struct {
 	// Lnd holds the configuration options for the connection to lnd.
 	Lnd *LndConfig `group:"lnd" namespace:"lnd"`
 
-	// TestNet is set to true when running on testnet.
-	TestNet bool `long:"testnet" description:"Use the testnet network"`
-
-	// Simnet is set to true when using btcd's simnet.
-	Simnet bool `long:"simnet" description:"Use simnet"`
-
-	// Simnet is set to true when using bitcoind's regtest.
-	Regtest bool `long:"regtest" description:"Use regtest"`
-
 	// ChainConn specifies whether to attempt connecting to a bitcoin backend.
 	ChainConn bool `long:"connect_bitcoin" description:"Whether to attempt to connect to a backing bitcoin node. Some endpoints will not be available if this option is not enabled."`
 
@@ -57,8 +49,8 @@ type Config struct {
 	// MinimumMonitored is the minimum amount of time that a channel must be monitored for before we consider it for termination.
 	MinimumMonitored time.Duration `long:"min_monitored" description:"The minimum amount of time that a channel must be monitored for before recommending termination. Valid time units are {s, m, h}."`
 
-	// network is a string containing the network we're running on.
-	network string
+	// Network is a string containing the network we're running on.
+	Network string `long:"network" description:"The network to run on." choice:"regtest" choice:"testnet" choice:"mainnet" choice:"simnet"`
 
 	// DebugLevel is a string defining the log level for the service either
 	// for all subsystems the same or individual level by subsystem.
@@ -83,7 +75,7 @@ func DefaultConfig() Config {
 		Lnd: &LndConfig{
 			RPCServer: defaultRPCHostPort,
 		},
-		network:          defaultNetwork,
+		Network:          DefaultNetwork,
 		MinimumMonitored: defaultMinimumMonitor,
 		DebugLevel:       defaultDebugLevel,
 		RPCListen:        defaultRPCListen,
@@ -113,22 +105,10 @@ func LoadConfig() (*Config, error) {
 		os.Exit(0)
 	}
 
-	var netCount int
-	if config.TestNet {
-		config.network = "testnet"
-		netCount++
-	}
-	if config.Regtest {
-		config.network = "regtest"
-		netCount++
-	}
-	if config.Simnet {
-		config.network = "simnet"
-		netCount++
-	}
-
-	if netCount > 1 {
-		return nil, fmt.Errorf("do not specify more than one network flag")
+	// Validate the network.
+	_, err := lndclient.Network(config.Network).ChainParams()
+	if err != nil {
+		return nil, fmt.Errorf("error validating network: %v", err)
 	}
 
 	// If the user has opted into connecting to a bitcoin backend, check

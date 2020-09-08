@@ -22,7 +22,7 @@ func Main() error {
 	// subservers.
 	client, err := lndclient.NewLndServices(&lndclient.LndServicesConfig{
 		LndAddress:  config.Lnd.RPCServer,
-		Network:     lndclient.Network(config.network),
+		Network:     lndclient.Network(config.Network),
 		MacaroonDir: config.Lnd.MacaroonDir,
 		TLSPath:     config.Lnd.TLSCertPath,
 		// Use the default lnd version check which checks for version

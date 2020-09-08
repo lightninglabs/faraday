@@ -8,11 +8,15 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/lightninglabs/faraday"
 	"github.com/lightninglabs/faraday/frdrpc"
+	"github.com/lightninglabs/lndclient"
 	"github.com/lightninglabs/protobuf-hex-display/jsonpb"
 	"github.com/lightninglabs/protobuf-hex-display/proto"
 	"github.com/lightningnetwork/lnd/lncfg"
@@ -84,6 +88,13 @@ func getClient(ctx *cli.Context) (frdrpc.FaradayServerClient, func()) {
 // getClientConn gets a client connection to the address provided by the
 // rpcserver flag.
 func getClientConn(ctx *cli.Context) *grpc.ClientConn {
+	// Extract the paths that we need for loading the TLS and macaroon
+	// files.
+	tlsCertPath, macaroonPath, err := extractPathArgs(ctx)
+	if err != nil {
+		fatal(err)
+	}
+
 	// We need to use a custom dialer so we can also connect to unix sockets
 	// and not just TCP addresses.
 	genericDialer := clientAddressDialer(defaultRPCPort)
@@ -93,32 +104,18 @@ func getClientConn(ctx *cli.Context) *grpc.ClientConn {
 		grpc.WithDefaultCallOptions(maxMsgRecvSize),
 	}
 
-	switch {
-	// If a TLS certificate file is specified, we need to load it and build
-	// transport credentials with it.
-	case ctx.GlobalIsSet(tlsCertFlag.Name):
-		creds, err := credentials.NewClientTLSFromFile(
-			ctx.GlobalString(tlsCertFlag.Name), "",
-		)
-		if err != nil {
-			fatal(err)
-		}
-
-		// Macaroons are only allowed to be transmitted over a TLS
-		// enabled connection.
-		if ctx.GlobalIsSet(macaroonPathFlag.Name) {
-			opts = append(opts, readMacaroon(
-				ctx.GlobalString(macaroonPathFlag.Name),
-			))
-		}
-
-		opts = append(opts, grpc.WithTransportCredentials(creds))
-
-	// By default, if no certificate is supplied, we assume the RPC server
-	// runs without TLS.
-	default:
-		opts = append(opts, grpc.WithInsecure())
+	// TLS cannot be disabled, we'll always have a cert file to read.
+	creds, err := credentials.NewClientTLSFromFile(tlsCertPath, "")
+	if err != nil {
+		fatal(err)
 	}
+
+	// Macaroons are not yet enabled by default.
+	if macaroonPath != "" {
+		opts = append(opts, readMacaroon(macaroonPath))
+	}
+
+	opts = append(opts, grpc.WithTransportCredentials(creds))
 
 	conn, err := grpc.Dial(ctx.GlobalString("rpcserver"), opts...)
 	if err != nil {
@@ -126,6 +123,42 @@ func getClientConn(ctx *cli.Context) *grpc.ClientConn {
 	}
 
 	return conn
+}
+
+// extractPathArgs parses the TLS certificate and macaroon paths from the
+// command.
+func extractPathArgs(ctx *cli.Context) (string, string, error) {
+	// We'll start off by parsing the network. This is needed to determine
+	// the correct path to the TLS certificate and macaroon when not
+	// specified.
+	networkStr := strings.ToLower(ctx.GlobalString("network"))
+	_, err := lndclient.Network(networkStr).ChainParams()
+	if err != nil {
+		return "", "", err
+	}
+
+	// We'll now fetch the faradaydir so we can make a decision on how to
+	// properly read the cert. This will either be the default, or will have
+	// been overwritten by the end user.
+	faradayDir := lncfg.CleanAndExpandPath(ctx.GlobalString(
+		faradayDirFlag.Name,
+	))
+	tlsCertPath := lncfg.CleanAndExpandPath(ctx.GlobalString(
+		tlsCertFlag.Name,
+	))
+
+	// If a custom faraday directory was set, we'll also check if a custom
+	// path for the TLS cert file was set as well. If not, we'll override
+	// the path so they can be found within the custom faraday directory.
+	if faradayDir != faraday.FaradayDirBase ||
+		networkStr != faraday.DefaultNetwork {
+
+		tlsCertPath = filepath.Join(
+			faradayDir, networkStr, faraday.DefaultTLSCertFilename,
+		)
+	}
+
+	return tlsCertPath, ctx.GlobalString(macaroonPathFlag.Name), nil
 }
 
 // ClientAddressDialer parsed client address and returns a dialer.

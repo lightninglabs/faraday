@@ -6,6 +6,7 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/lightninglabs/faraday/frdrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // getBitcoindClient returns an rpc client connection to the running bitcoind
@@ -24,9 +25,17 @@ func getBitcoindClient() (*rpcclient.Client, error) {
 
 // getFaradayClient returns an rpc client connection to the running faraday
 // instance.
-func getFaradayClient(address string) (frdrpc.FaradayServerClient, error) {
+func getFaradayClient(address, tlsCertPath string) (frdrpc.FaradayServerClient,
+	error) {
+
+	tlsCredentials, err := credentials.NewClientTLSFromFile(tlsCertPath, "")
+	if err != nil {
+		return nil, fmt.Errorf("unable to load TLS cert %s: %v",
+			tlsCertPath, err)
+	}
+
 	opts := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(tlsCredentials),
 	}
 
 	conn, err := grpc.Dial(address, opts...)

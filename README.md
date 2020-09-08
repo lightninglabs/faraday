@@ -23,13 +23,26 @@ make && make install
 ## Usage
 Faraday connects to a single instance of lnd. It requires access to macaroons for each subserver and a valid TLS certificate. It will attempt to use the default lnd values if no command line flags are specified.
 ```
-./faraday                                       \
---macaroondir={directory containing macaroon}   \
---tlscertpath={path to lnd cert}                \
---rpcserver={host:port of lnd's rpcserver} 
+./faraday                                           \
+--lnd.macaroondir={directory containing macaroon}   \
+--lnd.tlscertpath={path to lnd cert}                \
+--lnd.rpcserver={host:port of lnd's rpcserver} 
 ```
 
-By default, faraday runs on mainnet. The `--testnet`, `--simnet` or `--regtest` flags can be used to run in test environments.
+By default, faraday runs on mainnet. The `--network` flag can be used to run in
+test environments.
+
+## Transport security
+
+The gRPC and REST connections of `faraday` are encrypted with TLS the same way
+`lnd` is.
+
+If no custom loop directory is set then the TLS certificate is stored in
+`~/.faraday/<network>/tls.cert`.
+
+The `frcli` command will pick up the file automatically on mainnet if no custom
+loop directory is used. For other networks it should be sufficient to add the
+`--network` flag to tell the CLI in what sub directory to look for the files.
 
 ### Chain Backend
 Faraday offers node accounting services which require access to a Bitcoin node with `--txindex` set so that it can perform transaction lookup. Currently the `NodeReport` and `CloseReport` endpoints require this connection, and will fail if it is not present. This connection is *optional*, and all other endpoints will function if it is not configured. 

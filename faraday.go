@@ -18,13 +18,18 @@ func Main() error {
 		return fmt.Errorf("error loading config: %v", err)
 	}
 
+	serverTLSCfg, restClientCreds, err := getTLSConfig(config)
+	if err != nil {
+		return fmt.Errorf("error loading TLS config: %v", err)
+	}
+
 	// Connect to the full suite of lightning services offered by lnd's
 	// subservers.
 	client, err := lndclient.NewLndServices(&lndclient.LndServicesConfig{
-		LndAddress:  config.RPCServer,
-		Network:     lndclient.Network(config.network),
-		MacaroonDir: config.MacaroonDir,
-		TLSPath:     config.TLSCertPath,
+		LndAddress:  config.Lnd.RPCServer,
+		Network:     lndclient.Network(config.Network),
+		MacaroonDir: config.Lnd.MacaroonDir,
+		TLSPath:     config.Lnd.TLSCertPath,
 		// Use the default lnd version check which checks for version
 		// v0.11.0 and requires all build tags.
 		CheckVersion: nil,
@@ -37,10 +42,12 @@ func Main() error {
 
 	// Instantiate the faraday gRPC server.
 	cfg := &frdrpc.Config{
-		Lnd:        client.LndServices,
-		RPCListen:  config.RPCListen,
-		RESTListen: config.RESTListen,
-		CORSOrigin: config.CORSOrigin,
+		Lnd:              client.LndServices,
+		RPCListen:        config.RPCListen,
+		RESTListen:       config.RESTListen,
+		CORSOrigin:       config.CORSOrigin,
+		TLSServerConfig:  serverTLSCfg,
+		RestClientConfig: restClientCreds,
 	}
 
 	// If the client chose to connect to a bitcoin client, get one now.

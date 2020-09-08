@@ -11,6 +11,7 @@ package frdrpc
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -27,6 +28,7 @@ import (
 	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightninglabs/lndclient"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 var (
@@ -113,6 +115,16 @@ type Config struct {
 	// BitcoinClient is set if the client opted to connect to a bitcoin
 	// backend, if not, it will be nil.
 	BitcoinClient chain.BitcoinClient
+
+	// TLSServerConfig is the configuration to serve a secure connection
+	// over TLS.
+	TLSServerConfig *tls.Config
+
+	// RestClientConfig is the client configuration to connect to a TLS
+	// server started with the TLS config above. This is used for the REST
+	// proxy that connects internally to the gRPC server and therefore is a
+	// TLS client.
+	RestClientConfig *credentials.TransportCredentials
 }
 
 // NewRPCServer returns a server which will listen for rpc requests on the

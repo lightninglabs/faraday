@@ -25,7 +25,7 @@ const (
 	defaultChainConn = false
 )
 
-type Config struct {
+type LndConfig struct {
 	// RPCServer is host:port that lnd's RPC server is listening on.
 	RPCServer string `long:"rpcserver" description:"host:port that LND is listening for RPC connections on"`
 
@@ -34,6 +34,11 @@ type Config struct {
 
 	// TLSCertPath is the path to the tls cert that faraday should use.
 	TLSCertPath string `long:"tlscertpath" description:"Path to TLS cert"`
+}
+
+type Config struct {
+	// Lnd holds the configuration options for the connection to lnd.
+	Lnd *LndConfig `group:"lnd" namespace:"lnd"`
 
 	// TestNet is set to true when running on testnet.
 	TestNet bool `long:"testnet" description:"Use the testnet network"`
@@ -75,7 +80,9 @@ type Config struct {
 // DefaultConfig returns all default values for the Config struct.
 func DefaultConfig() Config {
 	return Config{
-		RPCServer:        defaultRPCHostPort,
+		Lnd: &LndConfig{
+			RPCServer: defaultRPCHostPort,
+		},
 		network:          defaultNetwork,
 		MinimumMonitored: defaultMinimumMonitor,
 		DebugLevel:       defaultDebugLevel,

@@ -31,11 +31,13 @@ var (
 
 	faradayCmd = "./faraday"
 
+	faradayCertPath = "/root/.faraday/regtest/tls.cert"
+
 	faradayArgs = []string{
 		"--rpclisten=localhost:8465",
-		"--regtest",
-		"--macaroondir=lnd-alice/data/chain/bitcoin/regtest",
-		"--tlscertpath=lnd-alice/tls.cert",
+		"--network=regtest",
+		"--lnd.macaroondir=lnd-alice/data/chain/bitcoin/regtest",
+		"--lnd.tlscertpath=lnd-alice/tls.cert",
 		"--debuglevel=debug",
 		"--connect_bitcoin",
 		"--bitcoin.user=devuser",
@@ -516,8 +518,12 @@ func (c *testContext) startFaraday() {
 
 	// Setup connection to faraday.
 	var err error
-	c.faradayClient, err = getFaradayClient("localhost:8465")
-	require.NoError(c.t, err)
+	c.eventuallyf(func() bool {
+		c.faradayClient, err = getFaradayClient(
+			"localhost:8465", faradayCertPath,
+		)
+		return err == nil
+	}, "could not connect to faraday process: %v", err)
 
 	// Wait for connectivity.
 	c.eventuallyf(func() bool {

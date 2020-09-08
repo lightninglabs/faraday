@@ -1,28 +1,12 @@
-# Faraday integration test dockerfile
+# Faraday integration test dockerfile.  Uses two build stages with different
+# base images. The first stage builds lnd with the golang base image.
+# The second stage runs directly on the bitcoind base image and adds all
+# binaries required to run the tests with.
+FROM golang:1.13-alpine as builder
 
-FROM golang:1.13-alpine
+ARG LND_VERSION=v0.11.0-beta
 
-ARG BITCOIND_VERSION=0.19.1
-ARG GLIBC_VERSION=2.29-r0
-ARG LND_VERSION=v0.11.0-beta.rc2
-
-WORKDIR /root
-
-RUN apk add --no-cache git gcc musl-dev make curl bash jq
-
-# Install glibc (for bitcoind)
-RUN wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub \
-  && wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VERSION}/glibc-${GLIBC_VERSION}.apk \
-  && wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VERSION}/glibc-bin-${GLIBC_VERSION}.apk \
-  && apk --no-cache add glibc-${GLIBC_VERSION}.apk \
-  && apk --no-cache add glibc-bin-${GLIBC_VERSION}.apk
-
-# Install bitcoind
-RUN wget https://bitcoin.org/bin/bitcoin-core-${BITCOIND_VERSION}/bitcoin-${BITCOIND_VERSION}-x86_64-linux-gnu.tar.gz && \
-  tar xvfz bitcoin-${BITCOIND_VERSION}-x86_64-linux-gnu.tar.gz
-
-RUN mkdir .bitcoin \
-  && mv bitcoin-${BITCOIND_VERSION}/bin/* /usr/local/bin/
+RUN apk add --no-cache git make
 
 # Get lnd sources and install. Can't use go get here, because tags aren't passed
 # as a compiler variable, leading to lnd not reporting the tags that it is built
@@ -30,6 +14,19 @@ RUN mkdir .bitcoin \
 RUN git clone https://github.com/lightningnetwork/lnd.git && \
   cd lnd && git checkout ${LND_VERSION} && \
   make install tags="signrpc walletrpc chainrpc invoicesrpc"
+
+# Second build stage, this time we use the bitcoind base image from ruimarinho.
+# We use the same image to run bitcoind in our testnet cluster so this should be
+# fine for integration tests.
+FROM ruimarinho/bitcoin-core:0.19.1-alpine as final
+
+WORKDIR /root
+
+RUN apk add --no-cache curl bash
+
+# Copy the binaries from the golang builder image.
+COPY --from=builder /go/bin/lnd /bin/
+COPY --from=builder /go/bin/lncli /bin/
 
 # Copy the integration test executable into the image.
 COPY itest.test .

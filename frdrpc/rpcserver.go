@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -154,8 +155,8 @@ func (s *RPCServer) Start() error {
 			s.cfg.RPCListen)
 
 	}
-	s.rpcListener = grpcListener
-	log.Infof("gRPC server listening on %s", grpcListener.Addr())
+	s.rpcListener = tls.NewListener(grpcListener, s.cfg.TLSServerConfig)
+	log.Infof("gRPC server listening on %s", s.rpcListener.Addr())
 
 	RegisterFaradayServerServer(s.grpcServer, s)
 
@@ -165,10 +166,13 @@ func (s *RPCServer) Start() error {
 		log.Infof("Starting REST proxy listener ")
 		restListener, err := net.Listen("tcp", s.cfg.RESTListen)
 		if err != nil {
-			return fmt.Errorf("REST server unable to listen on %v",
-				s.cfg.RESTListen)
+			return fmt.Errorf("REST server unable to listen on "+
+				"%v: %v", s.cfg.RESTListen, err)
 
 		}
+		restListener = tls.NewListener(
+			restListener, s.cfg.TLSServerConfig,
+		)
 		log.Infof("REST server listening on %s", restListener.Addr())
 
 		// We'll dial into the local gRPC server so we need to set some
@@ -181,11 +185,27 @@ func (s *RPCServer) Start() error {
 			restHandler = allowCORS(restHandler, s.cfg.CORSOrigin)
 		}
 		proxyOpts := []grpc.DialOption{
-			grpc.WithInsecure(),
+			grpc.WithTransportCredentials(*s.cfg.RestClientConfig),
 			grpc.WithDefaultCallOptions(maxMsgRecvSize),
 		}
+
+		// With TLS enabled by default, we cannot call 0.0.0.0
+		// internally from the REST proxy as that IP address isn't in
+		// the cert. We need to rewrite it to the loopback address.
+		restProxyDest := s.cfg.RPCListen
+		switch {
+		case strings.Contains(restProxyDest, "0.0.0.0"):
+			restProxyDest = strings.Replace(
+				restProxyDest, "0.0.0.0", "127.0.0.1", 1,
+			)
+
+		case strings.Contains(restProxyDest, "[::]"):
+			restProxyDest = strings.Replace(
+				restProxyDest, "[::]", "[::1]", 1,
+			)
+		}
 		err = RegisterFaradayServerHandlerFromEndpoint(
-			restCtx, mux, s.cfg.RPCListen, proxyOpts,
+			restCtx, mux, restProxyDest, proxyOpts,
 		)
 		if err != nil {
 			return err

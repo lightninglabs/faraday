@@ -37,5 +37,5 @@ jobs:
       name: Test integraton
 
 after_script:
-  - echo "Uploading to termbin.com..." && find *.log | xargs -I{} sh -c "cat {} | nc termbin.com 9999 | xargs -r0 printf '{} uploaded to %s'"
-  - echo "Uploading to file.io..." && tar -zcvO *.log | curl -s -F 'file=@-;filename=logs.tar.gz' https://file.io | xargs -r0 printf 'logs.tar.gz uploaded to %s\n'
+  - echo "Uploading to termbin.com..." && find itest -name '*.log' | xargs -I{} sh -c "cat {} | nc termbin.com 9999 | xargs -r0 printf '{} uploaded to %s'"
+  - echo "Uploading to file.io..." && tar -zcvO itest/*.log | curl -s -F 'file=@-;filename=logs.tar.gz' https://file.io | xargs -r0 printf 'logs.tar.gz uploaded to %s\n'

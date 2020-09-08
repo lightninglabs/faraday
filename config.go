@@ -7,10 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btcsuite/btcutil"
 	"github.com/jessevdk/go-flags"
 	"github.com/lightninglabs/faraday/chain"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/build"
+	"github.com/lightningnetwork/lnd/lncfg"
 )
 
 const (
@@ -24,6 +26,12 @@ const (
 	// By default we do not require connecting to a bitcoin node so that
 	// we can serve basic functionality by default.
 	defaultChainConn = false
+)
+
+var (
+	// FaradayDirBase is the default main directory where faraday stores its
+	// data.
+	FaradayDirBase = btcutil.AppDataDir("faraday", false)
 )
 
 type LndConfig struct {
@@ -40,6 +48,9 @@ type LndConfig struct {
 type Config struct {
 	// Lnd holds the configuration options for the connection to lnd.
 	Lnd *LndConfig `group:"lnd" namespace:"lnd"`
+
+	// FaradayDir is the main directory where faraday stores all its data.
+	FaradayDir string `long:"faradaydir" description:"The directory for all of faraday's data."`
 
 	// ChainConn specifies whether to attempt connecting to a bitcoin backend.
 	ChainConn bool `long:"connect_bitcoin" description:"Whether to attempt to connect to a backing bitcoin node. Some endpoints will not be available if this option is not enabled."`
@@ -75,6 +86,7 @@ func DefaultConfig() Config {
 		Lnd: &LndConfig{
 			RPCServer: defaultRPCHostPort,
 		},
+		FaradayDir:       FaradayDirBase,
 		Network:          DefaultNetwork,
 		MinimumMonitored: defaultMinimumMonitor,
 		DebugLevel:       defaultDebugLevel,
@@ -109,6 +121,18 @@ func LoadConfig() (*Config, error) {
 	_, err := lndclient.Network(config.Network).ChainParams()
 	if err != nil {
 		return nil, fmt.Errorf("error validating network: %v", err)
+	}
+
+	// Clean up and validate paths, then make sure the directories exist.
+	config.FaradayDir = lncfg.CleanAndExpandPath(config.FaradayDir)
+
+	// Append the network type to faraday directory so they are "namespaced"
+	// per network.
+	config.FaradayDir = filepath.Join(config.FaradayDir, config.Network)
+
+	// Create the full path of directories now, including the network path.
+	if err := os.MkdirAll(config.FaradayDir, os.ModePerm); err != nil {
+		return nil, err
 	}
 
 	// If the user has opted into connecting to a bitcoin backend, check

@@ -4,10 +4,11 @@ package faraday
 import (
 	"fmt"
 
-	"github.com/lightninglabs/faraday/chain"
-	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/signal"
+
+	"github.com/lightninglabs/faraday/chain"
+	"github.com/lightninglabs/faraday/frdrpc"
 )
 
 // Main is the real entry point for faraday. It is required to ensure that

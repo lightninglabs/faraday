@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightningnetwork/lnd/routing/route"
+
+	"github.com/lightninglabs/faraday/accounting"
 )
 
 // parseNodeReportRequest parses a report request and returns the config

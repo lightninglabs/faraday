@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/urfave/cli"
+
+	"github.com/lightninglabs/faraday/frdrpc"
 )
 
 var (

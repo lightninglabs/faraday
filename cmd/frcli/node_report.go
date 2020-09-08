@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/urfave/cli"
+
+	"github.com/lightninglabs/faraday/frdrpc"
 )
 
 var onChainReportCommand = cli.Command{

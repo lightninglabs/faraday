@@ -3,9 +3,10 @@ package accounting
 import (
 	"time"
 
-	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/shopspring/decimal"
+
+	"github.com/lightninglabs/faraday/fiat"
 )
 
 // Report contains a set of entries.

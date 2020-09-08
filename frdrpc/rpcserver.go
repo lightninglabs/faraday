@@ -21,15 +21,16 @@ import (
 	"sync/atomic"
 
 	proxy "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/lightninglabs/lndclient"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/chain"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/resolutions"
 	"github.com/lightninglabs/faraday/revenue"
-	"github.com/lightninglabs/lndclient"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 var (

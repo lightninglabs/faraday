@@ -4,9 +4,10 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/lightninglabs/faraday/frdrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/lightninglabs/faraday/frdrpc"
 )
 
 // getBitcoindClient returns an rpc client connection to the running bitcoind

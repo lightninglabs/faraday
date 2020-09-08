@@ -14,8 +14,6 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/lightninglabs/faraday"
-	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightninglabs/protobuf-hex-display/jsonpb"
 	"github.com/lightninglabs/protobuf-hex-display/proto"
@@ -25,6 +23,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
+
+	"github.com/lightninglabs/faraday"
+	"github.com/lightninglabs/faraday/frdrpc"
 )
 
 var (

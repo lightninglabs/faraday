@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcutil"
+
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/utils"
 )

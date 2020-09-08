@@ -2,8 +2,9 @@ package main
 
 import (
 	"github.com/btcsuite/btclog"
-	"github.com/lightninglabs/faraday"
 	"github.com/lightningnetwork/lnd/build"
+
+	"github.com/lightninglabs/faraday"
 )
 
 var (

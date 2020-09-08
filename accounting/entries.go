@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lightningnetwork/lnd/routing/route"
-
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/lightningnetwork/lnd/routing/route"
 )
 
 // FeeReference returns a special unique reference for the fee paid on a

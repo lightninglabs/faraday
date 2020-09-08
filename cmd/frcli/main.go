@@ -10,11 +10,20 @@ import (
 var (
 	defaultRPCPort     = "8465"
 	defaultRPCHostPort = "localhost:" + defaultRPCPort
-	tlsCertFlag        = cli.StringFlag{
-		Name: "tlscertpath",
-		Usage: "path to faraday's TLS certificate, only " +
-			"needed if faraday runs in the same process " +
-			"as lnd (GrUB)",
+	faradayDirFlag     = cli.StringFlag{
+		Name:  "faradaydir",
+		Value: faraday.FaradayDirBase,
+		Usage: "path to faraday's base directory",
+	}
+	networkFlag = cli.StringFlag{
+		Name: "network, n",
+		Usage: "the network faraday is running on e.g. mainnet, " +
+			"testnet, etc.",
+		Value: faraday.DefaultNetwork,
+	}
+	tlsCertFlag = cli.StringFlag{
+		Name:  "tlscertpath",
+		Usage: "path to faraday's TLS certificate",
 	}
 	macaroonPathFlag = cli.StringFlag{
 		Name: "macaroonpath",
@@ -34,6 +43,8 @@ func main() {
 			Value: defaultRPCHostPort,
 			Usage: "host:port of faraday",
 		},
+		networkFlag,
+		faradayDirFlag,
 		tlsCertFlag,
 		macaroonPathFlag,
 	}

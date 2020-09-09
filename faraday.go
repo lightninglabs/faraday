@@ -62,7 +62,9 @@ func Main() error {
 	server := frdrpc.NewRPCServer(cfg)
 
 	// Catch intercept signals, then start the server.
-	signal.Intercept()
+	if err := signal.Intercept(); err != nil {
+		return err
+	}
 	if err := server.Start(); err != nil {
 		return err
 	}

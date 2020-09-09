@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/btcsuite/btcutil"
-	"github.com/jessevdk/go-flags"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/build"
 	"github.com/lightningnetwork/lnd/cert"
@@ -133,31 +131,13 @@ func DefaultConfig() Config {
 	}
 }
 
-// LoadConfig starts with a skeleton default config, and reads in user provided
-// configuration from the command line. It does not provide a full set of
-// defaults or validate user input because validation and sensible default
-// setting are performed by the lndclient package.
-func LoadConfig() (*Config, error) {
-	// Start with a default config.
-	config := DefaultConfig()
-
-	// Parse command line options to obtain user specified values.
-	if _, err := flags.Parse(&config); err != nil {
-		return nil, err
-	}
-
-	// Show the version and exit if the version flag was specified.
-	appName := filepath.Base(os.Args[0])
-	appName = strings.TrimSuffix(appName, filepath.Ext(appName))
-	if config.ShowVersion {
-		fmt.Println(appName, "version", Version())
-		os.Exit(0)
-	}
-
+// ValidateConfig sanitizes all file system paths and makes sure no incompatible
+// configuration combinations are used.
+func ValidateConfig(config *Config) error {
 	// Validate the network.
 	_, err := lndclient.Network(config.Network).ChainParams()
 	if err != nil {
-		return nil, fmt.Errorf("error validating network: %v", err)
+		return fmt.Errorf("error validating network: %v", err)
 	}
 
 	// Clean up and validate paths, then make sure the directories exist.
@@ -171,7 +151,7 @@ func LoadConfig() (*Config, error) {
 
 	// Create the full path of directories now, including the network path.
 	if err := os.MkdirAll(config.FaradayDir, os.ModePerm); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Since our faraday directory overrides our TLS dir values, make sure
@@ -183,12 +163,12 @@ func LoadConfig() (*Config, error) {
 		tlsKeyPathSet := config.TLSKeyPath != DefaultTLSKeyPath
 
 		if tlsCertPathSet {
-			return nil, fmt.Errorf("faradaydir overwrites " +
+			return fmt.Errorf("faradaydir overwrites " +
 				"tlscertpath, please only set one value")
 		}
 
 		if tlsKeyPathSet {
-			return nil, fmt.Errorf("faradaydir overwrites " +
+			return fmt.Errorf("faradaydir overwrites " +
 				"tlskeypath, please only set one value")
 		}
 	}
@@ -212,21 +192,21 @@ func LoadConfig() (*Config, error) {
 	// required.
 	if config.ChainConn {
 		if config.Bitcoin.User == "" || config.Bitcoin.Password == "" {
-			return nil, fmt.Errorf("rpc user and password " +
+			return fmt.Errorf("rpc user and password " +
 				"required when chainconn is set")
 		}
 
 		if config.Bitcoin.UseTLS && config.Bitcoin.TLSPath == "" {
-			return nil, fmt.Errorf("bitcoin.tlspath required " +
+			return fmt.Errorf("bitcoin.tlspath required " +
 				"when chainconn is set")
 		}
 	}
 
 	if err := build.ParseAndSetDebugLevels(config.DebugLevel, logWriter); err != nil {
-		return nil, err
+		return err
 	}
 
-	return &config, nil
+	return nil
 }
 
 // getTLSConfig generates a new self signed certificate or refreshes an existing

@@ -373,10 +373,6 @@ func (s *RPCServer) NodeAudit(ctx context.Context,
 	log.Debugf("[NodeAudit]: range: %v-%v, fiat: %v", req.StartTime,
 		req.EndTime, req.DisableFiat)
 
-	if err := s.requireNode(); err != nil {
-		return nil, err
-	}
-
 	onChain, offChain, err := parseNodeAuditRequest(ctx, s.cfg, req)
 	if err != nil {
 		return nil, err

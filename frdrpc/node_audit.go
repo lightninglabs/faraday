@@ -7,6 +7,7 @@ import (
 	"github.com/lightningnetwork/lnd/routing/route"
 
 	"github.com/lightninglabs/faraday/accounting"
+	"github.com/lightninglabs/faraday/fees"
 )
 
 // parseNodeAuditRequest parses a report request and returns the config
@@ -45,9 +46,19 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 		pubkey, start, end, req.DisableFiat, granularity,
 	)
 
+	// If we have a chain connection, set our tx lookup function. Otherwise
+	// log a warning.
+	var feeLookup fees.GetDetailsFunc
+	if cfg.BitcoinClient != nil {
+		feeLookup = cfg.BitcoinClient.GetTxDetail
+	} else {
+		log.Warn("creating accounting report without bitcoin " +
+			"backend, some fee entries will be missing (see logs)")
+	}
+
 	onChain := accounting.NewOnChainConfig(
 		ctx, cfg.Lnd, start, end, req.DisableFiat,
-		cfg.BitcoinClient.GetTxDetail, granularity,
+		feeLookup, granularity,
 	)
 
 	return onChain, offChain, nil

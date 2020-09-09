@@ -45,7 +45,7 @@ loop directory is used. For other networks it should be sufficient to add the
 `--network` flag to tell the CLI in what sub directory to look for the files.
 
 ### Chain Backend
-Faraday offers node accounting services which require access to a Bitcoin node with `--txindex` set so that it can perform transaction lookup. Currently the `NodeAudit` and `CloseReport` endpoints require this connection, and will fail if it is not present. This connection is *optional*, and all other endpoints will function if it is not configured. 
+Faraday offers node accounting services which require access to a Bitcoin node with `--txindex` set so that it can perform transaction lookup. Currently the `CloseReport` endpoint requires this connection, and will fail if it is not present. It is *strongly recommended* to provide this connection when utilizing the `NodeAudit` endpoint, but it is not required. This connection is *optional*, and all other endpoints will function if it is not configured. 
 
 To connect Faraday to bitcoind:
 ```
@@ -83,7 +83,7 @@ The RPC server can be conveniently accessed using a command line tool.
 - `revenue`: generate a revenue report over a time period for one or many channels.
 - `outliers`: close recommendations based whether channels are outliers based on a variety of metrics.
 - `threshold`: close recommendations based on thresholds a variety of metrics.
-- `nodeaudit`: produce an accounting report for your node over a period of time, please see the [accounting documentation](https://github.com/lightninglabs/faraday/blob/master/accounting/docs.md) for details. *Requires chain backend*.
+- `nodeaudit`: produce an accounting report for your node over a period of time, please see the [accounting documentation](https://github.com/lightninglabs/faraday/blob/master/accounting/docs.md) for details. *Chain backend strongly recommended*, fee entries for channel closes and sweeps will be *missing* if a chain connection is not provided.
 - `fiat`: get the USD price for an amount of Bitcoin at a given time, currently obtained from CoinCap's [historical price API](https://docs.coincap.io/?version=latest).
 - `closereports`: provides a channel specific fee report, including fees paid on chain. This endpoint is currently only implemented for cooperative closes.  *Requires chain backend*.
 

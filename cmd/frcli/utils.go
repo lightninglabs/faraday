@@ -107,7 +107,8 @@ func getClientConn(ctx *cli.Context) *grpc.ClientConn {
 	// TLS cannot be disabled, we'll always have a cert file to read.
 	creds, err := credentials.NewClientTLSFromFile(tlsCertPath, "")
 	if err != nil {
-		fatal(err)
+		fatal(fmt.Errorf("unable to read tls cert (path: %v): %v",
+			tlsCertPath, err))
 	}
 
 	// Macaroons are not yet enabled by default.

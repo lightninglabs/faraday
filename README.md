@@ -32,17 +32,25 @@ Faraday connects to a single instance of lnd. It requires access to macaroons fo
 By default, faraday runs on mainnet. The `--network` flag can be used to run in
 test environments.
 
-## Transport security
+## Authentication and transport security
 
-The gRPC and REST connections of `faraday` are encrypted with TLS the same way
-`lnd` is.
+The gRPC and REST connections of `faraday` are encrypted with TLS and secured
+with macaroon authentication the same way `lnd` is.
 
-If no custom loop directory is set then the TLS certificate is stored in
-`~/.faraday/<network>/tls.cert`.
+If no custom faraday directory is set then the TLS certificate is stored in
+`~/.faraday/<network>/tls.cert` and the base macaroon in
+`~/.faraday/<network>/faraday.macaroon`.
 
-The `frcli` command will pick up the file automatically on mainnet if no custom
-loop directory is used. For other networks it should be sufficient to add the
-`--network` flag to tell the CLI in what sub directory to look for the files.
+The `frcli` command will pick up these file automatically on mainnet if no
+custom faraday directory is used. For other networks it should be sufficient to
+add the `--network` flag to tell the CLI in what sub directory to look for the
+files.
+
+For more information on macaroons,
+[see the macaroon documentation of lnd.](https://github.com/lightningnetwork/lnd/blob/master/docs/macaroons.md)
+
+**NOTE**: Faraday's macaroons are independent from `lnd`'s. The same macaroon
+cannot be used for both `faraday` and `lnd`.
 
 ### Chain Backend
 Faraday offers node accounting services which require access to a Bitcoin node with `--txindex` set so that it can perform transaction lookup. Currently the `CloseReport` endpoint requires this connection, and will fail if it is not present. It is *strongly recommended* to provide this connection when utilizing the `NodeAudit` endpoint, but it is not required. This connection is *optional*, and all other endpoints will function if it is not configured. 

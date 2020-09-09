@@ -25,6 +25,7 @@ var (
 	tlsCertFlag = cli.StringFlag{
 		Name:  "tlscertpath",
 		Usage: "path to faraday's TLS certificate",
+		Value: faraday.DefaultTLSCertPath,
 	}
 	macaroonPathFlag = cli.StringFlag{
 		Name: "macaroonpath",

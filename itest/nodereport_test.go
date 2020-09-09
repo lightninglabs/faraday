@@ -8,15 +8,16 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
-	"github.com/lightninglabs/faraday/accounting"
-	"github.com/lightninglabs/faraday/fees"
-	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
 	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lightninglabs/faraday/accounting"
+	"github.com/lightninglabs/faraday/fees"
+	"github.com/lightninglabs/faraday/frdrpc"
 )
 
 var (

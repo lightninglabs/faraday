@@ -26,6 +26,7 @@ jobs:
         - make mod-check
         - make rpc-check
         - make build
+        - make imports
       name: Build and lint
     - stage: Tests
       script: make unit

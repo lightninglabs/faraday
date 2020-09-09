@@ -2,13 +2,14 @@ package faraday
 
 import (
 	"github.com/btcsuite/btclog"
+	"github.com/lightningnetwork/lnd/build"
+
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/dataset"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
-	"github.com/lightningnetwork/lnd/build"
 )
 
 // Subsystem defines the logging code for this subsystem.

@@ -7,8 +7,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/lightninglabs/faraday/paginater"
 	"github.com/lightninglabs/lndclient"
+
+	"github.com/lightninglabs/faraday/paginater"
 )
 
 // ListInvoices makes paginated calls to lnd to get our full set of

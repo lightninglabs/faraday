@@ -5,9 +5,10 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
+	"github.com/lightninglabs/lndclient"
+
 	"github.com/lightninglabs/faraday/fees"
 	"github.com/lightninglabs/faraday/resolutions"
-	"github.com/lightninglabs/lndclient"
 )
 
 func parseCloseReportRequest(ctx context.Context, cfg *Config) *resolutions.Config {

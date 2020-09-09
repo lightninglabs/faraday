@@ -11,13 +11,14 @@ import (
 
 	"github.com/btcsuite/btcutil"
 	"github.com/jessevdk/go-flags"
-	"github.com/lightninglabs/faraday/chain"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/build"
 	"github.com/lightningnetwork/lnd/cert"
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/lightninglabs/faraday/chain"
 )
 
 const (

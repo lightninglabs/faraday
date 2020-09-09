@@ -3,9 +3,10 @@ package insights
 import (
 	"time"
 
-	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnwire"
+
+	"github.com/lightninglabs/faraday/revenue"
 )
 
 // ChannelInfo provides a set of performance metrics for a lightning channel.

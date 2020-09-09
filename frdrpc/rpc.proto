@@ -73,11 +73,11 @@ service FaradayServer {
     Get a report of your node's activity over a period.
 
     Example request:
-    http://localhost:8466/v1/faraday/nodereport
+    http://localhost:8466/v1/faraday/nodeaudit
     */
-    rpc NodeReport (NodeReportRequest) returns (NodeReportResponse) {
+    rpc NodeAudit (NodeAuditRequest) returns (NodeAuditResponse) {
         option (google.api.http) = {
-            get: "/v1/faraday/nodereport"
+            get: "/v1/faraday/nodeaudit"
         };
     }
 
@@ -386,7 +386,7 @@ message ExchangeRate {
     BitcoinPrice btc_price = 2;
 }
 
-message NodeReportRequest {
+message NodeAuditRequest {
     // The unix time from which to produce the report, inclusive.
     uint64 start_time = 1;
 
@@ -491,7 +491,7 @@ message ReportEntry {
     BitcoinPrice btc_price = 11;
 }
 
-message NodeReportResponse {
+message NodeAuditResponse {
     // On chain reports for the period queried.
     repeated ReportEntry reports = 1;
 }

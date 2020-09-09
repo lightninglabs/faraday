@@ -366,18 +366,18 @@ func (s *RPCServer) ExchangeRate(ctx context.Context,
 	return exchangeRateResponse(prices), nil
 }
 
-// NodeReport returns an on chain report for the period requested.
-func (s *RPCServer) NodeReport(ctx context.Context,
-	req *NodeReportRequest) (*NodeReportResponse, error) {
+// NodeAudit returns an on chain report for the period requested.
+func (s *RPCServer) NodeAudit(ctx context.Context,
+	req *NodeAuditRequest) (*NodeAuditResponse, error) {
 
-	log.Debugf("[NodeReport]: range: %v-%v, fiat: %v", req.StartTime,
+	log.Debugf("[NodeAudit]: range: %v-%v, fiat: %v", req.StartTime,
 		req.EndTime, req.DisableFiat)
 
 	if err := s.requireNode(); err != nil {
 		return nil, err
 	}
 
-	onChain, offChain, err := parseNodeReportRequest(ctx, s.cfg, req)
+	onChain, offChain, err := parseNodeAuditRequest(ctx, s.cfg, req)
 	if err != nil {
 		return nil, err
 	}

@@ -9,10 +9,10 @@ import (
 	"github.com/lightninglabs/faraday/accounting"
 )
 
-// parseNodeReportRequest parses a report request and returns the config
+// parseNodeAuditRequest parses a report request and returns the config
 // required to produce a report containing on chain and off chain.
-func parseNodeReportRequest(ctx context.Context, cfg *Config,
-	req *NodeReportRequest) (*accounting.OnChainConfig,
+func parseNodeAuditRequest(ctx context.Context, cfg *Config,
+	req *NodeAuditRequest) (*accounting.OnChainConfig,
 	*accounting.OffChainConfig, error) {
 
 	start, end, err := validateTimes(req.StartTime, req.EndTime)
@@ -53,7 +53,7 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 	return onChain, offChain, nil
 }
 
-func rpcReportResponse(report accounting.Report) (*NodeReportResponse,
+func rpcReportResponse(report accounting.Report) (*NodeAuditResponse,
 	error) {
 
 	entries := make([]*ReportEntry, len(report))
@@ -89,7 +89,7 @@ func rpcReportResponse(report accounting.Report) (*NodeReportResponse,
 		entries[i] = rpcEntry
 	}
 
-	return &NodeReportResponse{Reports: entries}, nil
+	return &NodeAuditResponse{Reports: entries}, nil
 }
 
 func rpcEntryType(t accounting.EntryType) (EntryType, error) {

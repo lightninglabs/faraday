@@ -5,10 +5,14 @@ LINT_PKG := github.com/golangci/golangci-lint/cmd/golangci-lint
 GOVERALLS_PKG := github.com/mattn/goveralls
 GOACC_PKG := github.com/ory/go-acc
 
+IMPORTS_PKG := github.com/pavius/impi/cmd/impi
+IMPORTS_COMMIT := 3cdbde3d3cbb0ead2b9491272bccb5c652174656
+
 GO_BIN := ${GOPATH}/bin
 GOVERALLS_BIN := $(GO_BIN)/goveralls
 LINT_BIN := $(GO_BIN)/golangci-lint
 GOACC_BIN := $(GO_BIN)/go-acc
+IMPORTS_BIN := $(GO_BIN)/impi
 
 COMMIT := $(shell git describe --abbrev=40 --dirty)
 LDFLAGS := -ldflags "-X $(PKG).Commit=$(COMMIT)"
@@ -54,6 +58,10 @@ $(LINT_BIN):
 $(GOACC_BIN):
 	@$(call print, "Fetching go-acc")
 	$(DEPGET) $(GOACC_PKG)@$(GOACC_COMMIT)
+
+$(IMPORTS_BIN):
+	@$(call print, "Fetching imports check")
+	$(DEPGET) $(IMPORTS_PKG)@$(IMPORTS_COMMIT)
 
 # ============
 # INSTALLATION
@@ -117,6 +125,11 @@ flake-unit:
 fmt:
 	@$(call print, "Formatting source.")
 	gofmt -l -w -s $(GOFILES_NOVENDOR)
+
+imports: $(IMPORTS_BIN)
+	@$(call print, "Checking imports.")
+	$(IMPORTS_BIN) --local github.com/lightninglabs/faraday/ --scheme stdThirdPartyLocal --ignore-generated=true *
+
 
 lint: $(LINT_BIN)
 	@$(call print, "Linting source.")

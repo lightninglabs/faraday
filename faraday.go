@@ -68,6 +68,8 @@ func Main() error {
 		CORSOrigin:       config.CORSOrigin,
 		TLSServerConfig:  serverTLSCfg,
 		RestClientConfig: restClientCreds,
+		FaradayDir:       config.FaradayDir,
+		MacaroonPath:     config.MacaroonPath,
 	}
 
 	// If the client chose to connect to a bitcoin client, get one now.

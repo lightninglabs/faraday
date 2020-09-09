@@ -61,7 +61,8 @@ type OnChainConfig struct {
 	// to lnd.
 	ListSweeps func() ([]string, error)
 
-	// GetFee gets the total fees for a transaction.
+	// GetFee gets the total fees for a transaction. This function may be
+	// nil if we do not have access to a bitcoin backend to lookup fees.
 	GetFee getFeeFunc
 }
 
@@ -90,9 +91,19 @@ type CommonConfig struct {
 }
 
 // NewOnChainConfig returns an on chain config from the lnd services provided.
+// The txLookup function may be nil if a connection to a bitcoin backend is not
+// available. If this is the case, the fee report will log warnings indicating
+// that fee lookups are not possible in certain cases.
 func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 	endTime time.Time, disableFiat bool, txLookup fees.GetDetailsFunc,
 	granularity *fiat.Granularity) *OnChainConfig {
+
+	var getFee func(chainhash.Hash) (btcutil.Amount, error)
+	if txLookup != nil {
+		getFee = func(txid chainhash.Hash) (btcutil.Amount, error) {
+			return fees.CalculateFee(txLookup, &txid)
+		}
+	}
 
 	return &OnChainConfig{
 		OpenChannels: lndwrap.ListChannels(
@@ -116,9 +127,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 			DisableFiat: disableFiat,
 			Granularity: granularity,
 		},
-		GetFee: func(txid chainhash.Hash) (btcutil.Amount, error) {
-			return fees.CalculateFee(txLookup, &txid)
-		},
+		GetFee: getFee,
 	}
 }
 

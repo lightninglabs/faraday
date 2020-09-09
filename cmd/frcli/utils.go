@@ -96,6 +96,12 @@ func getClientConn(ctx *cli.Context) *grpc.ClientConn {
 		fatal(err)
 	}
 
+	// We always need to send a macaroon.
+	macOption, err := readMacaroon(macaroonPath)
+	if err != nil {
+		fatal(err)
+	}
+
 	// We need to use a custom dialer so we can also connect to unix sockets
 	// and not just TCP addresses.
 	genericDialer := clientAddressDialer(defaultRPCPort)
@@ -103,6 +109,7 @@ func getClientConn(ctx *cli.Context) *grpc.ClientConn {
 	opts := []grpc.DialOption{
 		grpc.WithContextDialer(genericDialer),
 		grpc.WithDefaultCallOptions(maxMsgRecvSize),
+		macOption,
 	}
 
 	// TLS cannot be disabled, we'll always have a cert file to read.
@@ -110,11 +117,6 @@ func getClientConn(ctx *cli.Context) *grpc.ClientConn {
 	if err != nil {
 		fatal(fmt.Errorf("unable to read tls cert (path: %v): %v",
 			tlsCertPath, err))
-	}
-
-	// Macaroons are not yet enabled by default.
-	if macaroonPath != "" {
-		opts = append(opts, readMacaroon(macaroonPath))
 	}
 
 	opts = append(opts, grpc.WithTransportCredentials(creds))
@@ -140,27 +142,34 @@ func extractPathArgs(ctx *cli.Context) (string, string, error) {
 	}
 
 	// We'll now fetch the faradaydir so we can make a decision on how to
-	// properly read the cert. This will either be the default, or will have
-	// been overwritten by the end user.
+	// properly read the macaroon and cert files. This will either be the
+	// default, or will have been overwritten by the end user.
 	faradayDir := lncfg.CleanAndExpandPath(ctx.GlobalString(
 		faradayDirFlag.Name,
 	))
 	tlsCertPath := lncfg.CleanAndExpandPath(ctx.GlobalString(
 		tlsCertFlag.Name,
 	))
+	macPath := lncfg.CleanAndExpandPath(ctx.GlobalString(
+		macaroonPathFlag.Name,
+	))
 
 	// If a custom faraday directory was set, we'll also check if a custom
-	// path for the TLS cert file was set as well. If not, we'll override
-	// the path so they can be found within the custom faraday directory.
+	// path for the TLS cert and macaroon file was set as well. If not,
+	// we'll override the path so they can be found within the custom
+	// faraday directory.
 	if faradayDir != faraday.FaradayDirBase ||
 		networkStr != faraday.DefaultNetwork {
 
 		tlsCertPath = filepath.Join(
 			faradayDir, networkStr, faraday.DefaultTLSCertFilename,
 		)
+		macPath = filepath.Join(
+			faradayDir, networkStr, faraday.DefaultMacaroonFilename,
+		)
 	}
 
-	return tlsCertPath, ctx.GlobalString(macaroonPathFlag.Name), nil
+	return tlsCertPath, macPath, nil
 }
 
 // ClientAddressDialer parsed client address and returns a dialer.
@@ -187,16 +196,16 @@ func clientAddressDialer(defaultPort string) func(context.Context,
 //
 // TODO(guggero): Provide this function in lnd's macaroon package and use it
 // from there.
-func readMacaroon(macPath string) grpc.DialOption {
+func readMacaroon(macPath string) (grpc.DialOption, error) {
 	// Load the specified macaroon file.
 	macBytes, err := ioutil.ReadFile(macPath)
 	if err != nil {
-		fatal(fmt.Errorf("unable to read macaroon path : %v", err))
+		return nil, fmt.Errorf("unable to read macaroon path : %v", err)
 	}
 
 	mac := &macaroon.Macaroon{}
 	if err = mac.UnmarshalBinary(macBytes); err != nil {
-		fatal(fmt.Errorf("unable to decode macaroon: %v", err))
+		return nil, fmt.Errorf("unable to decode macaroon: %v", err)
 	}
 
 	macConstraints := []macaroons.Constraint{
@@ -216,12 +225,12 @@ func readMacaroon(macPath string) grpc.DialOption {
 	// Apply constraints to the macaroon.
 	constrainedMac, err := macaroons.AddConstraints(mac, macConstraints...)
 	if err != nil {
-		fatal(err)
+		return nil, err
 	}
 
 	// Now we append the macaroon credentials to the dial options.
 	cred := macaroons.NewMacaroonCredential(constrainedMac)
-	return grpc.WithPerRPCCredentials(cred)
+	return grpc.WithPerRPCCredentials(cred), nil
 }
 
 // parseChannelPoint parses a funding txid and output index from the command

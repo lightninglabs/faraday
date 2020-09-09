@@ -28,9 +28,9 @@ var (
 		Value: faraday.DefaultTLSCertPath,
 	}
 	macaroonPathFlag = cli.StringFlag{
-		Name: "macaroonpath",
-		Usage: "path to macaroon file, only needed if faraday runs " +
-			"in the same process as lnd (GrUB)",
+		Name:  "macaroonpath",
+		Usage: "path to macaroon file",
+		Value: faraday.DefaultMacaroonPath,
 	}
 )
 

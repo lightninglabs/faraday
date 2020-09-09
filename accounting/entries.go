@@ -139,6 +139,18 @@ func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
 		return []*HarmonyEntry{closeEntry}, nil
 	}
 
+	// At this stage, we know that we have a channel close transaction where
+	// we paid the fees (because we initiated the channel). If we do not
+	// have a fee lookup function, we cannot get fees for this channel so
+	// we log a warning and return without a fee entry.
+	if getFee == nil {
+		log.Warnf("no bitcoin backend provided to lookup fees, "+
+			"channel close fee entry for: %v omitted",
+			channel.channelPoint)
+
+		return []*HarmonyEntry{closeEntry}, nil
+	}
+
 	fees, err := getFee(tx.Tx.TxHash())
 	if err != nil {
 		return nil, err
@@ -171,6 +183,16 @@ func sweepEntries(tx lndclient.Transaction, getFees getFeeFunc,
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	// If we do not have a fee lookup function set, we log a warning that
+	// we cannot record fees for the sweep transaction and return wihtout
+	// adding a fee entry.
+	if getFees == nil {
+		log.Warnf("no bitcoin backend provided to lookup fees, "+
+			"sweep fee entry for: %v omitted", tx.TxHash)
+
+		return []*HarmonyEntry{txEntry}, nil
 	}
 
 	fee, err := getFees(tx.Tx.TxHash())

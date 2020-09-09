@@ -14,7 +14,7 @@ import (
 )
 
 var onChainReportCommand = cli.Command{
-	Name:     "nodereport",
+	Name:     "audit",
 	Category: "reporting",
 	Usage:    "Get a report of node activity.",
 	Flags: []cli.Flag{
@@ -51,7 +51,7 @@ func queryOnChainReport(ctx *cli.Context) error {
 
 	// Set start and end times from user specified values, defaulting
 	// to zero if they are not set.
-	req := &frdrpc.NodeReportRequest{
+	req := &frdrpc.NodeAuditRequest{
 		StartTime:   uint64(ctx.Int64("start_time")),
 		EndTime:     uint64(ctx.Int64("end_time")),
 		DisableFiat: !ctx.IsSet("enable_fiat"),
@@ -64,7 +64,7 @@ func queryOnChainReport(ctx *cli.Context) error {
 	}
 
 	rpcCtx := context.Background()
-	report, err := client.NodeReport(rpcCtx, req)
+	report, err := client.NodeAudit(rpcCtx, req)
 	if err != nil {
 		return err
 	}

@@ -7,12 +7,13 @@ import (
 	"github.com/lightningnetwork/lnd/routing/route"
 
 	"github.com/lightninglabs/faraday/accounting"
+	"github.com/lightninglabs/faraday/fees"
 )
 
-// parseNodeReportRequest parses a report request and returns the config
+// parseNodeAuditRequest parses a report request and returns the config
 // required to produce a report containing on chain and off chain.
-func parseNodeReportRequest(ctx context.Context, cfg *Config,
-	req *NodeReportRequest) (*accounting.OnChainConfig,
+func parseNodeAuditRequest(ctx context.Context, cfg *Config,
+	req *NodeAuditRequest) (*accounting.OnChainConfig,
 	*accounting.OffChainConfig, error) {
 
 	start, end, err := validateTimes(req.StartTime, req.EndTime)
@@ -45,15 +46,25 @@ func parseNodeReportRequest(ctx context.Context, cfg *Config,
 		pubkey, start, end, req.DisableFiat, granularity,
 	)
 
+	// If we have a chain connection, set our tx lookup function. Otherwise
+	// log a warning.
+	var feeLookup fees.GetDetailsFunc
+	if cfg.BitcoinClient != nil {
+		feeLookup = cfg.BitcoinClient.GetTxDetail
+	} else {
+		log.Warn("creating accounting report without bitcoin " +
+			"backend, some fee entries will be missing (see logs)")
+	}
+
 	onChain := accounting.NewOnChainConfig(
 		ctx, cfg.Lnd, start, end, req.DisableFiat,
-		cfg.BitcoinClient.GetTxDetail, granularity,
+		feeLookup, granularity,
 	)
 
 	return onChain, offChain, nil
 }
 
-func rpcReportResponse(report accounting.Report) (*NodeReportResponse,
+func rpcReportResponse(report accounting.Report) (*NodeAuditResponse,
 	error) {
 
 	entries := make([]*ReportEntry, len(report))
@@ -89,7 +100,7 @@ func rpcReportResponse(report accounting.Report) (*NodeReportResponse,
 		entries[i] = rpcEntry
 	}
 
-	return &NodeReportResponse{Reports: entries}, nil
+	return &NodeAuditResponse{Reports: entries}, nil
 }
 
 func rpcEntryType(t accounting.EntryType) (EntryType, error) {

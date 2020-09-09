@@ -125,16 +125,16 @@
         ]
       }
     },
-    "/v1/faraday/nodereport": {
+    "/v1/faraday/nodeaudit": {
       "get": {
         "summary": "*\nGet a report of your node's activity over a period.",
-        "description": "Example request:\nhttp://localhost:8466/v1/faraday/nodereport",
-        "operationId": "NodeReport",
+        "description": "Example request:\nhttp://localhost:8466/v1/faraday/nodeaudit",
+        "operationId": "NodeAudit",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/frdrpcNodeReportResponse"
+              "$ref": "#/definitions/frdrpcNodeAuditResponse"
             }
           },
           "default": {
@@ -576,7 +576,7 @@
       "default": "UNKNOWN_GRANULARITY",
       "description": "Granularity describes the aggregation level at which the Bitcoin price should\nbe queried. Note that setting lower levels of granularity may require more\nqueries to the fiat backend."
     },
-    "frdrpcNodeReportResponse": {
+    "frdrpcNodeAuditResponse": {
       "type": "object",
       "properties": {
         "reports": {

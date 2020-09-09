@@ -300,7 +300,7 @@ func TestChannelCloseEntry(t *testing.T) {
 	// correct close type and amount.
 	getCloseEntry := func(closeType, closeInitiator string,
 		closeBalance btcutil.Amount,
-		chanInitiator lndclient.Initiator) []*HarmonyEntry {
+		chanInitiator lndclient.Initiator, hasFees bool) []*HarmonyEntry {
 
 		note := channelCloseNote(channelID, closeType, closeInitiator)
 
@@ -320,7 +320,7 @@ func TestChannelCloseEntry(t *testing.T) {
 			BTCPrice:  mockBTCPrice,
 		}
 
-		if chanInitiator != lndclient.InitiatorLocal {
+		if chanInitiator != lndclient.InitiatorLocal || !hasFees {
 			return []*HarmonyEntry{chanEntry}
 		}
 
@@ -345,30 +345,42 @@ func TestChannelCloseEntry(t *testing.T) {
 		closeAmt  btcutil.Amount
 		closeType lndclient.CloseType
 		initiator lndclient.Initiator
+		feeFunc   getFeeFunc
 	}{
 		{
 			name:      "coop close, has balance",
 			closeType: lndclient.CloseTypeCooperative,
 			closeAmt:  closeBalanceSat,
 			initiator: lndclient.InitiatorRemote,
+			feeFunc:   mockFeeFunc,
 		},
 		{
 			name:      "force close, has no balance",
 			closeType: lndclient.CloseTypeLocalForce,
 			closeAmt:  0,
 			initiator: lndclient.InitiatorRemote,
+			feeFunc:   mockFeeFunc,
 		},
 		{
 			name:      "coop close, we opened",
 			closeType: lndclient.CloseTypeCooperative,
 			closeAmt:  closeBalanceSat,
 			initiator: lndclient.InitiatorLocal,
+			feeFunc:   mockFeeFunc,
 		},
 		{
 			name:      "coop close, they opened",
 			closeType: lndclient.CloseTypeCooperative,
 			closeAmt:  closeBalanceSat,
 			initiator: lndclient.InitiatorRemote,
+			feeFunc:   mockFeeFunc,
+		},
+		{
+			name:      "we opened, no fee function",
+			closeType: lndclient.CloseTypeCooperative,
+			closeAmt:  closeBalanceSat,
+			initiator: lndclient.InitiatorLocal,
+			feeFunc:   nil,
 		},
 	}
 
@@ -386,13 +398,14 @@ func TestChannelCloseEntry(t *testing.T) {
 			closeTx.Amount = test.closeAmt
 
 			entries, err := closedChannelEntries(
-				closeChan, closeTx, mockFeeFunc, mockPrice,
+				closeChan, closeTx, test.feeFunc, mockPrice,
 			)
 			require.NoError(t, err)
 
 			expected := getCloseEntry(
 				closeChan.closeType, closeChan.closeInitiator,
 				test.closeAmt, test.initiator,
+				test.feeFunc != nil,
 			)
 
 			require.Equal(t, expected, entries)
@@ -406,19 +419,21 @@ func TestSweepEntry(t *testing.T) {
 	amt := satsToMsat(onChainAmtSat)
 	amtMsat := lnwire.MilliSatoshi(amt)
 
+	sweepEntry := &HarmonyEntry{
+		Timestamp: onChainTimestamp,
+		Amount:    amtMsat,
+		FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
+		TxID:      onChainTxID,
+		Reference: onChainTxID,
+		Note:      "",
+		Type:      EntryTypeSweep,
+		OnChain:   true,
+		Credit:    true,
+		BTCPrice:  mockBTCPrice,
+	}
+
 	entries := []*HarmonyEntry{
-		{
-			Timestamp: onChainTimestamp,
-			Amount:    amtMsat,
-			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
-			TxID:      onChainTxID,
-			Reference: onChainTxID,
-			Note:      "",
-			Type:      EntryTypeSweep,
-			OnChain:   true,
-			Credit:    true,
-			BTCPrice:  mockBTCPrice,
-		},
+		sweepEntry,
 		{
 			Timestamp: onChainTimestamp,
 			Amount:    mockFeeMSat,
@@ -437,12 +452,21 @@ func TestSweepEntry(t *testing.T) {
 		name    string
 		err     error
 		fee     btcutil.Amount
+		getFee  getFeeFunc
 		entries []*HarmonyEntry
 	}{
 		{
 			name:    "fee not set in tx",
 			fee:     0,
+			getFee:  mockFeeFunc,
 			entries: entries,
+			err:     nil,
+		},
+		{
+			name:    "no fee function",
+			fee:     0,
+			getFee:  nil,
+			entries: []*HarmonyEntry{sweepEntry},
 			err:     nil,
 		},
 	}
@@ -455,7 +479,7 @@ func TestSweepEntry(t *testing.T) {
 			sweep.Fee = test.fee
 
 			entries, err := sweepEntries(
-				sweep, mockFeeFunc, mockPrice,
+				sweep, test.getFee, mockPrice,
 			)
 			require.Equal(t, test.err, err)
 			require.Equal(t, test.entries, entries)

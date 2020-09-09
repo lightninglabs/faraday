@@ -24,10 +24,10 @@ var (
 	paymentTimeout = time.Second * 10
 )
 
-// TestNodeReport tests our node report rpc endpoint. It includes coverage for
+// TestNodeAudit tests our node audit rpc endpoint. It includes coverage for
 // off chain sends and receives, channel opens and closes and on chain receives.
 // This test does not include on chain sends, forwards and circular payments.
-func TestNodeReport(t *testing.T) {
+func TestNodeAudit(t *testing.T) {
 	c := newTestContext(t)
 	defer c.stop()
 
@@ -228,8 +228,8 @@ func TestNodeReport(t *testing.T) {
 
 	// Query faraday for our node report. We disable fiat values so that we
 	// do not query our fiat API during itests.
-	actual, err := c.faradayClient.NodeReport(
-		ctx, &frdrpc.NodeReportRequest{
+	actual, err := c.faradayClient.NodeAudit(
+		ctx, &frdrpc.NodeAuditRequest{
 			StartTime:   0,
 			EndTime:     uint64(endTime.Unix()),
 			DisableFiat: true,
@@ -262,7 +262,7 @@ func TestNodeReport(t *testing.T) {
 	}
 }
 
-// expectedReport contains the fields we match in our nodereport itest.
+// expectedReport contains the fields we match in our nodeaudit itest.
 type expectedReport struct {
 	amount    lnwire.MilliSatoshi
 	eventType frdrpc.EntryType

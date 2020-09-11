@@ -3,7 +3,11 @@ package faraday
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
+	"github.com/jessevdk/go-flags"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/signal"
 
@@ -14,12 +18,27 @@ import (
 // Main is the real entry point for faraday. It is required to ensure that
 // defers are properly executed when os.Exit() is called.
 func Main() error {
-	config, err := LoadConfig()
-	if err != nil {
-		return fmt.Errorf("error loading config: %v", err)
+	// Start with a default config.
+	config := DefaultConfig()
+
+	// Parse command line options to obtain user specified values.
+	if _, err := flags.Parse(&config); err != nil {
+		return err
 	}
 
-	serverTLSCfg, restClientCreds, err := getTLSConfig(config)
+	// Show the version and exit if the version flag was specified.
+	appName := filepath.Base(os.Args[0])
+	appName = strings.TrimSuffix(appName, filepath.Ext(appName))
+	if config.ShowVersion {
+		fmt.Println(appName, "version", Version())
+		os.Exit(0)
+	}
+
+	if err := ValidateConfig(&config); err != nil {
+		return fmt.Errorf("error validating config: %v", err)
+	}
+
+	serverTLSCfg, restClientCreds, err := getTLSConfig(&config)
 	if err != nil {
 		return fmt.Errorf("error loading TLS config: %v", err)
 	}
@@ -49,6 +68,8 @@ func Main() error {
 		CORSOrigin:       config.CORSOrigin,
 		TLSServerConfig:  serverTLSCfg,
 		RestClientConfig: restClientCreds,
+		FaradayDir:       config.FaradayDir,
+		MacaroonPath:     config.MacaroonPath,
 	}
 
 	// If the client chose to connect to a bitcoin client, get one now.
@@ -62,7 +83,9 @@ func Main() error {
 	server := frdrpc.NewRPCServer(cfg)
 
 	// Catch intercept signals, then start the server.
-	signal.Intercept()
+	if err := signal.Intercept(); err != nil {
+		return err
+	}
 	if err := server.Start(); err != nil {
 		return err
 	}

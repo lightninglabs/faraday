@@ -32,7 +32,8 @@ var (
 
 	faradayCmd = "./faraday"
 
-	faradayCertPath = "/root/.faraday/regtest/tls.cert"
+	faradayCertPath     = "/root/.faraday/regtest/tls.cert"
+	faradayMacaroonPath = "/root/.faraday/regtest/faraday.macaroon"
 
 	faradayArgs = []string{
 		"--rpclisten=localhost:8465",
@@ -521,7 +522,7 @@ func (c *testContext) startFaraday() {
 	var err error
 	c.eventuallyf(func() bool {
 		c.faradayClient, err = getFaradayClient(
-			"localhost:8465", faradayCertPath,
+			"localhost:8465", faradayCertPath, faradayMacaroonPath,
 		)
 		return err == nil
 	}, "could not connect to faraday process: %v", err)

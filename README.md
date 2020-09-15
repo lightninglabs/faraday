@@ -93,7 +93,7 @@ The RPC server can be conveniently accessed using a command line tool.
 - `threshold`: close recommendations based on thresholds a variety of metrics.
 - `nodeaudit`: produce an accounting report for your node over a period of time, please see the [accounting documentation](https://github.com/lightninglabs/faraday/blob/master/accounting/docs.md) for details. *Chain backend strongly recommended*, fee entries for channel closes and sweeps will be *missing* if a chain connection is not provided.
 - `fiat`: get the USD price for an amount of Bitcoin at a given time, currently obtained from CoinCap's [historical price API](https://docs.coincap.io/?version=latest).
-- `closereports`: provides a channel specific fee report, including fees paid on chain. This endpoint is currently only implemented for cooperative closes.  *Requires chain backend*.
+- `closereport`: provides a channel specific fee report, including fees paid on chain. This endpoint is currently only implemented for cooperative closes.  *Requires chain backend*.
 
 #### Metrics currently tracked
 The following metrics are tracked in faraday and exposed via `insights` and used for `outliers` and `threshold` close recommendations.

@@ -2,10 +2,10 @@
 
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/lightninglabs/faraday/blob/master/LICENSE)
 
-Faraday is an external service intended to be run in conjunction with the [lnd](https://github.com/lightningnetwork/lnd) implementation of the [Lightning Network](https://lightning.network). It queries LND for information about its existing channels and provides channel close recommendations if channels are under-performing. 
-
+Faraday is a suite of tools built to help node operators and businesses run [lnd](https://github.com/lightningnetwork/lnd), the leading implementation of the [Lightning Network](https://github.com/lightningnetwork/lightning-rfc). Faraday’s tools decrease the operational overhead of running a Lightning node and make it easier to build businesses on Lightning. The current features in the Faraday suite provide insight into node channel performance and support for accounting with both on-chain and off-chain reports for lnd. 
 ## LND
-Note that Faraday requires lnd to be built with **all of its subservers** and requires running at least v0.10.1. Please see the [instructions](https://github.com/lightningnetwork/lnd/blob/master/docs/INSTALL.md) in the lnd repo for more detailed installation instructions. You will need to build lnd with the following command to enable all the relevant subservers:
+Note that Faraday requires lnd to be built with **all of its subservers** and requires running at least v0.11.0. Download the [official release binary](https://github.com/lightningnetwork/lnd/releases/tag/v0.11.0-beta) or see the [instructions](https://github.com/lightningnetwork/lnd/blob/master/docs/INSTALL.md) in the lnd repo for more detailed installation instructions. If you choose to build lnd from source, following command to enable all the relevant subservers:
+
 ```
 make install tags="signrpc walletrpc chainrpc invoicesrpc"
 ```
@@ -15,8 +15,8 @@ make install tags="signrpc walletrpc chainrpc invoicesrpc"
 A [Makefile](https://github.com/lightninglabs/faraday/blob/master/Makefile) is provided. To install faraday and all its dependencies, run:
 
 ```
-go get -d github.com/lightninglabs/faraday
-cd $GOPATH/src/github.com/lightninglabs/faraday
+git clone https://github.com/lightninglabs/faraday.git
+cd faraday
 make && make install
 ```
 

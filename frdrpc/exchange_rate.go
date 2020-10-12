@@ -1,6 +1,7 @@
 package frdrpc
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -60,6 +61,10 @@ func granularityFromRPC(g Granularity, disableFiat bool,
 
 func parseExchangeRateRequest(req *ExchangeRateRequest) ([]time.Time,
 	*fiat.Granularity, error) {
+
+	if len(req.Timestamps) == 0 {
+		return nil, nil, errors.New("at least one timestamp required")
+	}
 
 	timestamps := make([]time.Time, len(req.Timestamps))
 

@@ -170,6 +170,11 @@ var (
 
 	mockFee     = btcutil.Amount(44)
 	mockFeeMSat = lnwire.MilliSatoshi(mockFee * 1000)
+
+	testUtils = entryUtils{
+		getFee:  mockFeeFunc,
+		getFiat: mockPrice,
+	}
 )
 
 // mockPrice is a mocked price function which returns mockPrice * amount.
@@ -275,7 +280,7 @@ func TestChannelOpenEntry(t *testing.T) {
 
 			// Get our entries.
 			entries, err := channelOpenEntries(
-				channel, tx, mockPrice,
+				channel, tx, testUtils,
 			)
 			require.Equal(t, test.expectedErr, err)
 
@@ -397,8 +402,13 @@ func TestChannelCloseEntry(t *testing.T) {
 			closeTx := channelCloseTx
 			closeTx.Amount = test.closeAmt
 
+			utils := entryUtils{
+				getFee:  test.feeFunc,
+				getFiat: mockPrice,
+			}
+
 			entries, err := closedChannelEntries(
-				closeChan, closeTx, test.feeFunc, mockPrice,
+				closeChan, closeTx, utils,
 			)
 			require.NoError(t, err)
 
@@ -478,9 +488,12 @@ func TestSweepEntry(t *testing.T) {
 			sweep := onChainTx
 			sweep.Fee = test.fee
 
-			entries, err := sweepEntries(
-				sweep, test.getFee, mockPrice,
-			)
+			utils := entryUtils{
+				getFee:  test.getFee,
+				getFiat: mockPrice,
+			}
+
+			entries, err := sweepEntries(sweep, utils)
 			require.Equal(t, test.err, err)
 			require.Equal(t, test.entries, entries)
 		})
@@ -607,7 +620,7 @@ func TestOnChainEntry(t *testing.T) {
 			// Set the label as per the test.
 			chainTx.Label = test.txLabel
 
-			entries, err := onChainEntries(chainTx, mockPrice)
+			entries, err := onChainEntries(chainTx, testUtils)
 			require.NoError(t, err)
 
 			// Create the entries we expect based on the test
@@ -673,7 +686,7 @@ func TestInvoiceEntry(t *testing.T) {
 			t.Parallel()
 
 			entry, err := invoiceEntry(
-				invoice, test.circular, mockPrice,
+				invoice, test.circular, testUtils,
 			)
 			if err != nil {
 				t.Fatal(err)
@@ -752,7 +765,7 @@ func TestPaymentEntry(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 			entries, err := paymentEntry(
-				payInfo, test.toSelf, mockPrice,
+				payInfo, test.toSelf, testUtils,
 			)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -767,7 +780,7 @@ func TestPaymentEntry(t *testing.T) {
 
 // TestForwardingEntry tests creation of a forwarding and forwarding fee entry.
 func TestForwardingEntry(t *testing.T) {
-	entries, err := forwardingEntry(fwdEntry, mockPrice)
+	entries, err := forwardingEntry(fwdEntry, testUtils)
 	require.NoError(t, err)
 
 	txid := forwardTxid(fwdEntry)

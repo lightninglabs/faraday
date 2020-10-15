@@ -38,9 +38,8 @@ func OnChainReport(ctx context.Context, cfg *OnChainConfig) (Report, error) {
 // onChainInformation contains all the information we require to produce an
 // on chain report.
 type onChainInformation struct {
-	txns           []lndclient.Transaction
-	priceFunc      usdPrice
-	feeFunc        getFeeFunc
+	txns []lndclient.Transaction
+	entryUtils
 	sweeps         map[string]bool
 	openedChannels map[string]channelInfo
 	closedChannels map[string]closedChannelInfo
@@ -83,11 +82,13 @@ func getOnChainInfo(cfg *OnChainConfig, getPrice usdPrice) (*onChainInformation,
 
 	// Create an info struct to hold all the elements we need.
 	info := &onChainInformation{
-		priceFunc:      getPrice,
+		entryUtils: entryUtils{
+			getFiat: getPrice,
+			getFee:  cfg.GetFee,
+		},
 		openedChannels: make(map[string]channelInfo),
 		sweeps:         make(map[string]bool),
 		closedChannels: make(map[string]closedChannelInfo),
-		feeFunc:        cfg.GetFee,
 	}
 
 	onChainTxns, err := cfg.OnChainTransactions()
@@ -256,7 +257,7 @@ func onChainReport(info *onChainInformation) (
 		openChannel, ok := info.openedChannels[txn.TxHash]
 		if ok {
 			entries, err := channelOpenEntries(
-				openChannel, txn, info.priceFunc,
+				openChannel, txn, info.entryUtils,
 			)
 			if err != nil {
 				return nil, err
@@ -270,7 +271,7 @@ func onChainReport(info *onChainInformation) (
 		channelClose, ok := info.closedChannels[txn.TxHash]
 		if ok {
 			entries, err := closedChannelEntries(
-				channelClose, txn, info.feeFunc, info.priceFunc,
+				channelClose, txn, info.entryUtils,
 			)
 			if err != nil {
 				return nil, err
@@ -285,7 +286,7 @@ func onChainReport(info *onChainInformation) (
 		// miss fees that are contributed by the swept input.
 		if info.sweeps[txn.TxHash] {
 			entries, err := sweepEntries(
-				txn, info.feeFunc, info.priceFunc,
+				txn, info.entryUtils,
 			)
 			if err != nil {
 				return nil, err
@@ -297,7 +298,7 @@ func onChainReport(info *onChainInformation) (
 
 		// Finally, if the transaction is unrelated to channel opens or
 		// closes, we create a generic on chain entry for it.
-		entries, err := onChainEntries(txn, info.priceFunc)
+		entries, err := onChainEntries(txn, info.entryUtils)
 		if err != nil {
 			return nil, err
 		}

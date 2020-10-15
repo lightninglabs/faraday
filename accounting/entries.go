@@ -20,6 +20,10 @@ type entryUtils struct {
 	// getFiat provides a USD price for the btc value provided at its
 	// timestamp.
 	getFiat usdPrice
+
+	// customCategories is a set of custom categories which are set for the
+	// report.
+	customCategories []CustomCategory
 }
 
 // FeeReference returns a special unique reference for the fee paid on a
@@ -68,9 +72,11 @@ func channelOpenEntries(channel channelInfo, tx lndclient.Transaction,
 		channel.capacity,
 	)
 
+	category := getCategory(tx.Label, u.customCategories)
+
 	openEntry, err := newHarmonyEntry(
 		tx.Timestamp, amtMsat, entryType, tx.TxHash,
-		channel.channelID.String(), note,
+		channel.channelID.String(), note, category,
 		true, u.getFiat,
 	)
 	if err != nil {
@@ -91,8 +97,8 @@ func channelOpenEntries(channel channelInfo, tx lndclient.Transaction,
 
 	note = channelOpenFeeNote(channel.channelID)
 	feeEntry, err := newHarmonyEntry(
-		tx.Timestamp, feeMsat, EntryTypeChannelOpenFee,
-		tx.TxHash, FeeReference(tx.TxHash), note, true, u.getFiat,
+		tx.Timestamp, feeMsat, EntryTypeChannelOpenFee, tx.TxHash,
+		FeeReference(tx.TxHash), note, category, true, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -122,9 +128,11 @@ func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
 		channel.channelID, channel.closeType, channel.closeInitiator,
 	)
 
+	category := getCategory(tx.Label, u.customCategories)
+
 	closeEntry, err := newHarmonyEntry(
 		tx.Timestamp, amtMsat, EntryTypeChannelClose, tx.TxHash,
-		tx.TxHash, note, true, u.getFiat,
+		tx.TxHash, note, category, true, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -173,7 +181,7 @@ func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
 
 	feeEntry, err := newHarmonyEntry(
 		tx.Timestamp, feeAmt, EntryTypeChannelCloseFee,
-		tx.TxHash, FeeReference(tx.TxHash), "",
+		tx.TxHash, FeeReference(tx.TxHash), "", category,
 		true, u.getFiat,
 	)
 	if err != nil {
@@ -186,10 +194,11 @@ func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
 // sweepEntries creates a sweep entry and looks up its fee to create a fee
 // entry.
 func sweepEntries(tx lndclient.Transaction, u entryUtils) ([]*HarmonyEntry, error) {
+	category := getCategory(tx.Label, u.customCategories)
 
 	txEntry, err := newHarmonyEntry(
 		tx.Timestamp, satsToMsat(tx.Amount), EntryTypeSweep, tx.TxHash,
-		tx.TxHash, tx.Label, true, u.getFiat,
+		tx.TxHash, tx.Label, category, true, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -212,7 +221,8 @@ func sweepEntries(tx lndclient.Transaction, u entryUtils) ([]*HarmonyEntry, erro
 
 	feeEntry, err := newHarmonyEntry(
 		tx.Timestamp, invertedSatsToMsats(fee), EntryTypeSweepFee,
-		tx.TxHash, FeeReference(tx.TxHash), "", true, u.getFiat,
+		tx.TxHash, FeeReference(tx.TxHash), "", category, true,
+		u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -229,6 +239,7 @@ func onChainEntries(tx lndclient.Transaction,
 		amtMsat   = satsToMsat(tx.Amount)
 		entryType EntryType
 		feeType   = EntryTypeFee
+		category  = getCategory(tx.Label, u.customCategories)
 	)
 
 	// Determine the type of entry we are creating. If this is a sweep, we
@@ -251,7 +262,7 @@ func onChainEntries(tx lndclient.Transaction,
 
 	txEntry, err := newHarmonyEntry(
 		tx.Timestamp, amtMsat, entryType, tx.TxHash, tx.TxHash,
-		tx.Label, true, u.getFiat,
+		tx.Label, category, true, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -269,7 +280,7 @@ func onChainEntries(tx lndclient.Transaction,
 
 	feeEntry, err := newHarmonyEntry(
 		tx.Timestamp, feeAmt, feeType, tx.TxHash,
-		FeeReference(tx.TxHash), "", true, u.getFiat,
+		FeeReference(tx.TxHash), "", category, true, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -309,6 +320,8 @@ func invoiceNote(memo string, amt, amtPaid lnwire.MilliSatoshi,
 func invoiceEntry(invoice lndclient.Invoice, circularReceipt bool,
 	u entryUtils) (*HarmonyEntry, error) {
 
+	category := getCategory(invoice.Memo, u.customCategories)
+
 	eventType := EntryTypeReceipt
 	if circularReceipt {
 		eventType = EntryTypeCircularReceipt
@@ -321,8 +334,8 @@ func invoiceEntry(invoice lndclient.Invoice, circularReceipt bool,
 
 	return newHarmonyEntry(
 		invoice.SettleDate, int64(invoice.AmountPaid), eventType,
-		invoice.Hash.String(), invoice.Preimage.String(), note, false,
-		u.getFiat,
+		invoice.Hash.String(), invoice.Preimage.String(), note,
+		category, false, u.getFiat,
 	)
 }
 
@@ -374,8 +387,8 @@ func paymentEntry(payment paymentInfo, paidToSelf bool,
 	amt := invertMsat(int64(payment.Amount))
 
 	paymentEntry, err := newHarmonyEntry(
-		payment.settleTime, amt, paymentType,
-		payment.Hash.String(), ref, note, false, u.getFiat,
+		payment.settleTime, amt, paymentType, payment.Hash.String(),
+		ref, note, "", false, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -391,8 +404,8 @@ func paymentEntry(payment paymentInfo, paidToSelf bool,
 	feeAmt := invertMsat(int64(payment.Fee))
 
 	feeEntry, err := newHarmonyEntry(
-		payment.settleTime, feeAmt, feeType,
-		payment.Hash.String(), feeRef, note, false, u.getFiat,
+		payment.settleTime, feeAmt, feeType, payment.Hash.String(),
+		feeRef, note, "", false, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -425,7 +438,7 @@ func forwardingEntry(forward lndclient.ForwardingEvent,
 	note := forwardNote(forward.AmountMsatIn, forward.AmountMsatOut)
 
 	fwdEntry, err := newHarmonyEntry(
-		forward.Timestamp, 0, EntryTypeForward, txid, "", note,
+		forward.Timestamp, 0, EntryTypeForward, txid, "", note, "",
 		false, u.getFiat,
 	)
 	if err != nil {
@@ -439,7 +452,7 @@ func forwardingEntry(forward lndclient.ForwardingEvent,
 
 	feeEntry, err := newHarmonyEntry(
 		forward.Timestamp, int64(forward.FeeMsat),
-		EntryTypeForwardFee, txid, "", "", false, u.getFiat,
+		EntryTypeForwardFee, txid, "", "", "", false, u.getFiat,
 	)
 	if err != nil {
 		return nil, err

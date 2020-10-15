@@ -97,7 +97,8 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice usdPrice) (Report,
 	}
 
 	u := entryUtils{
-		getFiat: getPrice,
+		getFiat:          getPrice,
+		customCategories: cfg.Categories,
 	}
 
 	return offChainReport(

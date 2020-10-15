@@ -40,6 +40,9 @@ type HarmonyEntry struct {
 	// Type describes the type of entry.
 	Type EntryType
 
+	// Category indicates whether the entry is part of a custom category.
+	Category string
+
 	// OnChain indicates whether the transaction occurred on or off chain.
 	OnChain bool
 
@@ -59,7 +62,9 @@ type HarmonyEntry struct {
 // changes to the amount will be made. Zero value entries will be recorded as
 // a credit.
 func newHarmonyEntry(ts time.Time, amountMsat int64, e EntryType, txid,
-	reference, note string, onChain bool, convert usdPrice) (*HarmonyEntry,
+	reference, note, category string, onChain bool,
+	convert usdPrice) (*HarmonyEntry,
+
 	error) {
 
 	var (
@@ -86,6 +91,7 @@ func newHarmonyEntry(ts time.Time, amountMsat int64, e EntryType, txid,
 		Reference: reference,
 		Note:      note,
 		Type:      e,
+		Category:  category,
 		OnChain:   onChain,
 		Credit:    credit,
 		BTCPrice:  btcPrice,

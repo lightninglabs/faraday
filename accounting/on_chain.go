@@ -83,8 +83,9 @@ func getOnChainInfo(cfg *OnChainConfig, getPrice usdPrice) (*onChainInformation,
 	// Create an info struct to hold all the elements we need.
 	info := &onChainInformation{
 		entryUtils: entryUtils{
-			getFiat: getPrice,
-			getFee:  cfg.GetFee,
+			getFiat:          getPrice,
+			getFee:           cfg.GetFee,
+			customCategories: cfg.Categories,
 		},
 		openedChannels: make(map[string]channelInfo),
 		sweeps:         make(map[string]bool),

@@ -88,6 +88,10 @@ type CommonConfig struct {
 	// Granularity specifies the level of granularity with which we want to
 	// get fiat prices.
 	Granularity *fiat.Granularity
+
+	// Categories is a set of custom categories which should be added to the
+	// report.
+	Categories []CustomCategory
 }
 
 // NewOnChainConfig returns an on chain config from the lnd services provided.

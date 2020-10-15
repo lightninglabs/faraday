@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/lightningnetwork/lnd/lnwire"
@@ -165,3 +166,56 @@ const (
 	// channel.
 	EntryTypeChannelCloseFee
 )
+
+// String returns the string representation of an entry type.
+func (e EntryType) String() string {
+	switch e {
+	case EntryTypeLocalChannelOpen:
+		return "local channel open"
+
+	case EntryTypeRemoteChannelOpen:
+		return "remote channel open"
+
+	case EntryTypeChannelOpenFee:
+		return "channel open fee"
+
+	case EntryTypeChannelClose:
+		return "channel close fee"
+
+	case EntryTypeReceipt:
+		return "receipt"
+
+	case EntryTypePayment:
+		return "payment"
+
+	case EntryTypeFee:
+		return "fee"
+
+	case EntryTypeCircularReceipt:
+		return "circular payment receipt"
+
+	case EntryTypeForward:
+		return "forward"
+
+	case EntryTypeForwardFee:
+		return "forward fee"
+
+	case EntryTypeCircularPayment:
+		return "circular payment"
+
+	case EntryTypeCircularPaymentFee:
+		return "circular payment fee"
+
+	case EntryTypeSweep:
+		return "sweep"
+
+	case EntryTypeSweepFee:
+		return "sweep fee"
+
+	case EntryTypeChannelCloseFee:
+		return "channel close fee"
+
+	default:
+		return fmt.Sprintf("unknown: %d", e)
+	}
+}

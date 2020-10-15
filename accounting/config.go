@@ -100,7 +100,7 @@ type CommonConfig struct {
 // that fee lookups are not possible in certain cases.
 func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 	endTime time.Time, disableFiat bool, txLookup fees.GetDetailsFunc,
-	granularity *fiat.Granularity) *OnChainConfig {
+	granularity *fiat.Granularity, categories []CustomCategory) *OnChainConfig {
 
 	var getFee func(chainhash.Hash) (btcutil.Amount, error)
 	if txLookup != nil {
@@ -130,6 +130,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 			EndTime:     endTime,
 			DisableFiat: disableFiat,
 			Granularity: granularity,
+			Categories:  categories,
 		},
 		GetFee: getFee,
 	}
@@ -141,7 +142,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 	maxInvoices, maxPayments, maxForwards uint64, ownPubkey route.Vertex,
 	startTime, endTime time.Time, disableFiat bool,
-	granularity *fiat.Granularity) *OffChainConfig {
+	granularity *fiat.Granularity, categories []CustomCategory) *OffChainConfig {
 
 	return &OffChainConfig{
 		ListInvoices: func() ([]lndclient.Invoice, error) {
@@ -173,6 +174,7 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 			EndTime:     endTime,
 			DisableFiat: disableFiat,
 			Granularity: granularity,
+			Categories:  categories,
 		},
 	}
 }

@@ -14,6 +14,25 @@ type CustomCategory struct {
 	Regexes []*regexp.Regexp
 }
 
+// NewCustomCategory creates compiles the set of regexes provided and returning
+// a new category. This function assumes that each regex is unique.
+func NewCustomCategory(name string, regexes []string) (*CustomCategory, error) {
+	category := &CustomCategory{
+		Name: name,
+	}
+
+	for _, regex := range regexes {
+		exp, err := regexp.Compile(regex)
+		if err != nil {
+			return nil, err
+		}
+
+		category.Regexes = append(category.Regexes, exp)
+	}
+
+	return category, nil
+}
+
 // isMember returns a boolean indicating whether a label belongs in a custom
 // category. If the label matches any one of the category's regexes, it is
 // considered a member of the category.

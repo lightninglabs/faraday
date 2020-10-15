@@ -511,6 +511,32 @@
         }
       }
     },
+    "frdrpcCustomCategory": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name for the custom category which will contain all transactions that\nare labelled with a string matching one of the regexes provided in\nlabel identifiers."
+        },
+        "on_chain": {
+          "type": "boolean",
+          "format": "boolean",
+          "description": "Set to true to apply this category to on chain transactions. Can be set in\nconjunction with off_chain to apply the category to all transactions."
+        },
+        "off_chain": {
+          "type": "boolean",
+          "format": "boolean",
+          "description": "Set to true to apply this category to off chain transactions. Can be set in\nconjunction with on_chain to apply the category to all transactions."
+        },
+        "label_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A set of regular expressions which identify transactions by their label as\nbelonging in this custom category. If a label matches any single regex in\nthe set, it is considered to be in the category. These expressions will be\nmatched against various labels that are present in lnd: on chain\ntransactions will be matched against their label field, off chain receipts\nwill be matched against their memo. At present, there is no way to match\nforwards or off chain payments. These expressions must be unique across\ncustom categories, otherwise faraday will not be able to identify which\ncustom category a transaction belongs in."
+        }
+      }
+    },
     "frdrpcEntryType": {
       "type": "string",
       "enum": [
@@ -662,6 +688,10 @@
         "type": {
           "$ref": "#/definitions/frdrpcEntryType",
           "description": "The kind of activity that this entry represents."
+        },
+        "custom_category": {
+          "type": "string",
+          "description": "This field will be populated for entry type custom, and represents the name\nof a custom category that the report was produced with."
         },
         "txid": {
           "type": "string",

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -17,6 +18,36 @@ var onChainReportCommand = cli.Command{
 	Name:     "audit",
 	Category: "reporting",
 	Usage:    "Get a report of node activity.",
+	Description: `
+	Create a report containing all of your node's activity over 
+	the period specified. Transactions are sorted into a set of 
+	lightning-specific entry types. Fiat values can optionally be 
+	included using the --enable_fiat flag. To write the report 
+	directly to a csv, set a target directory using the --csv_path 
+	flag.
+
+	These reports can optionally be created with custom categories. 
+	This requires providing a name for the category, and a set of 
+	regular expressions which identify the labels of transactions 
+	belonging in the category. To directly string match, just provide
+	the string itself. These regular expressions are matched against 
+	the labels for on chain transactions and the invoices on memos 
+	(at present we cannot match forwarding events and payments).
+
+	Categories should be expressed as a json array with the 
+	following format:
+	--categories='[
+		{ 
+			"name": "test", 
+			"on_chain": true, 
+			"label_patterns": ["test[0-9]*", "example(1|2)"] 
+		},
+		{
+			"name": "category 2",
+			...
+		},
+	]'
+`,
 	Flags: []cli.Flag{
 		cli.Int64Flag{
 			Name: "start_time",
@@ -41,6 +72,11 @@ var onChainReportCommand = cli.Command{
 			Name:  "enable_fiat",
 			Usage: "Create a report with fiat conversions.",
 		},
+		cli.StringFlag{
+			Name: "categories",
+			Usage: "A set of custom categories to create the " +
+				"report with, expressed as a json array.",
+		},
 	},
 	Action: queryOnChainReport,
 }
@@ -61,6 +97,21 @@ func queryOnChainReport(ctx *cli.Context) error {
 	if req.StartTime == 0 {
 		weekAgo := time.Now().Add(time.Hour * 24 * 7 * -1)
 		req.StartTime = uint64(weekAgo.Unix())
+	}
+
+	var (
+		categoryStr = ctx.String("categories")
+		categories  []*frdrpc.CustomCategory
+	)
+
+	// If we have custom categories set, unmarshal them and add them to
+	// our request.
+	if categoryStr != "" {
+		err := json.Unmarshal([]byte(categoryStr), &categories)
+		if err != nil {
+			return err
+		}
+		req.CustomCategories = categories
 	}
 
 	rpcCtx := context.Background()

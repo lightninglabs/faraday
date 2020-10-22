@@ -77,6 +77,14 @@ var onChainReportCommand = cli.Command{
 			Usage: "A set of custom categories to create the " +
 				"report with, expressed as a json array.",
 		},
+		cli.BoolFlag{
+			Name: "loop-category",
+			Usage: "Add a custom category called 'loop' " +
+				"containing all transactions associated with " +
+				"Lightning Labs Loop swaps. Note that this " +
+				"category currently does not include off " +
+				"chain payments.",
+		},
 	},
 	Action: queryOnChainReport,
 }
@@ -112,6 +120,20 @@ func queryOnChainReport(ctx *cli.Context) error {
 			return err
 		}
 		req.CustomCategories = categories
+	}
+
+	if ctx.Bool("loop-category") {
+		req.CustomCategories = append(
+			req.CustomCategories,
+			&frdrpc.CustomCategory{
+				Name:     "loop",
+				OnChain:  true,
+				OffChain: true,
+				LabelPatterns: []string{
+					"loopd --",
+					"swap",
+				},
+			})
 	}
 
 	rpcCtx := context.Background()

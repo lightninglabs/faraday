@@ -107,8 +107,7 @@ func TestOnChainReport(t *testing.T) {
 
 			info := &onChainInformation{
 				txns:           []lndclient.Transaction{test.tx},
-				priceFunc:      mockPrice,
-				feeFunc:        mockFeeFunc,
+				entryUtils:     testUtils,
 				sweeps:         test.sweeps,
 				openedChannels: test.openedChannels,
 				closedChannels: test.closedChannels,

@@ -403,6 +403,48 @@ message NodeAuditRequest {
 
     // The level of granularity at which we wish to produce fiat prices.
     Granularity granularity = 5;
+
+    /*
+    An optional set of custom categories which can be used to identify bespoke
+    categories in the report. Each category must have a unique name, and may not
+    have common identifier regexes. Transactions that are matched to these
+    categories report the category name in the CustomCategory field.
+    */
+    repeated CustomCategory custom_categories = 6;
+}
+
+message CustomCategory{
+    /*
+    The name for the custom category which will contain all transactions that
+    are labelled with a string matching one of the regexes provided in
+    label identifiers.
+    */
+    string name = 1;
+
+    /*
+    Set to true to apply this category to on chain transactions. Can be set in
+    conjunction with off_chain to apply the category to all transactions.
+    */
+    bool on_chain = 2;
+
+    /*
+    Set to true to apply this category to off chain transactions. Can be set in
+    conjunction with on_chain to apply the category to all transactions.
+    */
+    bool off_chain = 3;
+
+    /*
+    A set of regular expressions which identify transactions by their label as
+    belonging in this custom category. If a label matches any single regex in
+    the set, it is considered to be in the category. These expressions will be
+    matched against various labels that are present in lnd: on chain
+    transactions will be matched against their label field, off chain receipts
+    will be matched against their memo. At present, there is no way to match
+    forwards or off chain payments. These expressions must be unique across
+    custom categories, otherwise faraday will not be able to identify which
+    custom category a transaction belongs in.
+    */
+    repeated string label_patterns = 5;
 }
 
 enum EntryType {
@@ -474,6 +516,12 @@ message ReportEntry {
 
     // The kind of activity that this entry represents.
     EntryType type = 6;
+
+    /*
+    This field will be populated for entry type custom, and represents the name
+    of a custom category that the report was produced with.
+    */
+    string custom_category = 12;
 
     // The transaction id of the entry.
     string txid = 7;

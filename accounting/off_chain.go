@@ -96,9 +96,14 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice usdPrice) (Report,
 		return nil, err
 	}
 
+	u := entryUtils{
+		getFiat:          getPrice,
+		customCategories: cfg.Categories,
+	}
+
 	return offChainReport(
 		filteredInvoices, filteredPayments, paymentsToSelf, forwards,
-		getPrice,
+		u,
 	)
 }
 
@@ -107,10 +112,9 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice usdPrice) (Report,
 // date range, with the exception of payments to self which tracks payments
 // that were made to ourselves for the sake of appropriately reporting the
 // invoices they paid.
-
 func offChainReport(invoices []lndclient.Invoice, payments []paymentInfo,
 	circularPayments map[string]bool, forwards []lndclient.ForwardingEvent,
-	convert usdPrice) (Report, error) {
+	utils entryUtils) (Report, error) {
 
 	var reports Report
 
@@ -119,7 +123,7 @@ func offChainReport(invoices []lndclient.Invoice, payments []paymentInfo,
 		// payments, we know that this payment was made to ourselves.
 		toSelf := circularPayments[invoice.Hash.String()]
 
-		entry, err := invoiceEntry(invoice, toSelf, convert)
+		entry, err := invoiceEntry(invoice, toSelf, utils)
 		if err != nil {
 			return nil, err
 		}
@@ -132,7 +136,7 @@ func offChainReport(invoices []lndclient.Invoice, payments []paymentInfo,
 		// payments, we know that this payment was made to ourselves.
 		toSelf := circularPayments[payment.Hash.String()]
 
-		entries, err := paymentEntry(payment, toSelf, convert)
+		entries, err := paymentEntry(payment, toSelf, utils)
 		if err != nil {
 			return nil, err
 		}
@@ -141,7 +145,7 @@ func offChainReport(invoices []lndclient.Invoice, payments []paymentInfo,
 	}
 
 	for _, forward := range forwards {
-		entries, err := forwardingEntry(forward, convert)
+		entries, err := forwardingEntry(forward, utils)
 		if err != nil {
 			return nil, err
 		}

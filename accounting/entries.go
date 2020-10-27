@@ -11,6 +11,21 @@ import (
 	"github.com/lightningnetwork/lnd/routing/route"
 )
 
+// entryUtils contains the utility functions required to create an entry.
+type entryUtils struct {
+	// getFee looks up the fees for an on chain transaction, this function
+	// may be nil.
+	getFee getFeeFunc
+
+	// getFiat provides a USD price for the btc value provided at its
+	// timestamp.
+	getFiat usdPrice
+
+	// customCategories is a set of custom categories which are set for the
+	// report.
+	customCategories []CustomCategory
+}
+
 // FeeReference returns a special unique reference for the fee paid on a
 // transaction. We use the reference of the original entry with :-1 to denote
 // that this entry is associated with the original entry.
@@ -39,7 +54,7 @@ func channelOpenFeeNote(channelID lnwire.ShortChannelID) string {
 
 // channelOpenEntries produces entries for channel opens and their fees.
 func channelOpenEntries(channel channelInfo, tx lndclient.Transaction,
-	convert usdPrice) ([]*HarmonyEntry, error) {
+	u entryUtils) ([]*HarmonyEntry, error) {
 
 	// If the transaction has a negative amount, we can infer that this
 	// transaction was a local channel open, because a remote party opening
@@ -57,10 +72,12 @@ func channelOpenEntries(channel channelInfo, tx lndclient.Transaction,
 		channel.capacity,
 	)
 
+	category := getCategory(tx.Label, u.customCategories)
+
 	openEntry, err := newHarmonyEntry(
 		tx.Timestamp, amtMsat, entryType, tx.TxHash,
-		channel.channelID.String(), note,
-		true, convert,
+		channel.channelID.String(), note, category,
+		true, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -80,8 +97,8 @@ func channelOpenEntries(channel channelInfo, tx lndclient.Transaction,
 
 	note = channelOpenFeeNote(channel.channelID)
 	feeEntry, err := newHarmonyEntry(
-		tx.Timestamp, feeMsat, EntryTypeChannelOpenFee,
-		tx.TxHash, FeeReference(tx.TxHash), note, true, convert,
+		tx.Timestamp, feeMsat, EntryTypeChannelOpenFee, tx.TxHash,
+		FeeReference(tx.TxHash), note, category, true, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -104,16 +121,18 @@ func channelCloseNote(channelID lnwire.ShortChannelID, closeType,
 // it is excluding htlcs that are resolved on chain, and will not reflect our
 // balance when we force close (because it is behind a timelock).
 func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
-	getFee getFeeFunc, convert usdPrice) ([]*HarmonyEntry, error) {
+	u entryUtils) ([]*HarmonyEntry, error) {
 
 	amtMsat := satsToMsat(tx.Amount)
 	note := channelCloseNote(
 		channel.channelID, channel.closeType, channel.closeInitiator,
 	)
 
+	category := getCategory(tx.Label, u.customCategories)
+
 	closeEntry, err := newHarmonyEntry(
 		tx.Timestamp, amtMsat, EntryTypeChannelClose, tx.TxHash,
-		tx.TxHash, note, true, convert,
+		tx.TxHash, note, category, true, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -143,7 +162,7 @@ func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
 	// we paid the fees (because we initiated the channel). If we do not
 	// have a fee lookup function, we cannot get fees for this channel so
 	// we log a warning and return without a fee entry.
-	if getFee == nil {
+	if u.getFee == nil {
 		log.Warnf("no bitcoin backend provided to lookup fees, "+
 			"channel close fee entry for: %v omitted",
 			channel.channelPoint)
@@ -151,7 +170,7 @@ func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
 		return []*HarmonyEntry{closeEntry}, nil
 	}
 
-	fees, err := getFee(tx.Tx.TxHash())
+	fees, err := u.getFee(tx.Tx.TxHash())
 	if err != nil {
 		return nil, err
 	}
@@ -162,8 +181,8 @@ func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
 
 	feeEntry, err := newHarmonyEntry(
 		tx.Timestamp, feeAmt, EntryTypeChannelCloseFee,
-		tx.TxHash, FeeReference(tx.TxHash), "",
-		true, convert,
+		tx.TxHash, FeeReference(tx.TxHash), "", category,
+		true, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -174,12 +193,12 @@ func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
 
 // sweepEntries creates a sweep entry and looks up its fee to create a fee
 // entry.
-func sweepEntries(tx lndclient.Transaction, getFees getFeeFunc,
-	convert usdPrice) ([]*HarmonyEntry, error) {
+func sweepEntries(tx lndclient.Transaction, u entryUtils) ([]*HarmonyEntry, error) {
+	category := getCategory(tx.Label, u.customCategories)
 
 	txEntry, err := newHarmonyEntry(
 		tx.Timestamp, satsToMsat(tx.Amount), EntryTypeSweep, tx.TxHash,
-		tx.TxHash, tx.Label, true, convert,
+		tx.TxHash, tx.Label, category, true, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -188,21 +207,22 @@ func sweepEntries(tx lndclient.Transaction, getFees getFeeFunc,
 	// If we do not have a fee lookup function set, we log a warning that
 	// we cannot record fees for the sweep transaction and return wihtout
 	// adding a fee entry.
-	if getFees == nil {
+	if u.getFee == nil {
 		log.Warnf("no bitcoin backend provided to lookup fees, "+
 			"sweep fee entry for: %v omitted", tx.TxHash)
 
 		return []*HarmonyEntry{txEntry}, nil
 	}
 
-	fee, err := getFees(tx.Tx.TxHash())
+	fee, err := u.getFee(tx.Tx.TxHash())
 	if err != nil {
 		return nil, err
 	}
 
 	feeEntry, err := newHarmonyEntry(
 		tx.Timestamp, invertedSatsToMsats(fee), EntryTypeSweepFee,
-		tx.TxHash, FeeReference(tx.TxHash), "", true, convert,
+		tx.TxHash, FeeReference(tx.TxHash), "", category, true,
+		u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -213,12 +233,13 @@ func sweepEntries(tx lndclient.Transaction, getFees getFeeFunc,
 
 // onChainEntries produces relevant entries for an on chain transaction.
 func onChainEntries(tx lndclient.Transaction,
-	convert usdPrice) ([]*HarmonyEntry, error) {
+	u entryUtils) ([]*HarmonyEntry, error) {
 
 	var (
 		amtMsat   = satsToMsat(tx.Amount)
 		entryType EntryType
 		feeType   = EntryTypeFee
+		category  = getCategory(tx.Label, u.customCategories)
 	)
 
 	// Determine the type of entry we are creating. If this is a sweep, we
@@ -241,7 +262,7 @@ func onChainEntries(tx lndclient.Transaction,
 
 	txEntry, err := newHarmonyEntry(
 		tx.Timestamp, amtMsat, entryType, tx.TxHash, tx.TxHash,
-		tx.Label, true, convert,
+		tx.Label, category, true, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -259,7 +280,7 @@ func onChainEntries(tx lndclient.Transaction,
 
 	feeEntry, err := newHarmonyEntry(
 		tx.Timestamp, feeAmt, feeType, tx.TxHash,
-		FeeReference(tx.TxHash), "", true, convert,
+		FeeReference(tx.TxHash), "", category, true, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -297,7 +318,9 @@ func invoiceNote(memo string, amt, amtPaid lnwire.MilliSatoshi,
 
 // invoiceEntry creates an entry for an invoice.
 func invoiceEntry(invoice lndclient.Invoice, circularReceipt bool,
-	convert usdPrice) (*HarmonyEntry, error) {
+	u entryUtils) (*HarmonyEntry, error) {
+
+	category := getCategory(invoice.Memo, u.customCategories)
 
 	eventType := EntryTypeReceipt
 	if circularReceipt {
@@ -311,8 +334,8 @@ func invoiceEntry(invoice lndclient.Invoice, circularReceipt bool,
 
 	return newHarmonyEntry(
 		invoice.SettleDate, int64(invoice.AmountPaid), eventType,
-		invoice.Hash.String(), invoice.Preimage.String(), note, false,
-		convert,
+		invoice.Hash.String(), invoice.Preimage.String(), note,
+		category, false, u.getFiat,
 	)
 }
 
@@ -335,7 +358,7 @@ func paymentNote(dest *route.Vertex) string {
 // paymentEntry creates an entry for an off chain payment, including fee entries
 // where required.
 func paymentEntry(payment paymentInfo, paidToSelf bool,
-	convert usdPrice) ([]*HarmonyEntry, error) {
+	u entryUtils) ([]*HarmonyEntry, error) {
 
 	// It is possible to make a payment to ourselves as part of a circular
 	// rebalance which is operationally used to shift funds between
@@ -364,8 +387,8 @@ func paymentEntry(payment paymentInfo, paidToSelf bool,
 	amt := invertMsat(int64(payment.Amount))
 
 	paymentEntry, err := newHarmonyEntry(
-		payment.settleTime, amt, paymentType,
-		payment.Hash.String(), ref, note, false, convert,
+		payment.settleTime, amt, paymentType, payment.Hash.String(),
+		ref, note, "", false, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -381,8 +404,8 @@ func paymentEntry(payment paymentInfo, paidToSelf bool,
 	feeAmt := invertMsat(int64(payment.Fee))
 
 	feeEntry, err := newHarmonyEntry(
-		payment.settleTime, feeAmt, feeType,
-		payment.Hash.String(), feeRef, note, false, convert,
+		payment.settleTime, feeAmt, feeType, payment.Hash.String(),
+		feeRef, note, "", false, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -409,14 +432,14 @@ func forwardNote(amtIn, amtOut lnwire.MilliSatoshi) string {
 // shifting of funds in our channels, and fees entry which reflects the fees we
 // earned form the forward.
 func forwardingEntry(forward lndclient.ForwardingEvent,
-	convert usdPrice) ([]*HarmonyEntry, error) {
+	u entryUtils) ([]*HarmonyEntry, error) {
 
 	txid := forwardTxid(forward)
 	note := forwardNote(forward.AmountMsatIn, forward.AmountMsatOut)
 
 	fwdEntry, err := newHarmonyEntry(
-		forward.Timestamp, 0, EntryTypeForward, txid, "", note,
-		false, convert,
+		forward.Timestamp, 0, EntryTypeForward, txid, "", note, "",
+		false, u.getFiat,
 	)
 	if err != nil {
 		return nil, err
@@ -429,7 +452,7 @@ func forwardingEntry(forward lndclient.ForwardingEvent,
 
 	feeEntry, err := newHarmonyEntry(
 		forward.Timestamp, int64(forward.FeeMsat),
-		EntryTypeForwardFee, txid, "", "", false, convert,
+		EntryTypeForwardFee, txid, "", "", "", false, u.getFiat,
 	)
 	if err != nil {
 		return nil, err

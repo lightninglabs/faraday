@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/lightningnetwork/lnd/lnwire"
@@ -39,6 +40,9 @@ type HarmonyEntry struct {
 	// Type describes the type of entry.
 	Type EntryType
 
+	// Category indicates whether the entry is part of a custom category.
+	Category string
+
 	// OnChain indicates whether the transaction occurred on or off chain.
 	OnChain bool
 
@@ -58,7 +62,9 @@ type HarmonyEntry struct {
 // changes to the amount will be made. Zero value entries will be recorded as
 // a credit.
 func newHarmonyEntry(ts time.Time, amountMsat int64, e EntryType, txid,
-	reference, note string, onChain bool, convert usdPrice) (*HarmonyEntry,
+	reference, note, category string, onChain bool,
+	convert usdPrice) (*HarmonyEntry,
+
 	error) {
 
 	var (
@@ -85,6 +91,7 @@ func newHarmonyEntry(ts time.Time, amountMsat int64, e EntryType, txid,
 		Reference: reference,
 		Note:      note,
 		Type:      e,
+		Category:  category,
 		OnChain:   onChain,
 		Credit:    credit,
 		BTCPrice:  btcPrice,
@@ -165,3 +172,56 @@ const (
 	// channel.
 	EntryTypeChannelCloseFee
 )
+
+// String returns the string representation of an entry type.
+func (e EntryType) String() string {
+	switch e {
+	case EntryTypeLocalChannelOpen:
+		return "local channel open"
+
+	case EntryTypeRemoteChannelOpen:
+		return "remote channel open"
+
+	case EntryTypeChannelOpenFee:
+		return "channel open fee"
+
+	case EntryTypeChannelClose:
+		return "channel close fee"
+
+	case EntryTypeReceipt:
+		return "receipt"
+
+	case EntryTypePayment:
+		return "payment"
+
+	case EntryTypeFee:
+		return "fee"
+
+	case EntryTypeCircularReceipt:
+		return "circular payment receipt"
+
+	case EntryTypeForward:
+		return "forward"
+
+	case EntryTypeForwardFee:
+		return "forward fee"
+
+	case EntryTypeCircularPayment:
+		return "circular payment"
+
+	case EntryTypeCircularPaymentFee:
+		return "circular payment fee"
+
+	case EntryTypeSweep:
+		return "sweep"
+
+	case EntryTypeSweepFee:
+		return "sweep fee"
+
+	case EntryTypeChannelCloseFee:
+		return "channel close fee"
+
+	default:
+		return fmt.Sprintf("unknown: %d", e)
+	}
+}

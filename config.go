@@ -77,6 +77,8 @@ type LndConfig struct {
 	// MacaroonDir is the directory containing macaroons.
 	MacaroonDir string `long:"macaroondir" description:"Dir containing macaroons"`
 
+	CustomMacaroon string `long:"custommacaroon" description:"Path to a custom macaroon that contains all the permissions Faraday needs to interact with lnd."`
+
 	// TLSCertPath is the path to the tls cert that faraday should use.
 	TLSCertPath string `long:"tlscertpath" description:"Path to TLS cert"`
 }
@@ -92,6 +94,8 @@ type Config struct { //nolint:maligned
 	ChainConn bool `long:"connect_bitcoin" description:"Whether to attempt to connect to a backing bitcoin node. Some endpoints will not be available if this option is not enabled."`
 
 	ShowVersion bool `long:"version" description:"Display version information and exit"`
+
+	MacaroonRecipe bool `long:"macaroonrecipe" description:"Display a recipe that can be used with lnd's BakeMacaroon command to create a single macaroon for Faraday."`
 
 	// MinimumMonitored is the minimum amount of time that a channel must be monitored for before we consider it for termination.
 	MinimumMonitored time.Duration `long:"min_monitored" description:"The minimum amount of time that a channel must be monitored for before recommending termination. Valid time units are {s, m, h}."`
@@ -158,6 +162,9 @@ func ValidateConfig(config *Config) error {
 	config.TLSCertPath = lncfg.CleanAndExpandPath(config.TLSCertPath)
 	config.TLSKeyPath = lncfg.CleanAndExpandPath(config.TLSKeyPath)
 	config.MacaroonPath = lncfg.CleanAndExpandPath(config.MacaroonPath)
+
+	config.Lnd.MacaroonDir = lncfg.CleanAndExpandPath(config.Lnd.MacaroonDir)
+	config.Lnd.CustomMacaroon = lncfg.CleanAndExpandPath(config.Lnd.CustomMacaroon)
 
 	// Append the network type to faraday directory so they are "namespaced"
 	// per network.

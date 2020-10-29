@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/lightningnetwork/lnd/lnrpc/verrpc"
+
 	"github.com/jessevdk/go-flags"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/signal"
@@ -43,22 +45,66 @@ func Main() error {
 		return fmt.Errorf("error loading TLS config: %v", err)
 	}
 
+	// By default, we require all subservers to be built because lndclient
+	// needs to be able to find each subserver's macaroon when it starts
+	// up. However, if we are using a custom macaroon, we can reduce the
+	// subservers required to only the subserver that we currently use,
+	// because lndclient will look for the same macaroon for each subserver.
+	buildTags := []string{
+		"signrpc", "walletrpc", "chainrpc", "invoicesrpc",
+	}
+	if config.Lnd.CustomMacaroon != "" {
+		buildTags = []string{"walletrpc"}
+	}
+
 	// Connect to the full suite of lightning services offered by lnd's
 	// subservers.
 	client, err := lndclient.NewLndServices(&lndclient.LndServicesConfig{
-		LndAddress:  config.Lnd.RPCServer,
-		Network:     lndclient.Network(config.Network),
-		MacaroonDir: config.Lnd.MacaroonDir,
-		TLSPath:     config.Lnd.TLSCertPath,
-		// Use the default lnd version check which checks for version
-		// v0.11.1 and requires all build tags.
-		CheckVersion: nil,
+		LndAddress:         config.Lnd.RPCServer,
+		Network:            lndclient.Network(config.Network),
+		MacaroonDir:        config.Lnd.MacaroonDir,
+		CustomMacaroonPath: config.Lnd.CustomMacaroon,
+		TLSPath:            config.Lnd.TLSCertPath,
+		CheckVersion: &verrpc.Version{
+			AppMajor:  0,
+			AppMinor:  11,
+			AppPatch:  1,
+			BuildTags: buildTags,
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("cannot connect to lightning services: %v",
 			err)
 	}
 	defer client.Close()
+
+	// If we want to get a macaroon recipe, we print out the list of
+	// macaroon permissions that we currently require to run faraday.
+	if config.MacaroonRecipe {
+		subservers := []string{
+			"lnrpc", "verrpc", "walletrpc",
+		}
+
+		perms, err := lndclient.MacaroonRecipe(
+			client.Client, subservers,
+		)
+		if err != nil {
+			fmt.Printf("Could not get macaroon recipe: %v", err)
+			os.Exit(1)
+		}
+
+		permList := make([]string, len(perms))
+		for i, perm := range perms {
+			permList[i] = fmt.Sprintf("%v:%v", perm.Entity,
+				perm.Action)
+		}
+
+		fmt.Println("To generate a custom macaroon for Faraday:")
+		fmt.Printf("lncli bakemacaroon --save_to={path} %v\n", strings.Join(permList, " "))
+		fmt.Println("To use this macaroon, restart Faraday using --lnd.custommacaroon={path to macaroon}")
+
+		os.Exit(0)
+	}
 
 	// Instantiate the faraday gRPC server.
 	cfg := &frdrpc.Config{

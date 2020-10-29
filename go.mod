@@ -23,3 +23,5 @@ require (
 )
 
 go 1.13
+
+replace github.com/lightninglabs/lndclient => github.com/carlakc/lndclient v0.0.0-20201029074241-0dc151828379

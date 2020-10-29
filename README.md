@@ -4,11 +4,21 @@
 
 Faraday is a suite of tools built to help node operators and businesses run [lnd](https://github.com/lightningnetwork/lnd), the leading implementation of the [Lightning Network](https://github.com/lightningnetwork/lightning-rfc). Faraday’s tools decrease the operational overhead of running a Lightning node and make it easier to build businesses on Lightning. The current features in the Faraday suite provide insight into node channel performance and support for accounting with both on-chain and off-chain reports for lnd. 
 ## LND
-Note that Faraday requires lnd to be built with **all of its subservers** and requires running at least v0.11.1. Download the [official release binary](https://github.com/lightningnetwork/lnd/releases/tag/v0.11.0-beta) or see the [instructions](https://github.com/lightningnetwork/lnd/blob/master/docs/INSTALL.md) in the lnd repo for more detailed installation instructions. If you choose to build lnd from source, following command to enable all the relevant subservers:
+Note that Faraday requires lnd to be built with **all of its subservers** and requires running at least v0.11.1. Download the [official release binary](https://github.com/lightningnetwork/lnd/releases/tag/v0.11.1-beta) or see the [instructions](https://github.com/lightningnetwork/lnd/blob/master/docs/INSTALL.md) in the lnd repo for more detailed installation instructions. If you choose to build lnd from source, following command to enable all the relevant subservers:
 
 ```
 make install tags="signrpc walletrpc chainrpc invoicesrpc"
 ```
+
+ ### LND Macaroons
+ We recommend using lnd's `bakemacaroon` command to create a macaroon that contains all the permissions that faraday requires:
+
+```
+lncli bakemacaroon --save_to=lnd_faraday.macaroon invoices:write invoices:read offchain:read offchain:write onchain:write onchain:read peers:write info:read address:read
+```
+
+If you do not create a custom lnd macaroon for Faraday, you will need access to the individual macaroons that are created for each of lnd's subservers:
+`admin.macaroon`,`invoices.macaroon`,`chainnotifier.macaroon`,`walletkit.macaroon`,`router.macaroon`,`signer.macaroon`,`readonly.macaroon`
 
 
 ## Installation
@@ -24,7 +34,7 @@ make && make install
 Faraday connects to a single instance of lnd. It requires access to macaroons for each subserver and a valid TLS certificate. It will attempt to use the default lnd values if no command line flags are specified.
 ```
 ./faraday                                           \
---lnd.macaroondir={directory containing macaroon}   \
+--lnd.custommacaroon={path to lnd_faraday.macaroon} \
 --lnd.tlscertpath={path to lnd cert}                \
 --lnd.rpcserver={host:port of lnd's rpcserver} 
 ```

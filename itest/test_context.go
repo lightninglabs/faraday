@@ -401,7 +401,7 @@ func (c *testContext) openChannel(src lndclient.LightningClient,
 	c.waitForWalletsSynced()
 
 	channel, err := src.OpenChannel(
-		context.Background(), destKey, amount, 0,
+		context.Background(), destKey, amount, 0, false,
 	)
 	require.NoError(c.t, err, "could not open channel")
 

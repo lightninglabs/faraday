@@ -91,7 +91,7 @@ The RPC server can be conveniently accessed using a command line tool.
 - `revenue`: generate a revenue report over a time period for one or many channels.
 - `outliers`: close recommendations based whether channels are outliers based on a variety of metrics.
 - `threshold`: close recommendations based on thresholds a variety of metrics.
-- `nodeaudit`: produce an accounting report for your node over a period of time, please see the [accounting documentation](https://github.com/lightninglabs/faraday/blob/master/accounting/docs.md) for details. *Chain backend strongly recommended*, fee entries for channel closes and sweeps will be *missing* if a chain connection is not provided.
+- `audit`: produce an accounting report for your node over a period of time, please see the [accounting documentation](https://github.com/lightninglabs/faraday/blob/master/accounting/docs.md) for details. *Chain backend strongly recommended*, fee entries for channel closes and sweeps will be *missing* if a chain connection is not provided.
 - `fiat`: get the USD price for an amount of Bitcoin at a given time, currently obtained from CoinCap's [historical price API](https://docs.coincap.io/?version=latest).
 - `closereport`: provides a channel specific fee report, including fees paid on chain. This endpoint is currently only implemented for cooperative closes.  *Requires chain backend*.
 

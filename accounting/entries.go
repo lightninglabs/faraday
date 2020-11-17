@@ -302,7 +302,7 @@ func invoiceNote(memo string, amt, amtPaid lnwire.MilliSatoshi,
 
 	if amt != amtPaid {
 		notes = append(notes, fmt.Sprintf("invoice overpaid "+
-			"original amount: %v msat, paid: %v", amt, amtPaid))
+			"original amount: %v, paid: %v", amt, amtPaid))
 	}
 
 	if keysend {
@@ -425,7 +425,7 @@ func forwardTxid(forward lndclient.ForwardingEvent) string {
 // forwardNote creates a note that indicates the amounts that were forwarded in
 // and out of our node.
 func forwardNote(amtIn, amtOut lnwire.MilliSatoshi) string {
-	return fmt.Sprintf("incoming: %v msat outgoing: %v msat", amtIn, amtOut)
+	return fmt.Sprintf("incoming: %v outgoing: %v", amtIn, amtOut)
 }
 
 // forwardingEntry produces a forwarding entry with a zero amount which reflects

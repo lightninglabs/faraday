@@ -287,7 +287,7 @@ func TestChannelOpenEntry(t *testing.T) {
 			// At a minimum, we expect a channel entry to be present.
 			expectedChanEntry := getChannelEntry(test.initiator)
 
-			// If we opened the chanel, we also expect a fee entry
+			// If we opened the channel, we also expect a fee entry
 			// to be present.
 			expected := []*HarmonyEntry{expectedChanEntry}
 			if test.initiator {

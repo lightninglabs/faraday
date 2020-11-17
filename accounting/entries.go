@@ -91,7 +91,7 @@ func channelOpenEntries(channel channelInfo, tx lndclient.Transaction,
 
 	// We also need an entry for the fees we paid for the on chain tx.
 	// Transactions record fees in absolute amounts in sats, so we need
-	// to convert fees to msat and filp it to a negative value so it
+	// to convert fees to msat and flip it to a negative value so it
 	// records as a debit.
 	feeMsat := invertedSatsToMsats(tx.Fee)
 
@@ -205,7 +205,7 @@ func sweepEntries(tx lndclient.Transaction, u entryUtils) ([]*HarmonyEntry, erro
 	}
 
 	// If we do not have a fee lookup function set, we log a warning that
-	// we cannot record fees for the sweep transaction and return wihtout
+	// we cannot record fees for the sweep transaction and return without
 	// adding a fee entry.
 	if u.getFee == nil {
 		log.Warnf("no bitcoin backend provided to lookup fees, "+
@@ -422,7 +422,7 @@ func forwardTxid(forward lndclient.ForwardingEvent) string {
 		forward.ChannelOut)
 }
 
-// forwardNote creates a note that indicates the amuonts that were forwarded in
+// forwardNote creates a note that indicates the amounts that were forwarded in
 // and out of our node.
 func forwardNote(amtIn, amtOut lnwire.MilliSatoshi) string {
 	return fmt.Sprintf("incoming: %v msat outgoing: %v msat", amtIn, amtOut)

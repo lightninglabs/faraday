@@ -52,13 +52,13 @@ var onChainReportCommand = cli.Command{
 		cli.Int64Flag{
 			Name: "start_time",
 			Usage: "(optional) The unix timestamp in seconds " +
-				"from which the report should be generated," +
+				"from which the report should be generated, " +
 				"defaults to one week ago",
 		},
 		cli.Int64Flag{
 			Name: "end_time",
-			Usage: "(optional) The unix timestamp in seconds" +
-				"until which the report should be generated." +
+			Usage: "(optional) The unix timestamp in seconds " +
+				"until which the report should be generated. " +
 				"If not set, the report will be produced " +
 				"until the present.",
 		},

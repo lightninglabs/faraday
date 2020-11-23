@@ -26,7 +26,7 @@ var (
 	thresholdFlags = []cli.Flag{
 		cli.Float64Flag{
 			Name: "uptime",
-			Usage: "Ratio of uptime to time monitored, expressed" +
+			Usage: "Ratio of uptime to time monitored, expressed " +
 				"in [0;1].",
 		},
 		cli.Float64Flag{

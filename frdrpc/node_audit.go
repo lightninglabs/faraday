@@ -56,7 +56,7 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
-	offChainCategories, onChainCategories, err := getCategories(
+	onChainCategories, offChainCategories, err := getCategories(
 		req.CustomCategories,
 	)
 	if err != nil {

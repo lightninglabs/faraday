@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/lightningnetwork/lnd/routing/route"
 
@@ -55,7 +56,7 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
-	offChainCategories, onChainCategories, err := getCategories(
+	onChainCategories, offChainCategories, err := getCategories(
 		req.CustomCategories,
 	)
 	if err != nil {
@@ -177,6 +178,11 @@ func rpcReportResponse(report accounting.Report) (*NodeAuditResponse,
 
 		entries[i] = rpcEntry
 	}
+
+	// Sort report entries by timestamp.
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].Timestamp < entries[j].Timestamp
+	})
 
 	return &NodeAuditResponse{Reports: entries}, nil
 }

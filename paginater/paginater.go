@@ -2,17 +2,17 @@ package paginater
 
 import "context"
 
-// paginatedQuery is a function which makes a call to a paginated api and adds
+// PaginatedQuery is a function which makes a call to a paginated api and adds
 // returns the index offset of the last entry and the number of events that were
 // returned.
-type paginatedQuery func(offset, maxEvents uint64) (uint64, uint64, error)
+type PaginatedQuery func(offset, maxEvents uint64) (uint64, uint64, error)
 
 // QueryPaginated gets calls the paginated query function until it it has
 // retrieved all the items from the query endpoint, or the calling context is
 // cancelled. Note that the query function is responsible for collecting the
 // items returned by the API (if required) so that the pagination logic can
 // remain generic.
-func QueryPaginated(ctx context.Context, query paginatedQuery, offset,
+func QueryPaginated(ctx context.Context, query PaginatedQuery, offset,
 	maxEvents uint64) error {
 
 	for {

@@ -85,6 +85,14 @@ var onChainReportCommand = cli.Command{
 				"category currently does not include off " +
 				"chain payments.",
 		},
+		cli.BoolFlag{
+			Name: "pool-category",
+			Usage: "Add a custom category called 'pool' " +
+				"containing all transactions associated with " +
+				"Lightning Labs Pool trades. Note that this " +
+				"category currently does not include off " +
+				"chain payments.",
+		},
 	},
 	Action: queryOnChainReport,
 }
@@ -134,6 +142,19 @@ func queryOnChainReport(ctx *cli.Context) error {
 					"swap",
 				},
 			})
+	}
+
+	if ctx.Bool("pool-category") {
+		req.CustomCategories = append(
+			req.CustomCategories, &frdrpc.CustomCategory{
+				Name:     "pool",
+				OnChain:  true,
+				OffChain: true,
+				LabelPatterns: []string{
+					"poold --",
+				},
+			},
+		)
 	}
 
 	rpcCtx := context.Background()

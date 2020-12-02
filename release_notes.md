@@ -15,7 +15,10 @@ This file tracks release notes for the loop client.
 ## Next release
 
 #### New Features
+* The output of the `audit` rpc is now sorted by ascending timestamp. 
+* A pre-set custom category for [Lightning Pool](https://github.com/lightninglabs/pool) has been added to the `audit` cli, and can be used to separate all pool-related transactions into their own category called `pool` using `audit --pool-category`.
 
 #### Breaking Changes
 
 #### Bug Fixes
+* A bug in the `audit` custom categories functionality which switched on-chain and off-chain categories has been fixed. 

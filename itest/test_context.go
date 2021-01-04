@@ -188,17 +188,17 @@ func (c *testContext) getBalances() balances {
 	get := func(lnd lndclient.LightningClient) (btcutil.Amount,
 		btcutil.Amount) {
 
-		walletResp, err := lnd.ConfirmedWalletBalance(
+		walletResp, err := lnd.WalletBalance(
 			context.Background(),
 		)
 		require.NoError(c.t, err)
 
-		channelResp, err := lnd.ConfirmedWalletBalance(
+		channelResp, err := lnd.WalletBalance(
 			context.Background(),
 		)
 		require.NoError(c.t, err)
 
-		return walletResp, channelResp
+		return walletResp.Confirmed, channelResp.Confirmed
 	}
 
 	var b balances
@@ -297,7 +297,7 @@ func (c *testContext) closeChannel(client lndclient.LightningClient,
 	channel *wire.OutPoint, force bool) (chainhash.Hash, btcutil.Amount) {
 
 	closeChan, errChan, err := client.CloseChannel(
-		context.Background(), channel, force,
+		context.Background(), channel, force, 0, nil,
 	)
 	require.NoError(c.t, err, "could not close channel")
 

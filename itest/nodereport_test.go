@@ -56,7 +56,7 @@ func TestNodeAudit(t *testing.T) {
 	var aliceChannelAmt = btcutil.Amount(50000)
 
 	err = c.aliceClient.Client.Connect(
-		ctx, c.bobPubkey, "localhost:10012",
+		ctx, c.bobPubkey, "localhost:10012", true,
 	)
 	require.NoError(c.t, err, "could not connect nodes")
 

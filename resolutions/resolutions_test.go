@@ -92,9 +92,9 @@ func TestGetClosedReport(t *testing.T) {
 			}
 
 			getTx := func(txHash *chainhash.Hash) (
-				*btcjson.TxRawResult, error) {
+				[]btcjson.Vin, []btcjson.Vout, error) {
 
-				return test.tx, nil
+				return test.tx.Vin, test.tx.Vout, nil
 			}
 
 			_, err := ChannelCloseReport(

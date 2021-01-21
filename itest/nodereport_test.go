@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/lndclient"
@@ -210,8 +211,18 @@ func TestNodeAudit(t *testing.T) {
 	}
 
 	// Get our fee for our sweep tx.
+	detailsFunc := func(hash *chainhash.Hash) ([]btcjson.Vin,
+		[]btcjson.Vout, error) {
+		tx, err := c.bitcoindClient.GetRawTransactionVerbose(hash)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return tx.Vin, tx.Vout, nil
+	}
+
 	sweepFee, err := fees.CalculateFee(
-		c.bitcoindClient.GetRawTransactionVerbose, sweepHash,
+		detailsFunc, sweepHash,
 	)
 	require.NoError(c.t, err, "could get sweep fee")
 

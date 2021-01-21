@@ -14,7 +14,8 @@ import (
 // client.
 type BitcoinClient interface {
 	// GetTxDetail looks up a transaction.
-	GetTxDetail(txHash *chainhash.Hash) (*btcjson.TxRawResult, error)
+	GetTxDetail(txHash *chainhash.Hash) ([]btcjson.Vin, []btcjson.Vout,
+		error)
 }
 
 // BitcoinConfig defines exported config options for the connection to the
@@ -44,39 +45,47 @@ type bitcoinClient struct {
 
 	// txDetailCache holds a cache of transactions we have previously looked
 	// up.
-	txDetailCache map[string]*btcjson.TxRawResult
+	txDetailCache map[string]*coins
+}
+
+type coins struct {
+	inputs  []btcjson.Vin
+	outputs []btcjson.Vout
 }
 
 // GetTxDetail fetches a single transaction from the chain and returns it
 // in a format that contains more details, like the block hash it was included
 // in for example.
 func (c *bitcoinClient) GetTxDetail(txHash *chainhash.Hash) (
-	*btcjson.TxRawResult, error) {
+	[]btcjson.Vin, []btcjson.Vout, error) {
 
 	c.Lock()
-	cachedTx, ok := c.txDetailCache[txHash.String()]
+	cachedCoins, ok := c.txDetailCache[txHash.String()]
 	c.Unlock()
 	if ok {
-		return cachedTx, nil
+		return cachedCoins.inputs, cachedCoins.outputs, nil
 	}
 
 	tx, err := c.rpcClient.GetRawTransactionVerbose(txHash)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Do not cache the transaction if it has not confirmed yet. If we do,
 	// we won't ever lookup the confirmed transaction because it is already
 	// cached.
 	if tx.BlockHash == "" {
-		return tx, nil
+		return tx.Vin, tx.Vout, nil
 	}
 
 	c.Lock()
-	c.txDetailCache[txHash.String()] = tx
+	c.txDetailCache[txHash.String()] = &coins{
+		inputs:  tx.Vin,
+		outputs: tx.Vout,
+	}
 	c.Unlock()
 
-	return tx, nil
+	return tx.Vin, tx.Vout, nil
 }
 
 // NewBitcoinClient attempts to connect to a bitcoin rpcclient with the config
@@ -90,7 +99,7 @@ func NewBitcoinClient(cfg *BitcoinConfig) (BitcoinClient, error) {
 
 	return &bitcoinClient{
 		rpcClient:     client,
-		txDetailCache: make(map[string]*btcjson.TxRawResult),
+		txDetailCache: make(map[string]*coins),
 	}, nil
 }
 

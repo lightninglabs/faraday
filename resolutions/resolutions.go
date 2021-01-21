@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/lndclient"
 	"github.com/shopspring/decimal"
 
+	"github.com/lightninglabs/faraday/fees"
 	"github.com/lightninglabs/faraday/utils"
 )
 
@@ -43,10 +43,9 @@ type Config struct {
 	// to our wallet.
 	WalletTransactions func() ([]lndclient.Transaction, error)
 
-	// GetTxDetail looks up an on chain transaction and returns the raw
-	// tx result which contains a detailed set of information about the
-	// transaction.
-	GetTxDetail func(txHash *chainhash.Hash) (*btcjson.TxRawResult, error)
+	// GetTxDetail looks up an on chain transaction and returns its inputs
+	// and outputs.
+	GetTxDetail fees.GetDetailsFunc
 
 	// CalculateFees gets the total on chain fees for a transaction.
 	CalculateFees func(*chainhash.Hash) (btcutil.Amount, error)
@@ -85,13 +84,13 @@ func ChannelCloseReport(cfg *Config, chanPoint string) (*CloseReport, error) {
 	// Lookup our transaction and check that it has at most two outputs,
 	// allowing for a funding outpoint and change address. Our current
 	// fee calculations do not account for batched transactions.
-	tx, err := cfg.GetTxDetail(&outpoint.Hash)
+	_, outputs, err := cfg.GetTxDetail(&outpoint.Hash)
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO(carla): support batched transactions.
-	if len(tx.Vout) > 2 {
+	if len(outputs) > 2 {
 		return nil, errBatchedTx
 	}
 

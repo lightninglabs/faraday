@@ -136,18 +136,20 @@ func TestTotalFees(t *testing.T) {
 }
 
 // getDetails mocks lookup for a node that has knowledge of tx1 and tx2.
-func getDetails(txHash *chainhash.Hash) (*btcjson.TxRawResult, error) {
+func getDetails(txHash *chainhash.Hash) ([]btcjson.Vin, []btcjson.Vout,
+	error) {
+
 	switch *txHash {
 	case *txid0:
-		return tx0, nil
+		return tx0.Vin, tx0.Vout, nil
 
 	case *txid1:
-		return tx1, nil
+		return tx1.Vin, tx1.Vout, nil
 
 	case *txid2:
-		return tx2, nil
+		return tx2.Vin, tx2.Vout, nil
 
 	default:
-		return nil, fmt.Errorf("transaction not found")
+		return nil, nil, fmt.Errorf("transaction not found")
 	}
 }

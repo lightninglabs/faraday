@@ -19,3 +19,5 @@ This file tracks release notes for the loop client.
 #### Breaking Changes
 
 #### Bug Fixes
+ - Fixes a bug in how TLS connections were initialized which lead to the
+   `missing selected ALPN property` error in node.js and #c clients.

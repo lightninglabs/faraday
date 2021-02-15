@@ -180,17 +180,24 @@ func (s *RPCServer) Start() error {
 	// First we add the security interceptor to our gRPC server options that
 	// checks the macaroons for validity.
 	serverOpts := s.macaroonInterceptor()
+
+	// Add our TLS configuration and then create our server instance. It's
+	// important that we let gRPC create the TLS listener and we don't just
+	// use tls.NewListener(). Otherwise we run into the ALPN error with non-
+	// golang clients.
+	tlsCredentials := credentials.NewTLS(s.cfg.TLSServerConfig)
+	serverOpts = append(serverOpts, grpc.Creds(tlsCredentials))
 	s.grpcServer = grpc.NewServer(serverOpts...)
 
 	// Start the gRPC RPCServer listening for HTTP/2 connections.
+	var err error
 	log.Info("Starting gRPC listener")
-	grpcListener, err := net.Listen("tcp", s.cfg.RPCListen)
+	s.rpcListener, err = net.Listen("tcp", s.cfg.RPCListen)
 	if err != nil {
 		return fmt.Errorf("RPC RPCServer unable to listen on %v",
 			s.cfg.RPCListen)
 
 	}
-	s.rpcListener = tls.NewListener(grpcListener, s.cfg.TLSServerConfig)
 	shutdownFuncs["gRPC listener"] = s.rpcListener.Close
 	log.Infof("gRPC server listening on %s", s.rpcListener.Addr())
 

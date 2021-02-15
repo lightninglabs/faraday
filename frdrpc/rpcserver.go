@@ -352,6 +352,10 @@ func (s *RPCServer) OutlierRecommendations(ctx context.Context,
 	req *OutlierRecommendationsRequest) (*CloseRecommendationsResponse,
 	error) {
 
+	if req.RecRequest == nil {
+		return nil, errors.New("recommendation request field required")
+	}
+
 	log.Debugf("[OutlierRecommendations]: metric: %v, multiplier: %v",
 		req.RecRequest.Metric, req.OutlierMultiplier)
 
@@ -371,6 +375,10 @@ func (s *RPCServer) OutlierRecommendations(ctx context.Context,
 func (s *RPCServer) ThresholdRecommendations(ctx context.Context,
 	req *ThresholdRecommendationsRequest) (*CloseRecommendationsResponse,
 	error) {
+
+	if req.RecRequest == nil {
+		return nil, errors.New("recommendation request field required")
+	}
 
 	log.Debugf("[ThresholdRecommendations]: metric: %v, threshold: %v",
 		req.RecRequest.Metric, req.ThresholdValue)

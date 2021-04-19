@@ -27,6 +27,11 @@ var fiatEstimateCommand = cli.Command{
 			Usage: "the time at which price should be quoted, " +
 				"the current price will be used if not supplied",
 		},
+		cli.StringFlag{
+			Name: "fiat_backend",
+			Usage: "fiat backend to be used. Options include: " +
+				"'coincap' (default) and 'coindesk'",
+		},
 	},
 	Action: queryFiatEstimate,
 }
@@ -45,10 +50,16 @@ func queryFiatEstimate(ctx *cli.Context) error {
 		return fmt.Errorf("non-zero amount required")
 	}
 
+	fiatBackend, err := parseFiatBackend(ctx.String("fiat_backend"))
+	if err != nil {
+		return err
+	}
+
 	// Set start and end times from user specified values, defaulting
 	// to zero if they are not set.
 	req := &frdrpc.ExchangeRateRequest{
-		Timestamps: []uint64{uint64(ts)},
+		Timestamps:  []uint64{uint64(ts)},
+		FiatBackend: fiatBackend,
 	}
 
 	rpcCtx := context.Background()

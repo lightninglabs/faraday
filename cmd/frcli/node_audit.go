@@ -93,6 +93,11 @@ var onChainReportCommand = cli.Command{
 				"category currently does not include off " +
 				"chain payments.",
 		},
+		cli.StringFlag{
+			Name: "fiat_backend",
+			Usage: "fiat backend to be used. Options include: " +
+				"'coincap' (default) and 'coindesk'",
+		},
 	},
 	Action: queryOnChainReport,
 }
@@ -101,12 +106,18 @@ func queryOnChainReport(ctx *cli.Context) error {
 	client, cleanup := getClient(ctx)
 	defer cleanup()
 
+	fiatBackend, err := parseFiatBackend(ctx.String("fiat_backend"))
+	if err != nil {
+		return err
+	}
+
 	// Set start and end times from user specified values, defaulting
 	// to zero if they are not set.
 	req := &frdrpc.NodeAuditRequest{
 		StartTime:   uint64(ctx.Int64("start_time")),
 		EndTime:     uint64(ctx.Int64("end_time")),
 		DisableFiat: !ctx.IsSet("enable_fiat"),
+		FiatBackend: fiatBackend,
 	}
 
 	// If start time is zero, default to a week ago.

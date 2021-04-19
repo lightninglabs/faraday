@@ -133,7 +133,8 @@ type PriceRequest struct {
 
 // GetPrices gets a set of prices for a set of timestamps.
 func GetPrices(ctx context.Context, timestamps []time.Time,
-	granularity Granularity) (map[time.Time]*USDPrice, error) {
+	backend PriceBackend, granularity Granularity) (
+	map[time.Time]*USDPrice, error) {
 
 	if len(timestamps) == 0 {
 		return nil, nil
@@ -151,7 +152,7 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 	// timestamp if we have 1 entry, but that's ok.
 	start, end := timestamps[0], timestamps[len(timestamps)-1]
 
-	client, err := NewPricePriceSource(CoinCapPriceBackend, &granularity)
+	client, err := NewPricePriceSource(backend, &granularity)
 	if err != nil {
 		return nil, err
 	}

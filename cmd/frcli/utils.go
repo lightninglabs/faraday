@@ -25,6 +25,7 @@ import (
 	"gopkg.in/macaroon.v2"
 
 	"github.com/lightninglabs/faraday"
+	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/frdrpc"
 )
 
@@ -273,4 +274,23 @@ func parseChannelPoint(ctx *cli.Context) (*wire.OutPoint, error) {
 	}
 
 	return channelPoint, nil
+}
+
+// parseFiatBackend parses the user chosen fiat backend into a FiatBackend type.
+func parseFiatBackend(fiatBackend string) (frdrpc.FiatBackend, error) {
+	switch fiatBackend {
+	case "":
+		return frdrpc.FiatBackend_UNKNOWN_FIATBACKEND, nil
+
+	case fiat.CoinCapPriceBackend.String():
+		return frdrpc.FiatBackend_COINCAP, nil
+
+	case fiat.CoinDeskPriceBackend.String():
+		return frdrpc.FiatBackend_COINDESK, nil
+
+	default:
+		return frdrpc.FiatBackend_UNKNOWN_FIATBACKEND, fmt.Errorf(
+			"unknown fiat backend",
+		)
+	}
 }

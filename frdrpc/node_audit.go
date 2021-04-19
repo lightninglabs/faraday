@@ -40,6 +40,11 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
+	fiatBackend, err := fiatBackendFromRPC(req.FiatBackend)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	granularity, err := granularityFromRPC(
 		req.Granularity, req.DisableFiat, end.Sub(start),
 	)
@@ -66,7 +71,7 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 	offChain := accounting.NewOffChainConfig(
 		ctx, cfg.Lnd, uint64(maxInvoiceQueries),
 		uint64(maxPaymentQueries), uint64(maxForwardQueries),
-		pubkey, start, end, req.DisableFiat, granularity,
+		pubkey, start, end, req.DisableFiat, fiatBackend, granularity,
 		offChainCategories,
 	)
 
@@ -82,7 +87,7 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 
 	onChain := accounting.NewOnChainConfig(
 		ctx, cfg.Lnd, start, end, req.DisableFiat,
-		feeLookup, granularity, onChainCategories,
+		feeLookup, fiatBackend, granularity, onChainCategories,
 	)
 
 	return onChain, offChain, nil

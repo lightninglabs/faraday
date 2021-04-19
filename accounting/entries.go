@@ -17,9 +17,9 @@ type entryUtils struct {
 	// may be nil.
 	getFee getFeeFunc
 
-	// getFiat provides a USD price for the btc value provided at its
+	// getFiat provides a fiat price for the btc value provided at its
 	// timestamp.
-	getFiat usdPrice
+	getFiat fiatPrice
 
 	// customCategories is a set of custom categories which are set for the
 	// report.

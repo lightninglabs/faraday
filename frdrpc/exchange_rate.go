@@ -92,7 +92,7 @@ func parseExchangeRateRequest(req *ExchangeRateRequest) ([]time.Time,
 	return timestamps, granularity, nil
 }
 
-func exchangeRateResponse(prices map[time.Time]*fiat.USDPrice) *ExchangeRateResponse {
+func exchangeRateResponse(prices map[time.Time]*fiat.Price) *ExchangeRateResponse {
 	fiatVals := make([]*ExchangeRate, 0, len(prices))
 
 	for ts, price := range prices {

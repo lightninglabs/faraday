@@ -163,7 +163,7 @@ var (
 
 	mockPriceTimestamp = time.Unix(1594306589, 0)
 
-	mockBTCPrice = &fiat.USDPrice{
+	mockBTCPrice = &fiat.Price{
 		Timestamp: mockPriceTimestamp,
 		Price:     decimal.NewFromInt(100000),
 	}
@@ -178,7 +178,7 @@ var (
 )
 
 // mockPrice is a mocked price function which returns mockPrice * amount.
-func mockPrice(_ time.Time) (*fiat.USDPrice, error) {
+func mockPrice(_ time.Time) (*fiat.Price, error) {
 	return mockBTCPrice, nil
 }
 
@@ -213,7 +213,7 @@ func TestChannelOpenEntry(t *testing.T) {
 		return &HarmonyEntry{
 			Timestamp: transactionTimestamp,
 			Amount:    amtMsat,
-			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
+			FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, amtMsat),
 			TxID:      openChannelTx,
 			Reference: fmt.Sprintf("%v", channelID),
 			Note:      note,
@@ -232,7 +232,7 @@ func TestChannelOpenEntry(t *testing.T) {
 	feeEntry := &HarmonyEntry{
 		Timestamp: transactionTimestamp,
 		Amount:    msatAmt,
-		FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, msatAmt),
+		FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, msatAmt),
 		TxID:      openChannelTx,
 		Reference: FeeReference(openChannelTx),
 		Note:      channelOpenFeeNote(channelID),
@@ -315,7 +315,7 @@ func TestChannelCloseEntry(t *testing.T) {
 		chanEntry := &HarmonyEntry{
 			Timestamp: closeTimestamp,
 			Amount:    amtMsat,
-			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
+			FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, amtMsat),
 			TxID:      closeTx,
 			Reference: closeTx,
 			Note:      note,
@@ -332,7 +332,7 @@ func TestChannelCloseEntry(t *testing.T) {
 		feeEntry := &HarmonyEntry{
 			Timestamp: closeTimestamp,
 			Amount:    mockFeeMSat,
-			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, mockFeeMSat),
+			FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, mockFeeMSat),
 			TxID:      closeTx,
 			Reference: FeeReference(closeTx),
 			Note:      "",
@@ -432,7 +432,7 @@ func TestSweepEntry(t *testing.T) {
 	sweepEntry := &HarmonyEntry{
 		Timestamp: onChainTimestamp,
 		Amount:    amtMsat,
-		FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
+		FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, amtMsat),
 		TxID:      onChainTxID,
 		Reference: onChainTxID,
 		Note:      "",
@@ -447,7 +447,7 @@ func TestSweepEntry(t *testing.T) {
 		{
 			Timestamp: onChainTimestamp,
 			Amount:    mockFeeMSat,
-			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, mockFeeMSat),
+			FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, mockFeeMSat),
 			TxID:      onChainTxID,
 			Reference: FeeReference(onChainTxID),
 			Note:      "",
@@ -527,7 +527,7 @@ func TestOnChainEntry(t *testing.T) {
 		entry := &HarmonyEntry{
 			Timestamp: onChainTimestamp,
 			Amount:    amtMsat,
-			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
+			FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, amtMsat),
 			TxID:      onChainTxID,
 			Reference: onChainTxID,
 			Note:      label,
@@ -548,7 +548,7 @@ func TestOnChainEntry(t *testing.T) {
 		feeEntry := &HarmonyEntry{
 			Timestamp: onChainTimestamp,
 			Amount:    feeMsat,
-			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, feeMsat),
+			FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, feeMsat),
 			TxID:      onChainTxID,
 			Reference: FeeReference(onChainTxID),
 			Note:      "",
@@ -646,7 +646,7 @@ func TestInvoiceEntry(t *testing.T) {
 		expectedEntry := &HarmonyEntry{
 			Timestamp: invoiceSettleTime,
 			Amount:    invoiceOverpaidAmt,
-			FiatValue: fiat.MsatToUSD(
+			FiatValue: fiat.MsatToFiat(
 				mockBTCPrice.Price, invoiceOverpaidAmt,
 			),
 			TxID:      invoiceHash,
@@ -713,7 +713,7 @@ func TestPaymentEntry(t *testing.T) {
 		paymentEntry := &HarmonyEntry{
 			Timestamp: paymentTime,
 			Amount:    amtMsat,
-			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, amtMsat),
+			FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, amtMsat),
 			TxID:      paymentHash,
 			Reference: paymentRef,
 			Note:      paymentNote(&otherPubkey),
@@ -728,7 +728,7 @@ func TestPaymentEntry(t *testing.T) {
 		feeEntry := &HarmonyEntry{
 			Timestamp: paymentTime,
 			Amount:    feeMsat,
-			FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, feeMsat),
+			FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, feeMsat),
 			TxID:      paymentHash,
 			Reference: FeeReference(paymentRef),
 			Note:      paymentNote(&otherPubkey),
@@ -789,7 +789,7 @@ func TestForwardingEntry(t *testing.T) {
 	fwdEntry := &HarmonyEntry{
 		Timestamp: forwardTs,
 		Amount:    0,
-		FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, 0),
+		FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, 0),
 		TxID:      txid,
 		Reference: "",
 		Note:      note,
@@ -802,7 +802,7 @@ func TestForwardingEntry(t *testing.T) {
 	feeEntry := &HarmonyEntry{
 		Timestamp: forwardTs,
 		Amount:    fwdFeeMsat,
-		FiatValue: fiat.MsatToUSD(mockBTCPrice.Price, fwdFeeMsat),
+		FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, fwdFeeMsat),
 		TxID:      txid,
 		Reference: "",
 		Note:      "",

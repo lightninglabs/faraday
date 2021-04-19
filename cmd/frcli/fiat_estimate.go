@@ -74,7 +74,7 @@ func queryFiatEstimate(ctx *cli.Context) error {
 		return err
 	}
 
-	usdVal := fiat.MsatToUSD(bitcoinPrice, lnwire.MilliSatoshi(amt))
+	usdVal := fiat.MsatToFiat(bitcoinPrice, lnwire.MilliSatoshi(amt))
 	priceTs := time.Unix(int64(estimate.BtcPrice.PriceTimestamp), 0)
 
 	fmt.Printf("%v msat = %v USD, priced at %v\n", amt, usdVal, priceTs)

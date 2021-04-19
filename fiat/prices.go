@@ -30,7 +30,7 @@ type PriceRequest struct {
 
 // GetPrices gets a set of prices for a set of timestamps.
 func GetPrices(ctx context.Context, timestamps []time.Time,
-	granularity Granularity) (map[time.Time]*USDPrice, error) {
+	granularity Granularity) (map[time.Time]*Price, error) {
 
 	if len(timestamps) == 0 {
 		return nil, nil
@@ -53,8 +53,8 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 		return nil, err
 	}
 
-	// Prices will map transaction timestamps to their USD prices.
-	var prices = make(map[time.Time]*USDPrice, len(timestamps))
+	// Prices will map transaction timestamps to their fiat prices.
+	var prices = make(map[time.Time]*Price, len(timestamps))
 
 	for _, ts := range timestamps {
 		price, err := GetPrice(priceData, ts)
@@ -70,15 +70,15 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 
 // CoinCapPriceData obtains price data over a given range for coincap.
 func CoinCapPriceData(ctx context.Context, start, end time.Time,
-	granularity Granularity) ([]*USDPrice, error) {
+	granularity Granularity) ([]*Price, error) {
 
 	coinCapBackend := newCoinCapAPI(granularity)
 	return coinCapBackend.GetPrices(ctx, start, end)
 }
 
-// MsatToUSD converts a msat amount to usd. Note that this function coverts
+// MsatToFiat converts a msat amount to fiat. Note that this function coverts
 // values to Bitcoin values, then gets the fiat price for that BTC value.
-func MsatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
+func MsatToFiat(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
 	msatDecimal := decimal.NewFromInt(int64(amt))
 
 	// We are quoted price per whole bitcoin. We need to scale this price
@@ -94,12 +94,12 @@ func MsatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
 // querying. The last datapoint's timestamp may be before the timestamp we are
 // querying. If a request lies between two price points, we just return the
 // earlier price.
-func GetPrice(prices []*USDPrice, timestamp time.Time) (*USDPrice, error) {
+func GetPrice(prices []*Price, timestamp time.Time) (*Price, error) {
 	if len(prices) == 0 {
 		return nil, errNoPrices
 	}
 
-	var lastPrice *USDPrice
+	var lastPrice *Price
 
 	// Run through our prices until we find a timestamp that our price
 	// point lies before. Since we always return the previous price, this

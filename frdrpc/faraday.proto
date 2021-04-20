@@ -330,6 +330,9 @@ message ExchangeRateRequest {
 
     // The level of granularity at which we want the bitcoin price to be quoted.
     Granularity granularity = 4;
+
+    // The currency that the bitcoin price should be quoted in.
+    string Currency = 5;
 }
 
 message ExchangeRateResponse {
@@ -340,11 +343,15 @@ message ExchangeRateResponse {
 }
 
 message BitcoinPrice {
-    // The price of 1 BTC, expressed in USD.
+    // The price of 1 BTC, expressed in the currency denoted in the currency
+    // field.
     string price = 1;
 
     // The timestamp for this price price provided.
     uint64 price_timestamp = 2;
+
+    // The currency that the price is denoted in.
+    string currency = 3;
 }
 
 message ExchangeRate {
@@ -384,6 +391,9 @@ message NodeAuditRequest {
     categories report the category name in the CustomCategory field.
     */
     repeated CustomCategory custom_categories = 6;
+
+    // The currency that the price values should be quoted in.
+    string Currency = 7;
 }
 
 message CustomCategory {
@@ -501,6 +511,9 @@ message ReportEntry {
 
     // The fiat amount of the entry's amount in USD.
     string fiat = 8;
+
+    // The currency that the fiat field is expressed in.
+    string fiat_currency = 13;
 
     // A unique identifier for the entry, if available.
     string reference = 9;

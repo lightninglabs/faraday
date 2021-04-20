@@ -30,7 +30,7 @@ type PriceRequest struct {
 
 // GetPrices gets a set of prices for a set of timestamps.
 func GetPrices(ctx context.Context, timestamps []time.Time,
-	granularity Granularity) (map[time.Time]*Price, error) {
+	granularity Granularity, currency string) (map[time.Time]*Price, error) {
 
 	if len(timestamps) == 0 {
 		return nil, nil
@@ -48,7 +48,9 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 	// timestamp if we have 1 entry, but that's ok.
 	start, end := timestamps[0], timestamps[len(timestamps)-1]
 
-	priceData, err := CoinCapPriceData(ctx, start, end, granularity)
+	priceData, err := CoinCapPriceData(
+		ctx, start, end, granularity, currency,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -70,10 +72,10 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 
 // CoinCapPriceData obtains price data over a given range for coincap.
 func CoinCapPriceData(ctx context.Context, start, end time.Time,
-	granularity Granularity) ([]*Price, error) {
+	granularity Granularity, currency string) ([]*Price, error) {
 
 	coinCapBackend := newCoinCapAPI(granularity)
-	return coinCapBackend.GetPrices(ctx, start, end, "USD")
+	return coinCapBackend.GetPrices(ctx, start, end, currency)
 }
 
 // MsatToFiat converts a msat amount to fiat. Note that this function coverts

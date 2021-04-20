@@ -21,7 +21,7 @@ func OnChainReport(ctx context.Context, cfg *OnChainConfig) (Report, error) {
 	// or a no-op function if we do not want prices.
 	getPrice, err := getConversion(
 		ctx, cfg.StartTime, cfg.EndTime, cfg.DisableFiat,
-		cfg.Granularity,
+		cfg.Granularity, cfg.Currency,
 	)
 	if err != nil {
 		return nil, err

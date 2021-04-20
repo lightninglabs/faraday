@@ -92,6 +92,10 @@ type CommonConfig struct {
 	// Categories is a set of custom categories which should be added to the
 	// report.
 	Categories []CustomCategory
+
+	// Currency is the symbol of the currency that the report should be
+	// created in.
+	Currency string
 }
 
 // NewOnChainConfig returns an on chain config from the lnd services provided.
@@ -100,7 +104,8 @@ type CommonConfig struct {
 // that fee lookups are not possible in certain cases.
 func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 	endTime time.Time, disableFiat bool, txLookup fees.GetDetailsFunc,
-	granularity *fiat.Granularity, categories []CustomCategory) *OnChainConfig {
+	granularity *fiat.Granularity, currency string,
+	categories []CustomCategory) *OnChainConfig {
 
 	var getFee func(chainhash.Hash) (btcutil.Amount, error)
 	if txLookup != nil {
@@ -131,6 +136,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 			DisableFiat: disableFiat,
 			Granularity: granularity,
 			Categories:  categories,
+			Currency:    currency,
 		},
 		GetFee: getFee,
 	}
@@ -142,7 +148,8 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 	maxInvoices, maxPayments, maxForwards uint64, ownPubkey route.Vertex,
 	startTime, endTime time.Time, disableFiat bool,
-	granularity *fiat.Granularity, categories []CustomCategory) *OffChainConfig {
+	granularity *fiat.Granularity, currency string,
+	categories []CustomCategory) *OffChainConfig {
 
 	return &OffChainConfig{
 		ListInvoices: func() ([]lndclient.Invoice, error) {
@@ -175,6 +182,7 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 			DisableFiat: disableFiat,
 			Granularity: granularity,
 			Categories:  categories,
+			Currency:    currency,
 		},
 	}
 }

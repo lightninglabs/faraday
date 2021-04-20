@@ -77,6 +77,12 @@ var onChainReportCommand = cli.Command{
 			Usage: "A set of custom categories to create the " +
 				"report with, expressed as a json array.",
 		},
+		cli.StringFlag{
+			Name: "currency",
+			Usage: "The currency that the report should be " +
+				"denoted in.",
+			Value: "USD",
+		},
 		cli.BoolFlag{
 			Name: "loop-category",
 			Usage: "Add a custom category called 'loop' " +
@@ -107,6 +113,7 @@ func queryOnChainReport(ctx *cli.Context) error {
 		StartTime:   uint64(ctx.Int64("start_time")),
 		EndTime:     uint64(ctx.Int64("end_time")),
 		DisableFiat: !ctx.IsSet("enable_fiat"),
+		Currency:    ctx.String("currency"),
 	}
 
 	// If start time is zero, default to a week ago.

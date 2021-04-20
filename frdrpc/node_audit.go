@@ -67,7 +67,7 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 		ctx, cfg.Lnd, uint64(maxInvoiceQueries),
 		uint64(maxPaymentQueries), uint64(maxForwardQueries),
 		pubkey, start, end, req.DisableFiat, granularity,
-		offChainCategories,
+		req.Currency, offChainCategories,
 	)
 
 	// If we have a chain connection, set our tx lookup function. Otherwise
@@ -82,7 +82,7 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 
 	onChain := accounting.NewOnChainConfig(
 		ctx, cfg.Lnd, start, end, req.DisableFiat,
-		feeLookup, granularity, onChainCategories,
+		feeLookup, granularity, req.Currency, onChainCategories,
 	)
 
 	return onChain, offChain, nil
@@ -157,10 +157,12 @@ func rpcReportResponse(report accounting.Report) (*NodeAuditResponse,
 			Asset:          "BTC",
 			Txid:           entry.TxID,
 			Fiat:           entry.FiatValue.String(),
+			FiatCurrency:   entry.FiatCurrency,
 			Reference:      entry.Reference,
 			Note:           entry.Note,
 			BtcPrice: &BitcoinPrice{
-				Price: entry.BTCPrice.Price.String(),
+				Price:    entry.BTCPrice.Price.String(),
+				Currency: entry.BTCPrice.Currency,
 			},
 		}
 

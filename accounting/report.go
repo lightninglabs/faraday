@@ -28,6 +28,9 @@ type HarmonyEntry struct {
 	// expressed as a decimal so that we do not lose precision.
 	FiatValue decimal.Decimal
 
+	// FiatCurrency is the currency that FiatValue is expressed in.
+	FiatCurrency string
+
 	// TxID is the transaction ID of this entry.
 	TxID string
 
@@ -84,17 +87,18 @@ func newHarmonyEntry(ts time.Time, amountMsat int64, e EntryType, txid,
 	amtMsat := lnwire.MilliSatoshi(absAmt)
 
 	return &HarmonyEntry{
-		Timestamp: ts,
-		Amount:    amtMsat,
-		FiatValue: fiat.MsatToFiat(btcPrice.Price, amtMsat),
-		TxID:      txid,
-		Reference: reference,
-		Note:      note,
-		Type:      e,
-		Category:  category,
-		OnChain:   onChain,
-		Credit:    credit,
-		BTCPrice:  btcPrice,
+		Timestamp:    ts,
+		Amount:       amtMsat,
+		FiatValue:    fiat.MsatToFiat(btcPrice.Price, amtMsat),
+		FiatCurrency: btcPrice.Currency,
+		TxID:         txid,
+		Reference:    reference,
+		Note:         note,
+		Type:         e,
+		Category:     category,
+		OnChain:      onChain,
+		Credit:       credit,
+		BTCPrice:     btcPrice,
 	}, nil
 }
 

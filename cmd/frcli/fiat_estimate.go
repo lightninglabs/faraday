@@ -27,6 +27,12 @@ var fiatEstimateCommand = cli.Command{
 			Usage: "the time at which price should be quoted, " +
 				"the current price will be used if not supplied",
 		},
+		cli.StringFlag{
+			Name: "currency",
+			Usage: "The currency that the report should be " +
+				"denoted in.",
+			Value: "USD",
+		},
 	},
 	Action: queryFiatEstimate,
 }
@@ -45,10 +51,13 @@ func queryFiatEstimate(ctx *cli.Context) error {
 		return fmt.Errorf("non-zero amount required")
 	}
 
+	currency := ctx.String("currency")
+
 	// Set start and end times from user specified values, defaulting
 	// to zero if they are not set.
 	req := &frdrpc.ExchangeRateRequest{
 		Timestamps: []uint64{uint64(ts)},
+		Currency:   currency,
 	}
 
 	rpcCtx := context.Background()
@@ -74,10 +83,11 @@ func queryFiatEstimate(ctx *cli.Context) error {
 		return err
 	}
 
-	usdVal := fiat.MsatToFiat(bitcoinPrice, lnwire.MilliSatoshi(amt))
+	fiatVal := fiat.MsatToFiat(bitcoinPrice, lnwire.MilliSatoshi(amt))
 	priceTs := time.Unix(int64(estimate.BtcPrice.PriceTimestamp), 0)
 
-	fmt.Printf("%v msat = %v USD, priced at %v\n", amt, usdVal, priceTs)
+	fmt.Printf("%v msat = %v %s, priced at %v\n", amt, fiatVal,
+		currency, priceTs)
 
 	return nil
 }

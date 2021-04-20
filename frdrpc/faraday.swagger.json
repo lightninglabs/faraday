@@ -94,6 +94,13 @@
               "DAY"
             ],
             "default": "UNKNOWN_GRANULARITY"
+          },
+          {
+            "name": "Currency",
+            "description": "The currency that the bitcoin price should be quoted in.",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -187,6 +194,13 @@
               "DAY"
             ],
             "default": "UNKNOWN_GRANULARITY"
+          },
+          {
+            "name": "Currency",
+            "description": "The currency that the price values should be quoted in.",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -380,12 +394,16 @@
       "properties": {
         "price": {
           "type": "string",
-          "description": "The price of 1 BTC, expressed in USD."
+          "description": "The price of 1 BTC, expressed in the currency denoted in the currency\nfield."
         },
         "price_timestamp": {
           "type": "string",
           "format": "uint64",
           "description": "The timestamp for this price price provided."
+        },
+        "currency": {
+          "type": "string",
+          "description": "The currency that the price is denoted in."
         }
       }
     },
@@ -700,6 +718,10 @@
         "fiat": {
           "type": "string",
           "description": "The fiat amount of the entry's amount in USD."
+        },
+        "fiat_currency": {
+          "type": "string",
+          "description": "The currency that the fiat field is expressed in."
         },
         "reference": {
           "type": "string",

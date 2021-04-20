@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -18,12 +19,22 @@ import (
 const (
 	// coinCapHistoryAPI is the endpoint we hit for historical price data.
 	coinCapHistoryAPI = "https://api.coincap.io/v2/assets/bitcoin/history"
+
+	// coinCapRatesAPI is the endpoint we hit for conversion rates between
+	// Bitcoin and various other currencies.
+	coinCapRatesAPI = "https://api.coincap.io/v2/rates"
 )
 
-// ErrQueryTooLong is returned when we cannot get a granularity level for a
-// period of time because it is too long.
-var ErrQueryTooLong = errors.New("period too long for coincap api, " +
-	"please reduce")
+var (
+	// ErrQueryTooLong is returned when we cannot get a granularity level for a
+	// period of time because it is too long.
+	ErrQueryTooLong = errors.New("period too long for coincap api, " +
+		"please reduce")
+
+	// errCurrencySymbolNotFound is returned when the no conversion rate is
+	// found for the given currency symbol.
+	errCurrencySymbolNotFound = errors.New("usd rate for symbol not found")
+)
 
 // Granularity indicates the level of aggregation price information will be
 // provided at.
@@ -124,22 +135,36 @@ type coinCapAPI struct {
 	// granularity. This field represents the granularity requested.
 	granularity Granularity
 
-	// query is the function that makes the http call out to coincap's api.
+	// queryHistory is the function that makes the http call out to
+	// coincap's api to fetch price history.
 	// It is set within the struct so that it can be mocked for testing.
-	query func(start, end time.Time, g Granularity) ([]byte, error)
+	queryHistory func(start, end time.Time, g Granularity) ([]byte, error)
 
-	// convert produces fiat prices from the output of the query function.
+	// convert produces fiat prices from the output of the queryHistory function.
 	// It is set within the struct so that it can be mocked for testing.
 	convert func([]byte) ([]*Price, error)
+
+	// queryUsdRates is the function that makes the http call out to
+	// coincap's api fetch conversion rates between USD and various other
+	// currencies.
+	// It is set within the struct so that it can be mocked for testing.
+	queryUsdRates func() ([]byte, error)
+
+	// parseUsdRates takes the output from queryUsdRates, parses the results
+	// and returns the exchange rate between USD and the given currency.
+	// It is set within the struct so that it can be mocked for testing.
+	parseUsdRates func([]byte, string) (decimal.Decimal, error)
 }
 
 // newCoinCapAPI returns a coin cap api struct which can be used to query
 // historical prices.
 func newCoinCapAPI(granularity Granularity) *coinCapAPI {
 	return &coinCapAPI{
-		granularity: granularity,
-		query:       queryCoinCap,
-		convert:     parseCoinCapData,
+		granularity:   granularity,
+		queryHistory:  queryCoinCap,
+		queryUsdRates: queryCoinCapRates,
+		convert:       parseCoinCapData,
+		parseUsdRates: parseAndFindCoinCapRate,
 	}
 }
 
@@ -177,7 +202,7 @@ type coinCapDataPoint struct {
 	Timestamp int64  `json:"time"`
 }
 
-// parseCoinCapData parses http response data to usc price structs, using
+// parseCoinCapData parses http response data to usd price structs, using
 // intermediary structs to get around parsing.
 func parseCoinCapData(data []byte) ([]*Price, error) {
 	var priceEntries coinCapResponse
@@ -199,7 +224,7 @@ func parseCoinCapData(data []byte) ([]*Price, error) {
 		usdRecords[i] = &Price{
 			Timestamp: time.Unix(0, ns.Nanoseconds()),
 			Price:     decPrice,
-			Currency: "USD",
+			Currency:  "USD",
 		}
 	}
 
@@ -210,7 +235,7 @@ func parseCoinCapData(data []byte) ([]*Price, error) {
 // requested is more than coincap will serve us in a single request, we break
 // our queries up into multiple chunks.
 func (c *coinCapAPI) GetPrices(ctx context.Context, startTime,
-	endTime time.Time) ([]*Price, error) {
+	endTime time.Time, currency string) ([]*Price, error) {
 
 	// First, check that we have a valid start and end time, and that the
 	// range specified is not in the future.
@@ -235,17 +260,43 @@ func (c *coinCapAPI) GetPrices(ctx context.Context, startTime,
 	maxPeriod := c.granularity.maximumQuery
 	start, end := startTime, startTime.Add(maxPeriod)
 
+	// If the target currency is USD, then avoid the unnecessary API call
+	var usdRate decimal.Decimal
+	if currency != "USD" {
+		rates, err := c.queryUsdRates()
+		if err != nil {
+			return nil, err
+		}
+
+		usdRate, err = c.parseUsdRates(rates, currency)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Make chunked queries of size max duration until we reach our end
 	// time. We can check equality because we cut our query end back to our
 	// target end time if it surpasses it.
 	for start.Before(endTime) {
 		query := func() ([]byte, error) {
-			return c.query(start, end, c.granularity)
+			return c.queryHistory(start, end, c.granularity)
+		}
+
+		convert := func(data []byte) ([]*Price, error) {
+			usdPrices, err := c.convert(data)
+			if err != nil {
+				return nil, err
+			}
+
+			if currency != "USD" {
+				return convertFromUSD(usdPrices, currency, usdRate), nil
+			}
+			return usdPrices, nil
 		}
 
 		// Query the api for this page of data. We allow retries at this
 		// stage in case the api experiences a temporary limit.
-		records, err := retryQuery(ctx, query, c.convert)
+		records, err := retryQuery(ctx, query, convert)
 		if err != nil {
 			return nil, err
 		}
@@ -273,4 +324,48 @@ func (c *coinCapAPI) GetPrices(ctx context.Context, startTime,
 	})
 
 	return historicalRecords, nil
+}
+
+// coinCapRatesResponse holds the list of conversion rates returned by CoinCap.
+type coinCapRatesResponse struct {
+	Data []*coinCapRatePoint `json:"data"`
+}
+
+// coinCapRatePoint holds a currency symbol along with its conversion
+// rate to USD.
+type coinCapRatePoint struct {
+	RateUsd string `json:"rateUsd"`
+	Symbol  string `json:"symbol"`
+}
+
+// queryCoinCapRates makes the http request to CoinCap to fetch the list of
+// currency conversion rates.
+func queryCoinCapRates() ([]byte, error) {
+	response, err := http.Get(coinCapRatesAPI)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	return ioutil.ReadAll(response.Body)
+}
+
+// parseAndFindCoinCapRate unmarshals the data returned by queryCoinCapRates
+// and filters through it for a data point that matches the given currency
+// symbol. If found then the usd conversion rate for that currency is returned.
+func parseAndFindCoinCapRate(data []byte, currency string) (decimal.Decimal,
+	error) {
+
+	var resp coinCapRatesResponse
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return decimal.Decimal{}, err
+	}
+
+	for _, r := range resp.Data {
+		if strings.ToUpper(currency) == r.Symbol {
+			return decimal.NewFromString(r.RateUsd)
+		}
+	}
+
+	return decimal.Decimal{}, errCurrencySymbolNotFound
 }

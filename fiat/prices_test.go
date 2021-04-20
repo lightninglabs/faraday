@@ -134,3 +134,31 @@ func TestMSatToFiat(t *testing.T) {
 		})
 	}
 }
+
+// TestConvertToCurrency tests that the convertFromUSD function correctly
+// converts a Price object denoted in USD to another currency given the other
+// currencies usd rate.
+func TestConvertToCurrency(t *testing.T) {
+	input := []*Price{
+		{
+			Currency: "USD",
+			Price:    decimal.NewFromFloat(2),
+		},
+		{
+			Currency: "USD",
+			Price:    decimal.NewFromFloat(3),
+		},
+	}
+
+	output := convertFromUSD(input, "TEST1", decimal.NewFromFloat(0.5))
+	require.True(t, decimal.NewFromFloat(4).Equal(output[0].Price))
+	require.True(t, decimal.NewFromFloat(6).Equal(output[1].Price))
+	require.Equal(t, "TEST1", output[0].Currency)
+	require.Equal(t, "TEST1", output[1].Currency)
+
+	output = convertFromUSD(input, "TEST2", decimal.NewFromFloat(2))
+	require.True(t, decimal.NewFromFloat(1).Equal(output[0].Price))
+	require.True(t, decimal.NewFromFloat(1.5).Equal(output[1].Price))
+	require.Equal(t, "TEST2", output[0].Currency)
+	require.Equal(t, "TEST2", output[1].Currency)
+}

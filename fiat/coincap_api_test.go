@@ -79,16 +79,16 @@ func TestCoinCapGetPrices(t *testing.T) {
 			}
 
 			coinCapAPI := coinCapAPI{
-				granularity: test.granularity,
-				query:       query,
-				convert:     convert,
+				granularity:  test.granularity,
+				queryHistory: query,
+				convert:      convert,
 			}
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
 			_, err := coinCapAPI.GetPrices(
-				ctx, test.startTime, test.endTime,
+				ctx, test.startTime, test.endTime, "USD",
 			)
 			if err != test.expectedErr {
 				t.Fatalf("expected: %v,got: %v",
@@ -193,12 +193,59 @@ func TestParseCoinCapData(t *testing.T) {
 		{
 			Price:     price1,
 			Timestamp: time1,
+			Currency:  "USD",
 		},
 		{
 			Price:     price2,
 			Timestamp: time2,
+			Currency:  "USD",
 		},
 	}
 
 	require.Equal(t, expectedPrices, prices)
+}
+
+// TestParseAndFindCoinCapRate
+func TestParseAndFindCoinCapRate(t *testing.T) {
+	var (
+		amtStr1 = "0.068"
+		amtStr2 = "1.19"
+
+		curr1 = "ZAR"
+		curr2 = "EUR"
+		curr3 = "AUD"
+	)
+
+	amt1, err := decimal.NewFromString(amtStr1)
+	require.NoError(t, err)
+
+	amt2, err := decimal.NewFromString(amtStr2)
+	require.NoError(t, err)
+
+	ratesData := &coinCapRatesResponse{
+		Data: []*coinCapRatePoint{
+			{
+				RateUsd: amtStr1,
+				Symbol:  curr1,
+			},
+			{
+				RateUsd: amtStr2,
+				Symbol:  curr2,
+			},
+		},
+	}
+
+	data, err := json.Marshal(ratesData)
+	require.NoError(t, err)
+
+	res, err := parseAndFindCoinCapRate(data, curr1)
+	require.NoError(t, err)
+	require.Equal(t, amt1, res)
+
+	res, err = parseAndFindCoinCapRate(data, curr2)
+	require.NoError(t, err)
+	require.Equal(t, amt2, res)
+
+	_, err = parseAndFindCoinCapRate(data, curr3)
+	require.Equal(t, err, errCurrencySymbolNotFound)
 }

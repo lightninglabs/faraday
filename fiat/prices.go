@@ -73,7 +73,7 @@ func CoinCapPriceData(ctx context.Context, start, end time.Time,
 	granularity Granularity) ([]*Price, error) {
 
 	coinCapBackend := newCoinCapAPI(granularity)
-	return coinCapBackend.GetPrices(ctx, start, end)
+	return coinCapBackend.GetPrices(ctx, start, end, "USD")
 }
 
 // MsatToFiat converts a msat amount to fiat. Note that this function coverts
@@ -86,6 +86,21 @@ func MsatToFiat(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal 
 	pricePerMSat := price.Div(decimal.NewFromInt(100000000000))
 
 	return pricePerMSat.Mul(msatDecimal)
+}
+
+// convertFromUSD converts an array of Price objects denoted in USD into the
+// another currency given that currencies USD rate.
+func convertFromUSD(prices []*Price, currency string, usdRate decimal.Decimal) []*Price {
+	res := make([]*Price, len(prices))
+	for i, p := range prices {
+		res[i] = &Price{
+			Timestamp: p.Timestamp,
+			Price:     p.Price.Div(usdRate),
+			Currency:  currency,
+		}
+	}
+
+	return res
 }
 
 // GetPrice gets the price for a given time from a set of price data. This

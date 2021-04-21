@@ -1,0 +1,20 @@
+type: google.api.Service
+config_version: 3
+
+http:
+  rules:
+    # rpc.proto
+    - selector: frdrpc.FaradayServer.OutlierRecommendations
+      get: "/v1/faraday/outliers/{rec_request.metric}"
+    - selector: frdrpc.FaradayServer.ThresholdRecommendations
+      get: "/v1/faraday/threshold/{rec_request.metric}"
+    - selector: frdrpc.FaradayServer.RevenueReport
+      get: "/v1/faraday/revenue"
+    - selector: frdrpc.FaradayServer.ChannelInsights
+      get: "/v1/faraday/insights"
+    - selector: frdrpc.FaradayServer.ExchangeRate
+      get: "/v1/faraday/exchangerate"
+    - selector: frdrpc.FaradayServer.NodeAudit
+      get: "/v1/faraday/nodeaudit"
+    - selector: frdrpc.FaradayServer.CloseReport
+      get: "/v1/faraday/closereport"

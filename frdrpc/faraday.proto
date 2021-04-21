@@ -386,7 +386,7 @@ message NodeAuditRequest {
     repeated CustomCategory custom_categories = 6;
 }
 
-message CustomCategory{
+message CustomCategory {
     /*
     The name for the custom category which will contain all transactions that
     are labelled with a string matching one of the regexes provided in

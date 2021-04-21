@@ -21,4 +21,4 @@ require (
 	gopkg.in/macaroon.v2 v2.1.0
 )
 
-go 1.13
+go 1.15

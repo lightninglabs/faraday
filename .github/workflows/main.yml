@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "master"
+  pull_request:
+    branches:
+      - "*"
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # go needs absolute directories, using the $HOME variable doesn't work here.
+  GOCACHE: /home/runner/work/go/pkg/build
+  GOPATH: /home/runner/work/go
+
+  # If you change this value, please change it in the following files as well:
+  # /Dockerfile
+  # /frdrpc/Dockerfile
+  # /itest/Dockerfile
+  GO_VERSION: 1.16.2
+
+jobs:
+  ########################
+  # RPC, mod, imports and compilation check
+  ########################
+  rpc-check:
+    name: RPC, mod, imports and compilation check
+    runs-on: ubuntu-latest
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v2
+
+      - name: setup go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v2
+        with:
+          go-version: '${{ env.GO_VERSION }}'
+
+      - name: run compilation check
+        run: make build
+
+      - name: run mod check
+        run: make mod-check
+
+      - name: run rpc check
+        run: make rpc-check
+
+      - name: run imports check
+        run: make imports
+
+  ########################
+  # lint code
+  ########################
+  lint:
+    name: lint code
+    runs-on: ubuntu-latest
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v2
+
+      - name: Fetch all history for linter
+        run: git fetch --prune --unshallow
+
+      - name: setup go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v2
+        with:
+          go-version: '${{ env.GO_VERSION }}'
+
+      - name: lint
+        run: make lint
+
+  ########################
+  # run unit and integration tests
+  ########################
+  unit-test:
+    name: run unit tests
+    runs-on: ubuntu-latest
+    strategy:
+      # Allow other tests in the matrix to continue if one fails.
+      fail-fast: false
+      matrix:
+        unit_type:
+          - unit
+          - unit-race
+          - itest
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v2
+
+      - name: setup go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v2
+        with:
+          go-version: '${{ env.GO_VERSION }}'
+
+      - name: run ${{ matrix.unit_type }}
+        run: make ${{ matrix.unit_type }}
+
+      - name: upload logs on failure
+        if: ${{ failure() && matrix.unit_type == 'itest' }}
+        # Upload our logs to file.io as well for easy access. NOTE: A file on
+        # file.io can only be downloaded exactly once. But that should be okay
+        # as we also have all logs in the actions output.
+        run: echo "Uploading to file.io..." && zip logs.zip itest/*.log && curl -s -F 'file=@logs.zip' https://file.io | xargs -r0 printf 'logs.tar.gz uploaded to %s, can only be downloaded exactly once\n'

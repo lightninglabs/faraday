@@ -16,10 +16,9 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/urfave/cli v1.20.0
 	golang.org/x/text v0.3.2 // indirect
-	google.golang.org/genproto v0.0.0-20190927181202-20e1ac93f88c
-	google.golang.org/grpc v1.25.1
+	google.golang.org/grpc v1.29.1
 	gopkg.in/macaroon-bakery.v2 v2.0.1
 	gopkg.in/macaroon.v2 v2.1.0
 )
 
-go 1.13
+go 1.15

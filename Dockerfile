@@ -1,4 +1,4 @@
-FROM golang:1.13-alpine as builder
+FROM golang:1.16.3-alpine as builder
 
 # Force Go to use the cgo based DNS resolver. This is required to ensure DNS
 # queries required to connect to linked containers succeed.
@@ -32,4 +32,3 @@ EXPOSE 8465
 
 # Specify the start command and entrypoint as the faraday daemon.
 ENTRYPOINT ["faraday"]
-

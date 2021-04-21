@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-import "google/api/annotations.proto";
-
 package frdrpc;
+
+option go_package = "github.com/lightninglabs/faraday/frdrpc";
 
 service FaradayServer {
     /** frcli: `outliers`
@@ -13,11 +13,7 @@ service FaradayServer {
     http://localhost:8466/v1/faraday/outliers/REVENUE?rec_request.minimum_monitored=123
     */
     rpc OutlierRecommendations (OutlierRecommendationsRequest)
-        returns (CloseRecommendationsResponse) {
-        option (google.api.http) = {
-            get: "/v1/faraday/outliers/{rec_request.metric}"
-        };
-    }
+        returns (CloseRecommendationsResponse);
 
     /** frcli: `threshold`
     Get close recommendations for currently open channels based whether they are
@@ -27,11 +23,7 @@ service FaradayServer {
     http://localhost:8466/v1/faraday/threshold/UPTIME?rec_request.minimum_monitored=123
     */
     rpc ThresholdRecommendations (ThresholdRecommendationsRequest)
-        returns (CloseRecommendationsResponse) {
-        option (google.api.http) = {
-            get: "/v1/faraday/threshold/{rec_request.metric}"
-        };
-    }
+        returns (CloseRecommendationsResponse);
 
     /** frcli: `revenue`
     Get a pairwise revenue report for a channel.
@@ -39,11 +31,7 @@ service FaradayServer {
     Example request:
     http://localhost:8466/v1/faraday/revenue
     */
-    rpc RevenueReport (RevenueReportRequest) returns (RevenueReportResponse) {
-        option (google.api.http) = {
-            get: "/v1/faraday/revenue"
-        };
-    }
+    rpc RevenueReport (RevenueReportRequest) returns (RevenueReportResponse);
 
     /** frcli: `insights`
     List currently open channel with routing and uptime information.
@@ -52,11 +40,7 @@ service FaradayServer {
     http://localhost:8466/v1/faraday/insights
     */
     rpc ChannelInsights (ChannelInsightsRequest)
-        returns (ChannelInsightsResponse) {
-        option (google.api.http) = {
-            get: "/v1/faraday/insights"
-        };
-    }
+        returns (ChannelInsightsResponse);
 
     /** frcli:
     Get fiat prices for btc.
@@ -64,22 +48,15 @@ service FaradayServer {
     Example request:
     http://localhost:8466/v1/faraday/exchangerate
     */
-    rpc ExchangeRate (ExchangeRateRequest) returns (ExchangeRateResponse) {
-        option (google.api.http) = {
-            get: "/v1/faraday/exchangerate"
-        };
-    }
+    rpc ExchangeRate (ExchangeRateRequest) returns (ExchangeRateResponse);
+
     /**
     Get a report of your node's activity over a period.
 
     Example request:
     http://localhost:8466/v1/faraday/nodeaudit
     */
-    rpc NodeAudit (NodeAuditRequest) returns (NodeAuditResponse) {
-        option (google.api.http) = {
-            get: "/v1/faraday/nodeaudit"
-        };
-    }
+    rpc NodeAudit (NodeAuditRequest) returns (NodeAuditResponse);
 
     /**
     Get a channel close report for a specific channel.
@@ -87,11 +64,7 @@ service FaradayServer {
     Example request:
     http://localhost:8466/v1/faraday/closereport
     */
-    rpc CloseReport (CloseReportRequest) returns (CloseReportResponse) {
-        option (google.api.http) = {
-            get: "/v1/faraday/closereport"
-        };
-    }
+    rpc CloseReport (CloseReportRequest) returns (CloseReportResponse);
 }
 
 message CloseRecommendationRequest {
@@ -413,7 +386,7 @@ message NodeAuditRequest {
     repeated CustomCategory custom_categories = 6;
 }
 
-message CustomCategory{
+message CustomCategory {
     /*
     The name for the custom category which will contain all transactions that
     are labelled with a string matching one of the regexes provided in

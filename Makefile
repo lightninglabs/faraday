@@ -146,7 +146,7 @@ mod-check:
 
 rpc:
 	@$(call print, "Compiling protos.")
-	cd ./frdrpc; ./gen_protos.sh
+	cd ./frdrpc; ./gen_protos_docker.sh
 
 rpc-check: rpc
 	@$(call print, "Verifying protos.")

@@ -27,6 +27,9 @@ because the opening party pays on chain fees.
 - Reference: The unique channel ID assigned to the channel. 
 - Note: A note with details of who opened the channel. 
 
+Known Omissions:
+- Push amounts sent to remote peers are not reflected in the report. 
+
 ### Channel Open Fees
 The fees paid to open a channel that we initiated. 
 

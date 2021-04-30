@@ -72,7 +72,7 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 		ctx, cfg.Lnd, uint64(maxInvoiceQueries),
 		uint64(maxPaymentQueries), uint64(maxForwardQueries),
 		pubkey, start, end, req.DisableFiat, fiatBackend, granularity,
-		offChainCategories,
+		offChainCategories, cfg.SocksProxy,
 	)
 
 	// If we have a chain connection, set our tx lookup function. Otherwise
@@ -88,6 +88,7 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 	onChain := accounting.NewOnChainConfig(
 		ctx, cfg.Lnd, start, end, req.DisableFiat,
 		feeLookup, fiatBackend, granularity, onChainCategories,
+		cfg.SocksProxy,
 	)
 
 	return onChain, offChain, nil

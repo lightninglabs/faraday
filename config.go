@@ -123,6 +123,9 @@ type Config struct { //nolint:maligned
 
 	// Bitcoin is the configuration required to connect to a bitcoin node.
 	Bitcoin *chain.BitcoinConfig `group:"bitcoin" namespace:"bitcoin"`
+
+	// SocksProxy is the address to use as a socks proxy for http requests. No proxy is used if the value is empty.
+	SocksProxy string `long:"proxy" description:"Address to be used as the socks proxy for HTTP requests."`
 }
 
 // DefaultConfig returns all default values for the Config struct.

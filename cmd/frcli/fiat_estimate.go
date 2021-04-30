@@ -30,7 +30,7 @@ var fiatEstimateCommand = cli.Command{
 		cli.StringFlag{
 			Name: "fiat_backend",
 			Usage: "fiat backend to be used. Options include: " +
-				"'coincap' (default) and 'coindesk'",
+				"'coincap' (default if no proxy is set) and 'coindesk' (default if a proxy is set)",
 		},
 	},
 	Action: queryFiatEstimate,

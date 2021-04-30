@@ -140,6 +140,9 @@ type Config struct {
 	// that is created automatically. This path normally is within
 	// FaradayDir unless otherwise specified by the user.
 	MacaroonPath string
+
+	// SocksProxy that if set is the url to use to proxy http requests.
+	SocksProxy string
 }
 
 // NewRPCServer returns a server which will listen for rpc requests on the
@@ -443,7 +446,7 @@ func (s *RPCServer) ExchangeRate(ctx context.Context,
 	}
 
 	prices, err := fiat.GetPrices(
-		ctx, timestamps, fiatBackend, *granularity, "",
+		ctx, timestamps, fiatBackend, *granularity, s.cfg.SocksProxy,
 	)
 	if err != nil {
 		return nil, err

@@ -108,7 +108,7 @@ type CommonConfig struct {
 func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 	endTime time.Time, disableFiat bool, txLookup fees.GetDetailsFunc,
 	fiatBackend fiat.PriceBackend, granularity *fiat.Granularity,
-	categories []CustomCategory) *OnChainConfig {
+	categories []CustomCategory, socksProxy string) *OnChainConfig {
 
 	var getFee func(chainhash.Hash) (btcutil.Amount, error)
 	if txLookup != nil {
@@ -140,6 +140,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 			FiatBackend: fiatBackend,
 			Granularity: granularity,
 			Categories:  categories,
+			SocksProxy:  socksProxy,
 		},
 		GetFee: getFee,
 	}
@@ -152,7 +153,7 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 	maxInvoices, maxPayments, maxForwards uint64, ownPubkey route.Vertex,
 	startTime, endTime time.Time, disableFiat bool,
 	fiatBackend fiat.PriceBackend, granularity *fiat.Granularity,
-	categories []CustomCategory) *OffChainConfig {
+	categories []CustomCategory, socksProxy string) *OffChainConfig {
 
 	return &OffChainConfig{
 		ListInvoices: func() ([]lndclient.Invoice, error) {
@@ -186,6 +187,7 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 			FiatBackend: fiatBackend,
 			Granularity: granularity,
 			Categories:  categories,
+			SocksProxy:  socksProxy,
 		},
 	}
 }

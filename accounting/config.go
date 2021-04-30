@@ -96,6 +96,9 @@ type CommonConfig struct {
 	// Categories is a set of custom categories which should be added to the
 	// report.
 	Categories []CustomCategory
+
+	// SocksProxy is the URL to be used as a proxy for http requests.
+	SocksProxy string
 }
 
 // NewOnChainConfig returns an on chain config from the lnd services provided.

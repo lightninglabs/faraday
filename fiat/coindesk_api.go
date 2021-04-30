@@ -20,7 +20,9 @@ const (
 )
 
 // coinDeskAPI implements the fiatBackend interface.
-type coinDeskAPI struct{}
+type coinDeskAPI struct {
+	httpClient *http.Client
+}
 
 type coinDeskResponse struct {
 	Data map[string]float64 `json:"bpi"`
@@ -28,7 +30,7 @@ type coinDeskResponse struct {
 
 // queryCoinDesk constructs and sends a request to coindesk to query historical
 // price information.
-func queryCoinDesk(start, end time.Time) ([]byte, error) {
+func (c *coinDeskAPI) queryCoinDesk(start, end time.Time) ([]byte, error) {
 	queryURL := fmt.Sprintf("%v?start=%v&end=%v",
 		coinDeskHistoryAPI, start.Format(coinDeskTimeFormat),
 		end.Format(coinDeskTimeFormat))
@@ -36,8 +38,7 @@ func queryCoinDesk(start, end time.Time) ([]byte, error) {
 	log.Debugf("coindesk url: %v", queryURL)
 
 	// Query the http endpoint with the url provided
-	// #nosec G107
-	response, err := http.Get(queryURL)
+	response, err := c.httpClient.Get(queryURL)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +78,7 @@ func (c *coinDeskAPI) rawPriceData(ctx context.Context, start,
 	end time.Time) ([]*USDPrice, error) {
 
 	query := func() ([]byte, error) {
-		return queryCoinDesk(start, end)
+		return c.queryCoinDesk(start, end)
 	}
 
 	// CoinDesk uses a granularity of 1 day and does not include the current

@@ -443,7 +443,7 @@ func (s *RPCServer) ExchangeRate(ctx context.Context,
 	}
 
 	prices, err := fiat.GetPrices(
-		ctx, timestamps, fiatBackend, *granularity,
+		ctx, timestamps, fiatBackend, *granularity, "",
 	)
 	if err != nil {
 		return nil, err

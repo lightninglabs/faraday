@@ -3,6 +3,9 @@ package fiat
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
 	"sort"
 	"time"
 
@@ -91,6 +94,11 @@ var priceBackendNames = map[PriceBackend]string{
 	CoinDeskPriceBackend: "coindesk",
 }
 
+var priceBackendProxySupport = map[PriceBackend]bool{
+	CoinCapPriceBackend:  false,
+	CoinDeskPriceBackend: true,
+}
+
 // String returns the string representation of a price backend.
 func (p PriceBackend) String() string {
 	return priceBackendNames[p]
@@ -98,11 +106,46 @@ func (p PriceBackend) String() string {
 
 // NewPriceSource returns a PriceSource which can be used to query price
 // data.
-func NewPriceSource(backend PriceBackend, granularity *Granularity) (
-	*PriceSource, error) {
+func NewPriceSource(backend PriceBackend, granularity *Granularity,
+	proxy string) (*PriceSource, error) {
+
+	// If no specific backend is specified then choose a default backend
+	// based on whether or not a proxy is specified.
+	if backend == UnknownPriceBackend {
+		if proxy != "" {
+			backend = CoinDeskPriceBackend
+		} else {
+			backend = CoinCapPriceBackend
+		}
+	}
+
+	httpClient := http.DefaultClient
+	if proxy != "" {
+		// Check that the chosen backend supports requests through
+		// a socks proxy.
+		if !priceBackendProxySupport[backend] {
+			return nil, fmt.Errorf("can't use a socks proxy for "+
+				"the %s backend", backend,
+			)
+		}
+
+		// Parse socks proxy URL string to a URL type
+		socksProxyURL, err := url.Parse("socks5://" + proxy)
+		if err != nil {
+			return nil, err
+		}
+
+		// Set up a custom HTTP transport to use the proxy and
+		// create the client
+		httpClient = &http.Client{
+			Transport: &http.Transport{
+				Proxy: http.ProxyURL(socksProxyURL),
+			},
+		}
+	}
 
 	switch backend {
-	case UnknownPriceBackend, CoinCapPriceBackend:
+	case CoinCapPriceBackend:
 		if granularity == nil {
 			return nil, errGranularityRequired
 		}
@@ -112,7 +155,9 @@ func NewPriceSource(backend PriceBackend, granularity *Granularity) (
 
 	case CoinDeskPriceBackend:
 		return &PriceSource{
-			impl: &coinDeskAPI{},
+			impl: &coinDeskAPI{
+				httpClient: httpClient,
+			},
 		}, nil
 	}
 
@@ -133,7 +178,7 @@ type PriceRequest struct {
 
 // GetPrices gets a set of prices for a set of timestamps.
 func GetPrices(ctx context.Context, timestamps []time.Time,
-	backend PriceBackend, granularity Granularity) (
+	backend PriceBackend, granularity Granularity, socksProxy string) (
 	map[time.Time]*USDPrice, error) {
 
 	if len(timestamps) == 0 {
@@ -152,7 +197,7 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 	// timestamp if we have 1 entry, but that's ok.
 	start, end := timestamps[0], timestamps[len(timestamps)-1]
 
-	client, err := NewPriceSource(backend, &granularity)
+	client, err := NewPriceSource(backend, &granularity, socksProxy)
 	if err != nil {
 		return nil, err
 	}

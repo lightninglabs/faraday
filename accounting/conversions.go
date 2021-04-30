@@ -49,11 +49,14 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 		}, nil
 	}
 
-	if granularity == nil {
-		return nil, ErrGranularityRequired
+	err := utils.ValidateTimeRange(startTime, endTime)
+	if err != nil {
+		return nil, err
 	}
 
-	err := utils.ValidateTimeRange(startTime, endTime)
+	fiatClient, err := fiat.NewPricePriceSource(
+		fiat.CoinCapPriceBackend, granularity,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -61,9 +64,7 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 	// Get price data for our relevant period. We get pricing for the whole
 	// period rather than on a per-item level to limit the number of api
 	// calls we need to make to our external data source.
-	prices, err := fiat.CoinCapPriceData(
-		ctx, startTime, endTime, *granularity,
-	)
+	prices, err := fiatClient.GetPrices(ctx, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}

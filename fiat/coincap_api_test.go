@@ -87,7 +87,7 @@ func TestCoinCapGetPrices(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			_, err := coinCapAPI.GetPrices(
+			_, err := coinCapAPI.rawPriceData(
 				ctx, test.startTime, test.endTime,
 			)
 			if err != test.expectedErr {

@@ -7,12 +7,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"sort"
 	"time"
 
 	"github.com/shopspring/decimal"
-
-	"github.com/lightninglabs/faraday/utils"
 )
 
 const (
@@ -205,19 +202,11 @@ func parseCoinCapData(data []byte) ([]*USDPrice, error) {
 	return usdRecords, nil
 }
 
-// GetPrices retrieves price information from coincap's api. If the range
+// rawPriceData retrieves price information from coincap's api. If the range
 // requested is more than coincap will serve us in a single request, we break
 // our queries up into multiple chunks.
-func (c *coinCapAPI) GetPrices(ctx context.Context, startTime,
+func (c *coinCapAPI) rawPriceData(ctx context.Context, startTime,
 	endTime time.Time) ([]*USDPrice, error) {
-
-	// First, check that we have a valid start and end time, and that the
-	// range specified is not in the future.
-	if err := utils.ValidateTimeRange(
-		startTime, endTime, utils.DisallowFutureRange,
-	); err != nil {
-		return nil, err
-	}
 
 	// When we query prices over a range, it is likely that the first data
 	// point we get is after our starting point, since we have discrete
@@ -261,15 +250,6 @@ func (c *coinCapAPI) GetPrices(ctx context.Context, startTime,
 			end = endTime
 		}
 	}
-
-	// Sort by ascending timestamp once we have all of our records. We
-	// expect these records to already be sorted, but we do not trust our
-	// external source to do so (just in case).
-	sort.SliceStable(historicalRecords, func(i, j int) bool {
-		return historicalRecords[i].Timestamp.Before(
-			historicalRecords[j].Timestamp,
-		)
-	})
 
 	return historicalRecords, nil
 }

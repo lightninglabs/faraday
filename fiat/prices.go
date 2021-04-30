@@ -80,11 +80,15 @@ const (
 
 	// CoinCapPriceBackend uses CoinCap's API for fiat price data.
 	CoinCapPriceBackend
+
+	// CoinDeskPriceBackend uses CoinDesk's API for fiat price data.
+	CoinDeskPriceBackend
 )
 
 var priceBackendNames = map[PriceBackend]string{
-	UnknownPriceBackend: "unknown",
-	CoinCapPriceBackend: "coincap",
+	UnknownPriceBackend:  "unknown",
+	CoinCapPriceBackend:  "coincap",
+	CoinDeskPriceBackend: "coindesk",
 }
 
 // String returns the string representation of a price backend.
@@ -104,6 +108,11 @@ func NewPricePriceSource(backend PriceBackend, granularity *Granularity) (
 		}
 		return &PriceSource{
 			impl: newCoinCapAPI(*granularity),
+		}, nil
+
+	case CoinDeskPriceBackend:
+		return &PriceSource{
+			impl: &coinDeskAPI{},
 		}, nil
 	}
 

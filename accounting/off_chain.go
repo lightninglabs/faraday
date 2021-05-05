@@ -66,6 +66,9 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice usdPrice) (Report,
 	}
 	filteredInvoices := filterInvoices(cfg.StartTime, cfg.EndTime, invoices)
 
+	log.Infof("Retrieved: %v invoices, %v filtered", len(invoices),
+		len(filteredInvoices))
+
 	payments, err := cfg.ListPayments()
 	if err != nil {
 		return nil, err
@@ -89,12 +92,17 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice usdPrice) (Report,
 		return nil, err
 	}
 
+	log.Infof("Retrieved: %v payments, %v filtered, %v circular",
+		len(payments), len(filteredPayments), len(paymentsToSelf))
+
 	// Get all our forwards, we do not need to filter them because they
 	// are already supplied over the relevant range for our query.
 	forwards, err := cfg.ListForwards()
 	if err != nil {
 		return nil, err
 	}
+
+	log.Infof("Retrieved: %v forwards", len(forwards))
 
 	u := entryUtils{
 		getFiat:          getPrice,

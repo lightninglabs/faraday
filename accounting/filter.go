@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/lightninglabs/lndclient"
@@ -218,7 +219,7 @@ func paymentRequestDestination(paymentRequest string,
 
 	payReq, err := decode(paymentRequest)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode payment request failed: %w", err)
 	}
 
 	return &payReq.Destination, nil

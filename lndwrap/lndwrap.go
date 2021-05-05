@@ -5,6 +5,7 @@ package lndwrap
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/lightninglabs/lndclient"
@@ -40,7 +41,7 @@ func ListInvoices(ctx context.Context, startOffset, maxInvoices uint64,
 	if err := paginater.QueryPaginated(
 		ctx, query, startOffset, maxInvoices,
 	); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ListInvoices failed: %w", err)
 	}
 
 	return invoices, nil
@@ -74,7 +75,7 @@ func ListPayments(ctx context.Context, startOffset, maxPayments uint64,
 	if err := paginater.QueryPaginated(
 		ctx, query, startOffset, maxPayments,
 	); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ListPayments failed: %w", err)
 	}
 
 	return payments, nil
@@ -111,7 +112,7 @@ func ListForwards(ctx context.Context, maxForwards uint64, startTime,
 	if err := paginater.QueryPaginated(
 		ctx, query, 0, maxForwards,
 	); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ListForwards failed: %w", err)
 	}
 
 	return forwards, nil
@@ -125,7 +126,7 @@ func ListChannels(ctx context.Context, lnd lndclient.LightningClient,
 	return func() ([]lndclient.ChannelInfo, error) {
 		resp, err := lnd.ListChannels(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("ListChannels failed: %w", err)
 		}
 
 		// If we want all channels, we can just return now.

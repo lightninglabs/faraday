@@ -17,6 +17,7 @@ This file tracks release notes for the loop client.
 #### New Features
 
 #### Breaking Changes
+ - Bumped the minimum required version of `lnd` to `v0.11.1-beta`.
 
 #### Bug Fixes
  - Fixes a bug in how TLS connections were initialized which lead to the

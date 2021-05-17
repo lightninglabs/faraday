@@ -7,7 +7,7 @@ require (
 	github.com/golang/protobuf v1.4.3
 	github.com/grpc-ecosystem/grpc-gateway v1.14.3
 	github.com/jessevdk/go-flags v1.4.0
-	github.com/lightninglabs/lndclient v0.11.0-8
+	github.com/lightninglabs/lndclient v0.11.1-5
 	github.com/lightninglabs/protobuf-hex-display v1.4.3-hex-display
 	github.com/lightningnetwork/lnd v0.13.0-beta.rc2
 	github.com/lightningnetwork/lnd/cert v1.0.3

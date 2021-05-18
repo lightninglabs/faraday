@@ -9,6 +9,7 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/build"
 	"github.com/lightningnetwork/lnd/signal"
 
 	"github.com/lightninglabs/faraday/chain"
@@ -33,6 +34,14 @@ func Main() error {
 		fmt.Println(appName, "version", Version())
 		os.Exit(0)
 	}
+
+	// Hook interceptor for os signals.
+	shutdownInterceptor, err := signal.Intercept()
+	if err != nil {
+		return err
+	}
+	logWriter := build.NewRotatingLogWriter()
+	SetupLoggers(logWriter, shutdownInterceptor)
 
 	if err := ValidateConfig(&config); err != nil {
 		return fmt.Errorf("error validating config: %v", err)
@@ -82,16 +91,13 @@ func Main() error {
 
 	server := frdrpc.NewRPCServer(cfg)
 
-	// Catch intercept signals, then start the server.
-	if err := signal.Intercept(); err != nil {
-		return err
-	}
+	// Start the server.
 	if err := server.Start(); err != nil {
 		return err
 	}
 
 	// Run until the user terminates.
-	<-signal.ShutdownChannel()
+	<-shutdownInterceptor.ShutdownChannel()
 	log.Infof("Received shutdown signal.")
 
 	if err := server.Stop(); err != nil {

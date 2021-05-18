@@ -179,7 +179,10 @@ func (s *RPCServer) Start() error {
 
 	// First we add the security interceptor to our gRPC server options that
 	// checks the macaroons for validity.
-	serverOpts := s.macaroonInterceptor()
+	serverOpts, err := s.macaroonInterceptor()
+	if err != nil {
+		return fmt.Errorf("error with macaroon interceptor: %v", err)
+	}
 
 	// Add our TLS configuration and then create our server instance. It's
 	// important that we let gRPC create the TLS listener and we don't just
@@ -190,7 +193,6 @@ func (s *RPCServer) Start() error {
 	s.grpcServer = grpc.NewServer(serverOpts...)
 
 	// Start the gRPC RPCServer listening for HTTP/2 connections.
-	var err error
 	log.Info("Starting gRPC listener")
 	s.rpcListener, err = net.Listen("tcp", s.cfg.RPCListen)
 	if err != nil {

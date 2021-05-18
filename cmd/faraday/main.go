@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/lightninglabs/faraday"
@@ -10,7 +11,7 @@ import (
 // properly executed if os.Exit() is called.
 func main() {
 	if err := faraday.Main(); err != nil {
-		log.Infof("Error starting faraday: %v", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Error starting faraday: %v", err)
 	}
 
 	os.Exit(1)

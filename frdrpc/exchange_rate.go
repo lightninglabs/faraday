@@ -59,11 +59,29 @@ func granularityFromRPC(g Granularity, disableFiat bool,
 	}
 }
 
+func fiatBackendFromRPC(backend FiatBackend) (fiat.PriceBackend, error) {
+	switch backend {
+	case FiatBackend_UNKNOWN_FIATBACKEND:
+		return fiat.UnknownPriceBackend, nil
+
+	case FiatBackend_COINCAP:
+		return fiat.CoinCapPriceBackend, nil
+
+	case FiatBackend_COINDESK:
+		return fiat.CoinDeskPriceBackend, nil
+
+	default:
+		return fiat.UnknownPriceBackend,
+			fmt.Errorf("unknown fiat backend: %v", backend)
+	}
+}
+
 func parseExchangeRateRequest(req *ExchangeRateRequest) ([]time.Time,
-	*fiat.Granularity, error) {
+	fiat.PriceBackend, *fiat.Granularity, error) {
 
 	if len(req.Timestamps) == 0 {
-		return nil, nil, errors.New("at least one timestamp required")
+		return nil, fiat.UnknownPriceBackend, nil,
+			errors.New("at least one timestamp required")
 	}
 
 	timestamps := make([]time.Time, len(req.Timestamps))
@@ -86,10 +104,15 @@ func parseExchangeRateRequest(req *ExchangeRateRequest) ([]time.Time,
 		req.Granularity, false, end.Sub(start),
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, fiat.UnknownPriceBackend, nil, err
 	}
 
-	return timestamps, granularity, nil
+	fiatBackend, err := fiatBackendFromRPC(req.FiatBackend)
+	if err != nil {
+		return nil, fiat.UnknownPriceBackend, nil, err
+	}
+
+	return timestamps, fiatBackend, granularity, nil
 }
 
 func exchangeRateResponse(prices map[time.Time]*fiat.USDPrice) *ExchangeRateResponse {

@@ -2,7 +2,6 @@ package accounting
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/btcsuite/btcutil"
@@ -10,11 +9,6 @@ import (
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/utils"
 )
-
-// ErrGranularityRequired is returned when a request is made that required fiat
-// prices but the granularity of those prices is not set.
-var ErrGranularityRequired = errors.New("granularity required when fiat " +
-	"prices are enabled")
 
 // usdPrice is a function which gets the USD price of bitcoin at a given time.
 type usdPrice func(timestamp time.Time) (*fiat.USDPrice, error)
@@ -39,7 +33,8 @@ func invertMsat(msat int64) int64 {
 // of price data and returns a convert function which can be used to get
 // individual price points from this data.
 func getConversion(ctx context.Context, startTime, endTime time.Time,
-	disableFiat bool, granularity *fiat.Granularity) (usdPrice, error) {
+	disableFiat bool, fiatBackend fiat.PriceBackend,
+	granularity *fiat.Granularity) (usdPrice, error) {
 
 	// If we don't want fiat values, just return a price which will yield
 	// a zero price and timestamp.
@@ -49,11 +44,12 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 		}, nil
 	}
 
-	if granularity == nil {
-		return nil, ErrGranularityRequired
+	err := utils.ValidateTimeRange(startTime, endTime)
+	if err != nil {
+		return nil, err
 	}
 
-	err := utils.ValidateTimeRange(startTime, endTime)
+	fiatClient, err := fiat.NewPricePriceSource(fiatBackend, granularity)
 	if err != nil {
 		return nil, err
 	}
@@ -61,9 +57,7 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 	// Get price data for our relevant period. We get pricing for the whole
 	// period rather than on a per-item level to limit the number of api
 	// calls we need to make to our external data source.
-	prices, err := fiat.CoinCapPriceData(
-		ctx, startTime, endTime, *granularity,
-	)
+	prices, err := fiatClient.GetPrices(ctx, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}

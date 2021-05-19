@@ -435,12 +435,16 @@ func (s *RPCServer) ExchangeRate(ctx context.Context,
 
 	log.Debugf("[FiatEstimate]: %v requests", len(req.Timestamps))
 
-	timestamps, granularity, err := parseExchangeRateRequest(req)
+	timestamps, fiatBackend, granularity, err := parseExchangeRateRequest(
+		req,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	prices, err := fiat.GetPrices(ctx, timestamps, *granularity)
+	prices, err := fiat.GetPrices(
+		ctx, timestamps, fiatBackend, *granularity,
+	)
 	if err != nil {
 		return nil, err
 	}

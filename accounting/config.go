@@ -85,6 +85,10 @@ type CommonConfig struct {
 	// data api may be down.
 	DisableFiat bool
 
+	// FiatBackend is the backend API to be used to for any fiat related
+	// queries.
+	FiatBackend fiat.PriceBackend
+
 	// Granularity specifies the level of granularity with which we want to
 	// get fiat prices.
 	Granularity *fiat.Granularity
@@ -100,7 +104,8 @@ type CommonConfig struct {
 // that fee lookups are not possible in certain cases.
 func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 	endTime time.Time, disableFiat bool, txLookup fees.GetDetailsFunc,
-	granularity *fiat.Granularity, categories []CustomCategory) *OnChainConfig {
+	fiatBackend fiat.PriceBackend, granularity *fiat.Granularity,
+	categories []CustomCategory) *OnChainConfig {
 
 	var getFee func(chainhash.Hash) (btcutil.Amount, error)
 	if txLookup != nil {
@@ -129,6 +134,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 			StartTime:   startTime,
 			EndTime:     endTime,
 			DisableFiat: disableFiat,
+			FiatBackend: fiatBackend,
 			Granularity: granularity,
 			Categories:  categories,
 		},
@@ -142,7 +148,8 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 	maxInvoices, maxPayments, maxForwards uint64, ownPubkey route.Vertex,
 	startTime, endTime time.Time, disableFiat bool,
-	granularity *fiat.Granularity, categories []CustomCategory) *OffChainConfig {
+	fiatBackend fiat.PriceBackend, granularity *fiat.Granularity,
+	categories []CustomCategory) *OffChainConfig {
 
 	return &OffChainConfig{
 		ListInvoices: func() ([]lndclient.Invoice, error) {
@@ -173,6 +180,7 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 			StartTime:   startTime,
 			EndTime:     endTime,
 			DisableFiat: disableFiat,
+			FiatBackend: fiatBackend,
 			Granularity: granularity,
 			Categories:  categories,
 		},

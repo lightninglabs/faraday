@@ -17,10 +17,5 @@ This file tracks release notes for the loop client.
 #### New Features
 
 #### Breaking Changes
- - Bumped the minimum required version of `lnd` to `v0.11.1-beta`.
 
 #### Bug Fixes
- - Fixes a bug in how TLS connections were initialized which lead to the
-   `missing selected ALPN property` error in node.js and #c clients.
- - A bug where the rpc server would panic on rpc calls to the outlier and
-   threshold recommendation apis has been fixed.

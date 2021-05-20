@@ -83,12 +83,16 @@ const (
 
 	// CoinDeskPriceBackend uses CoinDesk's API for fiat price data.
 	CoinDeskPriceBackend
+
+	// CustomPriceBackend uses user provided fiat price data.
+	CustomPriceBackend
 )
 
 var priceBackendNames = map[PriceBackend]string{
 	UnknownPriceBackend:  "unknown",
 	CoinCapPriceBackend:  "coincap",
 	CoinDeskPriceBackend: "coindesk",
+	CustomPriceBackend:   "custom",
 }
 
 // String returns the string representation of a price backend.

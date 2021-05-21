@@ -161,6 +161,13 @@ func NewPriceSource(cfg *PriceSourceConfig) (*PriceSource, error) {
 		return &PriceSource{
 			impl: &coinDeskAPI{},
 		}, nil
+
+	case CustomPriceBackend:
+		return &PriceSource{
+			impl: &customPrices{
+				entries: cfg.PricePoints,
+			},
+		}, nil
 	}
 
 	return nil, errUnknownPriceBackend

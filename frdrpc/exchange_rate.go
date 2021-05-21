@@ -77,11 +77,10 @@ func fiatBackendFromRPC(backend FiatBackend) (fiat.PriceBackend, error) {
 }
 
 func parseExchangeRateRequest(req *ExchangeRateRequest) ([]time.Time,
-	fiat.PriceBackend, *fiat.Granularity, error) {
+	*fiat.PriceSourceConfig, error) {
 
 	if len(req.Timestamps) == 0 {
-		return nil, fiat.UnknownPriceBackend, nil,
-			errors.New("at least one timestamp required")
+		return nil, nil, errors.New("at least one timestamp required")
 	}
 
 	timestamps := make([]time.Time, len(req.Timestamps))
@@ -104,15 +103,18 @@ func parseExchangeRateRequest(req *ExchangeRateRequest) ([]time.Time,
 		req.Granularity, false, end.Sub(start),
 	)
 	if err != nil {
-		return nil, fiat.UnknownPriceBackend, nil, err
+		return nil, nil, err
 	}
 
 	fiatBackend, err := fiatBackendFromRPC(req.FiatBackend)
 	if err != nil {
-		return nil, fiat.UnknownPriceBackend, nil, err
+		return nil, nil, err
 	}
 
-	return timestamps, fiatBackend, granularity, nil
+	return timestamps, &fiat.PriceSourceConfig{
+		Backend:     fiatBackend,
+		Granularity: granularity,
+	}, nil
 }
 
 func exchangeRateResponse(prices map[time.Time]*fiat.Price) *ExchangeRateResponse {

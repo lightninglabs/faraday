@@ -1,6 +1,7 @@
 package fiat
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -132,5 +133,80 @@ func TestMSatToFiat(t *testing.T) {
 					test.expectedFiat, amt)
 			}
 		})
+	}
+}
+
+// TestValidatePriceSourceConfig tests that the validatePriceSourceConfig
+// function correctly validates the fields of PriceSourceConfig given the
+// chosen price backend.
+func TestValidatePriceSourceConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		cfg         *PriceSourceConfig
+		expectedErr error
+	}{
+		{
+			name: "valid Coin Cap config",
+			cfg: &PriceSourceConfig{
+				Backend:     CoinCapPriceBackend,
+				Granularity: &GranularityDay,
+			},
+		},
+		{
+			name: "invalid Coin Cap config",
+			cfg: &PriceSourceConfig{
+				Backend: CoinCapPriceBackend,
+			},
+			expectedErr: errGranularityRequired,
+		},
+		{
+			name: "valid default config",
+			cfg: &PriceSourceConfig{
+				Backend:     UnknownPriceBackend,
+				Granularity: &GranularityDay,
+			},
+		},
+		{
+			name: "invalid default config",
+			cfg: &PriceSourceConfig{
+				Backend: UnknownPriceBackend,
+			},
+			expectedErr: errGranularityRequired,
+		},
+		{
+			name: "valid custom prices config",
+			cfg: &PriceSourceConfig{
+				Backend: CustomPriceBackend,
+				PricePoints: []*Price{
+					{
+						Timestamp: time.Now(),
+						Price:     decimal.NewFromInt(10),
+						Currency:  "USD",
+					},
+				},
+			},
+		},
+		{
+			name: "invalid custom prices config",
+			cfg: &PriceSourceConfig{
+				Backend: CustomPriceBackend,
+			},
+			expectedErr: errPricePointsRequired,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := test.cfg.validatePriceSourceConfig()
+			if !errors.Is(err, test.expectedErr) {
+				t.Fatalf("expected: %v, got %v",
+					test.expectedErr, err)
+			}
+		})
+
 	}
 }

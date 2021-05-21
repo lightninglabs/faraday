@@ -45,7 +45,7 @@ func OffChainReport(ctx context.Context, cfg *OffChainConfig) (Report, error) {
 	// or a no-op function if we do not want prices.
 	getPrice, err := getConversion(
 		ctx, cfg.StartTime, cfg.EndTime, cfg.DisableFiat,
-		cfg.FiatBackend, cfg.Granularity,
+		cfg.PriceSourceCfg,
 	)
 	if err != nil {
 		return nil, err

@@ -33,8 +33,7 @@ func invertMsat(msat int64) int64 {
 // of price data and returns a convert function which can be used to get
 // individual price points from this data.
 func getConversion(ctx context.Context, startTime, endTime time.Time,
-	disableFiat bool, fiatBackend fiat.PriceBackend,
-	granularity *fiat.Granularity) (fiatPrice, error) {
+	disableFiat bool, priceCfg *fiat.PriceSourceConfig) (fiatPrice, error) {
 
 	// If we don't want fiat values, just return a price which will yield
 	// a zero price and timestamp.
@@ -49,7 +48,7 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 		return nil, err
 	}
 
-	fiatClient, err := fiat.NewPriceSource(fiatBackend, granularity)
+	fiatClient, err := fiat.NewPriceSource(priceCfg)
 	if err != nil {
 		return nil, err
 	}

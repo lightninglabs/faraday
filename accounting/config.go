@@ -85,13 +85,9 @@ type CommonConfig struct {
 	// data api may be down.
 	DisableFiat bool
 
-	// FiatBackend is the backend API to be used to for any fiat related
-	// queries.
-	FiatBackend fiat.PriceBackend
-
-	// Granularity specifies the level of granularity with which we want to
-	// get fiat prices.
-	Granularity *fiat.Granularity
+	// PriceSourceCfg is the config to be used for initialising the
+	// PriceSource used for fiat related queries.
+	PriceSourceCfg *fiat.PriceSourceConfig
 
 	// Categories is a set of custom categories which should be added to the
 	// report.
@@ -104,7 +100,7 @@ type CommonConfig struct {
 // that fee lookups are not possible in certain cases.
 func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 	endTime time.Time, disableFiat bool, txLookup fees.GetDetailsFunc,
-	fiatBackend fiat.PriceBackend, granularity *fiat.Granularity,
+	priceCfg *fiat.PriceSourceConfig,
 	categories []CustomCategory) *OnChainConfig {
 
 	var getFee func(chainhash.Hash) (btcutil.Amount, error)
@@ -131,12 +127,11 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 			return lnd.WalletKit.ListSweeps(ctx)
 		},
 		CommonConfig: CommonConfig{
-			StartTime:   startTime,
-			EndTime:     endTime,
-			DisableFiat: disableFiat,
-			FiatBackend: fiatBackend,
-			Granularity: granularity,
-			Categories:  categories,
+			StartTime:      startTime,
+			EndTime:        endTime,
+			DisableFiat:    disableFiat,
+			Categories:     categories,
+			PriceSourceCfg: priceCfg,
 		},
 		GetFee: getFee,
 	}
@@ -148,7 +143,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 	maxInvoices, maxPayments, maxForwards uint64, ownPubkey route.Vertex,
 	startTime, endTime time.Time, disableFiat bool,
-	fiatBackend fiat.PriceBackend, granularity *fiat.Granularity,
+	priceCfg *fiat.PriceSourceConfig,
 	categories []CustomCategory) *OffChainConfig {
 
 	return &OffChainConfig{
@@ -177,12 +172,11 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 		},
 		OwnPubKey: ownPubkey,
 		CommonConfig: CommonConfig{
-			StartTime:   startTime,
-			EndTime:     endTime,
-			DisableFiat: disableFiat,
-			FiatBackend: fiatBackend,
-			Granularity: granularity,
-			Categories:  categories,
+			StartTime:      startTime,
+			EndTime:        endTime,
+			DisableFiat:    disableFiat,
+			Categories:     categories,
+			PriceSourceCfg: priceCfg,
 		},
 	}
 }

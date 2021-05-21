@@ -22,6 +22,12 @@ var (
 	// required fiat prices but the granularity of those prices is not set.
 	errGranularityRequired = errors.New("granularity required when " +
 		"fiat prices are enabled")
+
+	errPricePointsRequired = errors.New("at least one price point " +
+		"required for a custom price backend")
+
+	errPriceSourceConfigExpected = errors.New("a non-nil " +
+		"PriceSourceConfig is expected")
 )
 
 // fiatBackend is an interface that must be implemented by any backend that
@@ -35,6 +41,40 @@ type fiatBackend interface {
 // information.
 type PriceSource struct {
 	impl fiatBackend
+}
+
+// PriceSourceConfig is a struct holding various config options used for
+// initialising a new PriceSource.
+type PriceSourceConfig struct {
+	// Backend is the PriceBackend to be used for fetching price data.
+	Backend PriceBackend
+
+	// Granularity specifies the level of granularity with which we want to
+	// get fiat prices. This option is only used for the CoinCap
+	// PriceBackend.
+	Granularity *Granularity
+
+	// PricePoints is a set of price points that is used for fiat related
+	// queries if the PriceBackend being used is the CustomPriceBackend.
+	PricePoints []*Price
+}
+
+// validatePriceSourceConfig checks that the PriceSourceConfig fields are valid
+// given the chosen price backend.
+func (cfg *PriceSourceConfig) validatePriceSourceConfig() error {
+	switch cfg.Backend {
+	case UnknownPriceBackend, CoinCapPriceBackend:
+		if cfg.Granularity == nil {
+			return errGranularityRequired
+		}
+
+	case CustomPriceBackend:
+		if len(cfg.PricePoints) == 0 {
+			return errPricePointsRequired
+		}
+	}
+
+	return nil
 }
 
 // GetPrices fetches price information using the given the PriceSource
@@ -102,16 +142,19 @@ func (p PriceBackend) String() string {
 
 // NewPriceSource returns a PriceSource which can be used to query price
 // data.
-func NewPriceSource(backend PriceBackend, granularity *Granularity) (
-	*PriceSource, error) {
+func NewPriceSource(cfg *PriceSourceConfig) (*PriceSource, error) {
+	if cfg == nil {
+		return nil, errPriceSourceConfigExpected
+	}
 
-	switch backend {
+	if err := cfg.validatePriceSourceConfig(); err != nil {
+		return nil, err
+	}
+
+	switch cfg.Backend {
 	case UnknownPriceBackend, CoinCapPriceBackend:
-		if granularity == nil {
-			return nil, errGranularityRequired
-		}
 		return &PriceSource{
-			impl: newCoinCapAPI(*granularity),
+			impl: newCoinCapAPI(*cfg.Granularity),
 		}, nil
 
 	case CoinDeskPriceBackend:
@@ -137,7 +180,7 @@ type PriceRequest struct {
 
 // GetPrices gets a set of prices for a set of timestamps.
 func GetPrices(ctx context.Context, timestamps []time.Time,
-	backend PriceBackend, granularity Granularity) (
+	priceCfg *PriceSourceConfig) (
 	map[time.Time]*Price, error) {
 
 	if len(timestamps) == 0 {
@@ -156,7 +199,7 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 	// timestamp if we have 1 entry, but that's ok.
 	start, end := timestamps[0], timestamps[len(timestamps)-1]
 
-	client, err := NewPriceSource(backend, &granularity)
+	client, err := NewPriceSource(priceCfg)
 	if err != nil {
 		return nil, err
 	}

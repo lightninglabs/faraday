@@ -10,6 +10,7 @@ import (
 
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/fees"
+	"github.com/lightninglabs/faraday/fiat"
 )
 
 var (
@@ -52,6 +53,11 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
+	priceSourceCfg := &fiat.PriceSourceConfig{
+		Backend:     fiatBackend,
+		Granularity: granularity,
+	}
+
 	pubkey, err := route.NewVertexFromBytes(info.IdentityPubkey[:])
 	if err != nil {
 		return nil, nil, err
@@ -71,7 +77,7 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 	offChain := accounting.NewOffChainConfig(
 		ctx, cfg.Lnd, uint64(maxInvoiceQueries),
 		uint64(maxPaymentQueries), uint64(maxForwardQueries),
-		pubkey, start, end, req.DisableFiat, fiatBackend, granularity,
+		pubkey, start, end, req.DisableFiat, priceSourceCfg,
 		offChainCategories,
 	)
 
@@ -87,7 +93,7 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 
 	onChain := accounting.NewOnChainConfig(
 		ctx, cfg.Lnd, start, end, req.DisableFiat,
-		feeLookup, fiatBackend, granularity, onChainCategories,
+		feeLookup, priceSourceCfg, onChainCategories,
 	)
 
 	return onChain, offChain, nil

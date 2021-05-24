@@ -49,7 +49,7 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 		return nil, err
 	}
 
-	fiatClient, err := fiat.NewPricePriceSource(fiatBackend, granularity)
+	fiatClient, err := fiat.NewPriceSource(fiatBackend, granularity)
 	if err != nil {
 		return nil, err
 	}

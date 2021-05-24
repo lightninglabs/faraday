@@ -96,9 +96,9 @@ func (p PriceBackend) String() string {
 	return priceBackendNames[p]
 }
 
-// NewPricePriceSource returns a PriceSource which can be used to query price
+// NewPriceSource returns a PriceSource which can be used to query price
 // data.
-func NewPricePriceSource(backend PriceBackend, granularity *Granularity) (
+func NewPriceSource(backend PriceBackend, granularity *Granularity) (
 	*PriceSource, error) {
 
 	switch backend {
@@ -152,7 +152,7 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 	// timestamp if we have 1 entry, but that's ok.
 	start, end := timestamps[0], timestamps[len(timestamps)-1]
 
-	client, err := NewPricePriceSource(backend, &granularity)
+	client, err := NewPriceSource(backend, &granularity)
 	if err != nil {
 		return nil, err
 	}

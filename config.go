@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -68,14 +69,37 @@ var (
 	DefaultMacaroonPath = filepath.Join(
 		FaradayDirBase, DefaultNetwork, DefaultMacaroonFilename,
 	)
+
+	// defaultLndMacaroon is the default macaroon file we use to connect to
+	// lnd.
+	defaultLndMacaroon = "readonly.macaroon"
+
+	// DefaultLndDir is the default location where we look for lnd's tls and
+	// macaroon files.
+	DefaultLndDir = btcutil.AppDataDir("lnd", false)
+
+	// DefaultLndMacaroonPath is the default location where we look for a
+	// macaroon to use when connecting to lnd.
+	DefaultLndMacaroonPath = filepath.Join(
+		DefaultLndDir, "data", "chain", "bitcoin", DefaultNetwork,
+		defaultLndMacaroon,
+	)
 )
 
 type LndConfig struct {
 	// RPCServer is host:port that lnd's RPC server is listening on.
 	RPCServer string `long:"rpcserver" description:"host:port that LND is listening for RPC connections on"`
 
-	// MacaroonDir is the directory containing macaroons.
-	MacaroonDir string `long:"macaroondir" description:"Dir containing macaroons"`
+	// MacaroonDir is the directory that contains all the macaroon files
+	// required for the remote connection.
+	MacaroonDir string `long:"macaroondir" description:"DEPRECATED: Use macaroonpath."`
+
+	// MacaroonPath is the path to the single macaroon that should be used
+	// instead of needing to specify the macaroon directory that contains
+	// all of lnd's macaroons. The specified macaroon MUST have all
+	// permissions that all the subservers use, otherwise permission errors
+	// will occur.
+	MacaroonPath string `long:"macaroonpath" description:"The full path to the single macaroon to use, either the readonly.macaroon or a custom baked one. Cannot be specified at the same time as macaroondir. A custom macaroon must contain ALL permissions required for all subservers to work, otherwise permission errors will occur."`
 
 	// TLSCertPath is the path to the tls cert that faraday should use.
 	TLSCertPath string `long:"tlscertpath" description:"Path to TLS cert"`
@@ -129,7 +153,8 @@ type Config struct { //nolint:maligned
 func DefaultConfig() Config {
 	return Config{
 		Lnd: &LndConfig{
-			RPCServer: defaultRPCHostPort,
+			RPCServer:    defaultRPCHostPort,
+			MacaroonPath: DefaultLndMacaroonPath,
 		},
 		FaradayDir:       FaradayDirBase,
 		Network:          DefaultNetwork,
@@ -226,6 +251,43 @@ func ValidateConfig(config *Config) error {
 			return fmt.Errorf("bitcoin.tlspath required " +
 				"when chainconn is set")
 		}
+	}
+
+	// Make sure only one of the macaroon options is used.
+	switch {
+	case config.Lnd.MacaroonPath != DefaultLndMacaroonPath &&
+		config.Lnd.MacaroonDir != "":
+
+		return fmt.Errorf("use --lnd.macaroonpath only")
+
+	case config.Lnd.MacaroonDir != "":
+		// With the new version of lndclient we can only specify a
+		// single macaroon instead of all of them. If the old
+		// macaroondir is used, we use the readonly macaroon located in
+		// that directory.
+		config.Lnd.MacaroonPath = path.Join(
+			lncfg.CleanAndExpandPath(config.Lnd.MacaroonDir),
+			defaultLndMacaroon,
+		)
+
+	case config.Lnd.MacaroonPath != "":
+		config.Lnd.MacaroonPath = lncfg.CleanAndExpandPath(
+			config.Lnd.MacaroonPath,
+		)
+
+	default:
+		return fmt.Errorf("must specify --lnd.macaroonpath")
+	}
+
+	// Adjust the default lnd macaroon path if only the network is
+	// specified.
+	if config.Network != DefaultNetwork &&
+		config.Lnd.MacaroonPath == DefaultLndMacaroonPath {
+
+		config.Lnd.MacaroonPath = path.Join(
+			DefaultLndDir, "data", "chain", "bitcoin",
+			config.Network, defaultLndMacaroon,
+		)
 	}
 
 	if err := build.ParseAndSetDebugLevels(config.DebugLevel, logWriter); err != nil {

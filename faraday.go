@@ -55,10 +55,10 @@ func Main() error {
 	// Connect to the full suite of lightning services offered by lnd's
 	// subservers.
 	client, err := lndclient.NewLndServices(&lndclient.LndServicesConfig{
-		LndAddress:  config.Lnd.RPCServer,
-		Network:     lndclient.Network(config.Network),
-		MacaroonDir: config.Lnd.MacaroonDir,
-		TLSPath:     config.Lnd.TLSCertPath,
+		LndAddress:         config.Lnd.RPCServer,
+		Network:            lndclient.Network(config.Network),
+		CustomMacaroonPath: config.Lnd.MacaroonPath,
+		TLSPath:            config.Lnd.TLSCertPath,
 		// Use the default lnd version check which checks for version
 		// v0.11.0 and requires all build tags.
 		CheckVersion: nil,

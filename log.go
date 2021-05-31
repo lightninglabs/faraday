@@ -17,8 +17,6 @@ import (
 const Subsystem = "FRDY"
 
 var (
-	logWriter *build.RotatingLogWriter
-
 	// log is a logger that is initialized with no output filters. This
 	// means the package will not perform any logging by default until the
 	// caller requests it.
@@ -29,7 +27,6 @@ var (
 func SetupLoggers(root *build.RotatingLogWriter, intercept signal.Interceptor) {
 	genLogger := genSubLogger(root, intercept)
 
-	logWriter = root
 	log = build.NewSubLogger(Subsystem, genLogger)
 
 	setSubLogger(root, Subsystem, log, nil)

@@ -11,7 +11,6 @@ import (
 
 	"github.com/btcsuite/btcutil"
 	"github.com/lightninglabs/lndclient"
-	"github.com/lightningnetwork/lnd/build"
 	"github.com/lightningnetwork/lnd/cert"
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -288,10 +287,6 @@ func ValidateConfig(config *Config) error {
 			DefaultLndDir, "data", "chain", "bitcoin",
 			config.Network, defaultLndMacaroon,
 		)
-	}
-
-	if err := build.ParseAndSetDebugLevels(config.DebugLevel, logWriter); err != nil {
-		return err
 	}
 
 	return nil

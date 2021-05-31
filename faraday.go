@@ -40,8 +40,14 @@ func Main() error {
 	if err != nil {
 		return err
 	}
+
+	// Setup logging before parsing the config.
 	logWriter := build.NewRotatingLogWriter()
 	SetupLoggers(logWriter, shutdownInterceptor)
+	err = build.ParseAndSetDebugLevels(config.DebugLevel, logWriter)
+	if err != nil {
+		return err
+	}
 
 	if err := ValidateConfig(&config); err != nil {
 		return fmt.Errorf("error validating config: %v", err)

@@ -22,11 +22,6 @@ This file tracks release notes for the faraday client.
 ## Next release
 
 #### New Features
-* A single macaroon can now be specified to connect to `lnd` by changing the
-  `--lnd.macaroondir` to `--lnd.macaroonpath` and pointing it directly to either
-  the `readonly.macaroon` or a custom baked one. If none of the two flags are
-  specified, faraday falls back to the default `lnd` directory and the
-  `readonly.macaroon` file.
 
 #### Breaking Changes
 

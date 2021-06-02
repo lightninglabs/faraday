@@ -40,8 +40,14 @@ func Main() error {
 	if err != nil {
 		return err
 	}
+
+	// Setup logging before parsing the config.
 	logWriter := build.NewRotatingLogWriter()
 	SetupLoggers(logWriter, shutdownInterceptor)
+	err = build.ParseAndSetDebugLevels(config.DebugLevel, logWriter)
+	if err != nil {
+		return err
+	}
 
 	if err := ValidateConfig(&config); err != nil {
 		return fmt.Errorf("error validating config: %v", err)
@@ -55,10 +61,10 @@ func Main() error {
 	// Connect to the full suite of lightning services offered by lnd's
 	// subservers.
 	client, err := lndclient.NewLndServices(&lndclient.LndServicesConfig{
-		LndAddress:  config.Lnd.RPCServer,
-		Network:     lndclient.Network(config.Network),
-		MacaroonDir: config.Lnd.MacaroonDir,
-		TLSPath:     config.Lnd.TLSCertPath,
+		LndAddress:         config.Lnd.RPCServer,
+		Network:            lndclient.Network(config.Network),
+		CustomMacaroonPath: config.Lnd.MacaroonPath,
+		TLSPath:            config.Lnd.TLSCertPath,
 		// Use the default lnd version check which checks for version
 		// v0.11.0 and requires all build tags.
 		CheckVersion: nil,

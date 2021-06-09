@@ -63,7 +63,7 @@ type HarmonyEntry struct {
 // a credit.
 func newHarmonyEntry(ts time.Time, amountMsat int64, e EntryType, txid,
 	reference, note, category string, onChain bool,
-	convert usdPrice) (*HarmonyEntry,
+	convert fiatPrice) (*HarmonyEntry,
 
 	error) {
 

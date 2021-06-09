@@ -57,7 +57,7 @@ func OffChainReport(ctx context.Context, cfg *OffChainConfig) (Report, error) {
 // offChainReportWithPrices produces off chain reports using the getPrice
 // function provided. This allows testing of our report creation without calling
 // the actual price API.
-func offChainReportWithPrices(cfg *OffChainConfig, getPrice usdPrice) (Report,
+func offChainReportWithPrices(cfg *OffChainConfig, getPrice fiatPrice) (Report,
 	error) {
 
 	invoices, err := cfg.ListInvoices()

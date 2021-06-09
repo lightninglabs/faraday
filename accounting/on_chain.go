@@ -77,7 +77,7 @@ func newChannelInfo(id lnwire.ShortChannelID, chanPoint *wire.OutPoint,
 // getOnChainInfo queries lnd for all transactions relevant to our on chain
 // transactions, and produces the set of information that we will need to create
 // an on chain report.
-func getOnChainInfo(cfg *OnChainConfig, getPrice usdPrice) (*onChainInformation,
+func getOnChainInfo(cfg *OnChainConfig, getPrice fiatPrice) (*onChainInformation,
 	error) {
 
 	// Create an info struct to hold all the elements we need.

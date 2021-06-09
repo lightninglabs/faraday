@@ -10,8 +10,8 @@ import (
 	"github.com/lightninglabs/faraday/utils"
 )
 
-// usdPrice is a function which gets the USD price of bitcoin at a given time.
-type usdPrice func(timestamp time.Time) (*fiat.Price, error)
+// fiatPrice is a function which gets the fiat price of bitcoin at a given time.
+type fiatPrice func(timestamp time.Time) (*fiat.Price, error)
 
 // satsToMsat converts an amount expressed in sats to msat.
 func satsToMsat(sats btcutil.Amount) int64 {
@@ -34,7 +34,7 @@ func invertMsat(msat int64) int64 {
 // individual price points from this data.
 func getConversion(ctx context.Context, startTime, endTime time.Time,
 	disableFiat bool, fiatBackend fiat.PriceBackend,
-	granularity *fiat.Granularity) (usdPrice, error) {
+	granularity *fiat.Granularity) (fiatPrice, error) {
 
 	// If we don't want fiat values, just return a price which will yield
 	// a zero price and timestamp.

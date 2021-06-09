@@ -177,9 +177,9 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 	return prices, nil
 }
 
-// MsatToUSD converts a msat amount to usd. Note that this function coverts
+// MsatToFiat converts a msat amount to fiat. Note that this function converts
 // values to Bitcoin values, then gets the fiat price for that BTC value.
-func MsatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
+func MsatToFiat(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
 	msatDecimal := decimal.NewFromInt(int64(amt))
 
 	// We are quoted price per whole bitcoin. We need to scale this price

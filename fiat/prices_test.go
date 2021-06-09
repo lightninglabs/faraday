@@ -92,8 +92,8 @@ func TestGetPrice(t *testing.T) {
 	}
 }
 
-// TestMSatToUsd tests conversion of msat to usd. This
-func TestMSatToUsd(t *testing.T) {
+// TestMSatToFiat tests conversion of msat to fiat. This
+func TestMSatToFiat(t *testing.T) {
 	tests := []struct {
 		name         string
 		amount       lnwire.MilliSatoshi
@@ -126,7 +126,7 @@ func TestMSatToUsd(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			amt := MsatToUSD(test.price, test.amount)
+			amt := MsatToFiat(test.price, test.amount)
 			if !amt.Equals(test.expectedFiat) {
 				t.Fatalf("expected: %v, got: %v",
 					test.expectedFiat, amt)

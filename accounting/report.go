@@ -86,7 +86,7 @@ func newHarmonyEntry(ts time.Time, amountMsat int64, e EntryType, txid,
 	return &HarmonyEntry{
 		Timestamp: ts,
 		Amount:    amtMsat,
-		FiatValue: fiat.MsatToUSD(btcPrice.Price, amtMsat),
+		FiatValue: fiat.MsatToFiat(btcPrice.Price, amtMsat),
 		TxID:      txid,
 		Reference: reference,
 		Note:      note,

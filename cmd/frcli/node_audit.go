@@ -194,7 +194,15 @@ func queryOnChainReport(ctx *cli.Context) error {
 		}
 	}()
 
-	csvStrs := []string{CSVHeaders}
+	var headers string
+	if len(report.Reports) > 0 {
+		headers = fmt.Sprintf(
+			CSVHeaders,
+			report.Reports[0].BtcPrice.Currency,
+		)
+	}
+
+	csvStrs := []string{headers}
 	for _, report := range report.Reports {
 		csvStrs = append(csvStrs, csv(report))
 	}

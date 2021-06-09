@@ -162,7 +162,7 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 		return nil, err
 	}
 
-	// Prices will map transaction timestamps to their USD prices.
+	// Prices will map transaction timestamps to their fiat prices.
 	var prices = make(map[time.Time]*Price, len(timestamps))
 
 	for _, ts := range timestamps {

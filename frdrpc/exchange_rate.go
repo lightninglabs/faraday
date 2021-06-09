@@ -124,6 +124,7 @@ func exchangeRateResponse(prices map[time.Time]*fiat.Price) *ExchangeRateRespons
 			BtcPrice: &BitcoinPrice{
 				Price:          price.Price.String(),
 				PriceTimestamp: uint64(price.Timestamp.Unix()),
+				Currency:       price.Currency,
 			},
 		})
 	}

@@ -165,7 +165,8 @@ func rpcReportResponse(report accounting.Report) (*NodeAuditResponse,
 			Reference:      entry.Reference,
 			Note:           entry.Note,
 			BtcPrice: &BitcoinPrice{
-				Price: entry.BTCPrice.Price.String(),
+				Price:    entry.BTCPrice.Price.String(),
+				Currency: entry.BTCPrice.Currency,
 			},
 		}
 

@@ -23,7 +23,7 @@ var (
 	errRetriesFailed = errors.New("could not get data within max retries")
 )
 
-// Price represents the Bitcoin price in USD at a certain time.
+// Price represents the Bitcoin price in the given currency at a certain time.
 type Price struct {
 	// Timestamp is the time at which the BTC price is quoted.
 	Timestamp time.Time
@@ -31,6 +31,9 @@ type Price struct {
 	// Price is the fiat price for the given currency for 1 BTC at the
 	// given timestamp.
 	Price decimal.Decimal
+
+	// Currency is the code of the currency that the Price is quoted in.
+	Currency string
 }
 
 // retryQuery calls an api until it succeeds, or we hit our maximum retries.

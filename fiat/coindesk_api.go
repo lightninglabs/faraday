@@ -17,6 +17,10 @@ const (
 
 	// coinDeskTimeFormat is the date format used by coindesk.
 	coinDeskTimeFormat = "2006-01-02"
+
+	// coinDeskDefaultCurrency is the default currency that the price data
+	// returned by the Coin Desk API is quoted in.
+	coinDeskDefaultCurrency = "USD"
 )
 
 // coinDeskAPI implements the fiatBackend interface.
@@ -65,6 +69,7 @@ func parseCoinDeskData(data []byte) ([]*Price, error) {
 		usdRecords = append(usdRecords, &Price{
 			Timestamp: timestamp,
 			Price:     decimal.NewFromFloat(price),
+			Currency:  coinDeskDefaultCurrency,
 		})
 	}
 

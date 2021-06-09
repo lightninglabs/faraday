@@ -15,6 +15,10 @@ import (
 const (
 	// coinCapHistoryAPI is the endpoint we hit for historical price data.
 	coinCapHistoryAPI = "https://api.coincap.io/v2/assets/bitcoin/history"
+
+	// coinCapDefaultCurrency is the currency that the price data returned
+	// by the Coin Cap API is quoted in.
+	coinCapDefaultCurrency = "USD"
 )
 
 // ErrQueryTooLong is returned when we cannot get a granularity level for a
@@ -196,6 +200,7 @@ func parseCoinCapData(data []byte) ([]*Price, error) {
 		usdRecords[i] = &Price{
 			Timestamp: time.Unix(0, ns.Nanoseconds()),
 			Price:     decPrice,
+			Currency:  coinCapDefaultCurrency,
 		}
 	}
 

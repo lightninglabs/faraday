@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/lightningnetwork/lnd/routing/route"
+	"github.com/shopspring/decimal"
 
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/fees"
@@ -53,9 +55,22 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
+	if len(req.CustomPrices) > 0 && req.FiatBackend != FiatBackend_CUSTOM {
+		return nil, nil, errors.New(
+			"custom price points provided but custom fiat " +
+				"backend not set",
+		)
+	}
+
+	pricePoints, err := pricePointsFromRPC(req.CustomPrices)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	priceSourceCfg := &fiat.PriceSourceConfig{
 		Backend:     fiatBackend,
 		Granularity: granularity,
+		PricePoints: pricePoints,
 	}
 
 	pubkey, err := route.NewVertexFromBytes(info.IdentityPubkey[:])
@@ -126,6 +141,25 @@ func validateCustomCategories(categories []*CustomCategory) error {
 	}
 
 	return nil
+}
+
+func pricePointsFromRPC(prices []*BitcoinPrice) ([]*fiat.Price, error) {
+	res := make([]*fiat.Price, len(prices))
+
+	for i, p := range prices {
+		price, err := decimal.NewFromString(p.Price)
+		if err != nil {
+			return nil, err
+		}
+
+		res[i] = &fiat.Price{
+			Timestamp: time.Unix(int64(p.PriceTimestamp), 0),
+			Price:     price,
+			Currency:  p.Currency,
+		}
+	}
+
+	return res, nil
 }
 
 func getCategories(categories []*CustomCategory) ([]accounting.CustomCategory,

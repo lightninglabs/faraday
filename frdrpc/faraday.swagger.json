@@ -102,14 +102,15 @@
           },
           {
             "name": "fiat_backend",
-            "description": "The api to be used for fiat related queries.\n\n - COINCAP: Use the CoinCap API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coincap.io/v2/assets/bitcoin/history\n - COINDESK: Use the CoinDesk API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coindesk.com/v1/bpi/historical/close.json",
+            "description": "The api to be used for fiat related queries.\n\n - COINCAP: Use the CoinCap API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coincap.io/v2/assets/bitcoin/history\n - COINDESK: Use the CoinDesk API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coindesk.com/v1/bpi/historical/close.json\n - CUSTOM: Use custom price data provided in a CSV file for fiat price information.",
             "in": "query",
             "required": false,
             "type": "string",
             "enum": [
               "UNKNOWN_FIATBACKEND",
               "COINCAP",
-              "COINDESK"
+              "COINDESK",
+              "CUSTOM"
             ],
             "default": "UNKNOWN_FIATBACKEND"
           }
@@ -207,14 +208,15 @@
           },
           {
             "name": "fiat_backend",
-            "description": "The api to be used for fiat related queries.\n\n - COINCAP: Use the CoinCap API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coincap.io/v2/assets/bitcoin/history\n - COINDESK: Use the CoinDesk API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coindesk.com/v1/bpi/historical/close.json",
+            "description": "The api to be used for fiat related queries.\n\n - COINCAP: Use the CoinCap API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coincap.io/v2/assets/bitcoin/history\n - COINDESK: Use the CoinDesk API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coindesk.com/v1/bpi/historical/close.json\n - CUSTOM: Use custom price data provided in a CSV file for fiat price information.",
             "in": "query",
             "required": false,
             "type": "string",
             "enum": [
               "UNKNOWN_FIATBACKEND",
               "COINCAP",
-              "COINDESK"
+              "COINDESK",
+              "CUSTOM"
             ],
             "default": "UNKNOWN_FIATBACKEND"
           }
@@ -621,10 +623,11 @@
       "enum": [
         "UNKNOWN_FIATBACKEND",
         "COINCAP",
-        "COINDESK"
+        "COINDESK",
+        "CUSTOM"
       ],
       "default": "UNKNOWN_FIATBACKEND",
-      "description": "FiatBackend is the API endpoint to be used for any fiat related queries.\n\n - COINCAP: Use the CoinCap API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coincap.io/v2/assets/bitcoin/history\n - COINDESK: Use the CoinDesk API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coindesk.com/v1/bpi/historical/close.json"
+      "description": "FiatBackend is the API endpoint to be used for any fiat related queries.\n\n - COINCAP: Use the CoinCap API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coincap.io/v2/assets/bitcoin/history\n - COINDESK: Use the CoinDesk API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coindesk.com/v1/bpi/historical/close.json\n - CUSTOM: Use custom price data provided in a CSV file for fiat price information."
     },
     "frdrpcGranularity": {
       "type": "string",

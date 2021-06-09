@@ -96,7 +96,23 @@ var onChainReportCommand = cli.Command{
 		cli.StringFlag{
 			Name: "fiat_backend",
 			Usage: "fiat backend to be used. Options include: " +
-				"'coincap' (default) and 'coindesk'",
+				"'coincap' (default), 'coindesk' or " +
+				"'custom' which allows custom price data to " +
+				"be used. The 'custom' option requires the" +
+				"'prices_csv_path' and " +
+				"'custom_price_currency' options to be set.",
+		},
+		cli.StringFlag{
+			Name: "prices_csv_path",
+			Usage: "Path to a CSV file containing custom fiat " +
+				"price data. This is only required if " +
+				"'fiat_backend' is set to 'custom'.",
+		},
+		cli.StringFlag{
+			Name: "custom_price_currency",
+			Usage: "The currency that the custom prices are " +
+				"quoted in. This is only required if " +
+				"'fiat_backend' is set to 'custom'.",
 		},
 	},
 	Action: queryOnChainReport,
@@ -111,13 +127,26 @@ func queryOnChainReport(ctx *cli.Context) error {
 		return err
 	}
 
+	var customPrices []*frdrpc.BitcoinPrice
+
+	if fiatBackend == frdrpc.FiatBackend_CUSTOM {
+		customPrices, err = parsePricesFromCSV(
+			ctx.String("prices_csv_path"),
+			ctx.String("custom_price_currency"),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Set start and end times from user specified values, defaulting
 	// to zero if they are not set.
 	req := &frdrpc.NodeAuditRequest{
-		StartTime:   uint64(ctx.Int64("start_time")),
-		EndTime:     uint64(ctx.Int64("end_time")),
-		DisableFiat: !ctx.IsSet("enable_fiat"),
-		FiatBackend: fiatBackend,
+		StartTime:    uint64(ctx.Int64("start_time")),
+		EndTime:      uint64(ctx.Int64("end_time")),
+		DisableFiat:  !ctx.IsSet("enable_fiat"),
+		FiatBackend:  fiatBackend,
+		CustomPrices: customPrices,
 	}
 
 	// If start time is zero, default to a week ago.

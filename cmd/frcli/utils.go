@@ -288,6 +288,9 @@ func parseFiatBackend(fiatBackend string) (frdrpc.FiatBackend, error) {
 	case fiat.CoinDeskPriceBackend.String():
 		return frdrpc.FiatBackend_COINDESK, nil
 
+	case fiat.CustomPriceBackend.String():
+		return frdrpc.FiatBackend_CUSTOM, nil
+
 	default:
 		return frdrpc.FiatBackend_UNKNOWN_FIATBACKEND, fmt.Errorf(
 			"unknown fiat backend",

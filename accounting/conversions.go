@@ -11,7 +11,7 @@ import (
 )
 
 // usdPrice is a function which gets the USD price of bitcoin at a given time.
-type usdPrice func(timestamp time.Time) (*fiat.USDPrice, error)
+type usdPrice func(timestamp time.Time) (*fiat.Price, error)
 
 // satsToMsat converts an amount expressed in sats to msat.
 func satsToMsat(sats btcutil.Amount) int64 {
@@ -39,8 +39,8 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 	// If we don't want fiat values, just return a price which will yield
 	// a zero price and timestamp.
 	if disableFiat {
-		return func(_ time.Time) (*fiat.USDPrice, error) {
-			return &fiat.USDPrice{}, nil
+		return func(_ time.Time) (*fiat.Price, error) {
+			return &fiat.Price{}, nil
 		}, nil
 	}
 
@@ -64,7 +64,7 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 
 	// Create a wrapper function which can be used to get individual price
 	// points from our set of price data as we create our report.
-	return func(ts time.Time) (*fiat.USDPrice, error) {
+	return func(ts time.Time) (*fiat.Price, error) {
 		return fiat.GetPrice(prices, ts)
 	}, nil
 }

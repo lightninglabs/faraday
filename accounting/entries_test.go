@@ -163,7 +163,7 @@ var (
 
 	mockPriceTimestamp = time.Unix(1594306589, 0)
 
-	mockBTCPrice = &fiat.USDPrice{
+	mockBTCPrice = &fiat.Price{
 		Timestamp: mockPriceTimestamp,
 		Price:     decimal.NewFromInt(100000),
 	}
@@ -178,7 +178,7 @@ var (
 )
 
 // mockPrice is a mocked price function which returns mockPrice * amount.
-func mockPrice(_ time.Time) (*fiat.USDPrice, error) {
+func mockPrice(_ time.Time) (*fiat.Price, error) {
 	return mockBTCPrice, nil
 }
 

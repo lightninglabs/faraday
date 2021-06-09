@@ -18,22 +18,22 @@ func TestGetPrice(t *testing.T) {
 	price10K := decimal.New(10000, 1)
 	price20K := decimal.New(20000, 1)
 
-	now10k := &USDPrice{
+	now10k := &Price{
 		Timestamp: now,
 		Price:     price10K,
 	}
 
-	hourAgo20K := &USDPrice{
+	hourAgo20K := &Price{
 		Timestamp: oneHourAgo,
 		Price:     price20K,
 	}
 
 	tests := []struct {
 		name          string
-		prices        []*USDPrice
+		prices        []*Price
 		request       time.Time
 		expectedErr   error
-		expectedPrice *USDPrice
+		expectedPrice *Price
 	}{
 		{
 			name:        "no prices",
@@ -43,21 +43,21 @@ func TestGetPrice(t *testing.T) {
 		},
 		{
 			name:          "timestamp before range",
-			prices:        []*USDPrice{now10k},
+			prices:        []*Price{now10k},
 			request:       oneHourAgo,
 			expectedErr:   errPriceOutOfRange,
 			expectedPrice: nil,
 		},
 		{
 			name:          "timestamp equals data point timestamp",
-			prices:        []*USDPrice{hourAgo20K, now10k},
+			prices:        []*Price{hourAgo20K, now10k},
 			request:       now,
 			expectedErr:   nil,
 			expectedPrice: now10k,
 		},
 		{
 			name: "timestamp after range",
-			prices: []*USDPrice{
+			prices: []*Price{
 				{
 					Timestamp: twoHoursAgo,
 					Price:     price10K,
@@ -70,7 +70,7 @@ func TestGetPrice(t *testing.T) {
 		},
 		{
 			name:          "timestamp between prices, pick earlier",
-			prices:        []*USDPrice{hourAgo20K, now10k},
+			prices:        []*Price{hourAgo20K, now10k},
 			request:       now.Add(time.Minute * -30),
 			expectedErr:   nil,
 			expectedPrice: hourAgo20K,

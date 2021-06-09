@@ -28,7 +28,7 @@ var (
 // is used to fetch fiat price information.
 type fiatBackend interface {
 	rawPriceData(ctx context.Context, startTime,
-		endTime time.Time) ([]*USDPrice, error)
+		endTime time.Time) ([]*Price, error)
 }
 
 // PriceSource holds a fiatBackend that can be used to fetch fiat price
@@ -41,7 +41,7 @@ type PriceSource struct {
 // fiatBackend implementation. GetPrices also validates the time parameters and
 // sorts the results.
 func (p PriceSource) GetPrices(ctx context.Context, startTime,
-	endTime time.Time) ([]*USDPrice, error) {
+	endTime time.Time) ([]*Price, error) {
 
 	// First, check that we have a valid start and end time, and that the
 	// range specified is not in the future.
@@ -134,7 +134,7 @@ type PriceRequest struct {
 // GetPrices gets a set of prices for a set of timestamps.
 func GetPrices(ctx context.Context, timestamps []time.Time,
 	backend PriceBackend, granularity Granularity) (
-	map[time.Time]*USDPrice, error) {
+	map[time.Time]*Price, error) {
 
 	if len(timestamps) == 0 {
 		return nil, nil
@@ -163,7 +163,7 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 	}
 
 	// Prices will map transaction timestamps to their USD prices.
-	var prices = make(map[time.Time]*USDPrice, len(timestamps))
+	var prices = make(map[time.Time]*Price, len(timestamps))
 
 	for _, ts := range timestamps {
 		price, err := GetPrice(priceData, ts)
@@ -195,12 +195,12 @@ func MsatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
 // querying. The last datapoint's timestamp may be before the timestamp we are
 // querying. If a request lies between two price points, we just return the
 // earlier price.
-func GetPrice(prices []*USDPrice, timestamp time.Time) (*USDPrice, error) {
+func GetPrice(prices []*Price, timestamp time.Time) (*Price, error) {
 	if len(prices) == 0 {
 		return nil, errNoPrices
 	}
 
-	var lastPrice *USDPrice
+	var lastPrice *Price
 
 	// Run through our prices until we find a timestamp that our price
 	// point lies before. Since we always return the previous price, this

@@ -52,7 +52,7 @@ type HarmonyEntry struct {
 
 	// BTCPrice is the timestamped bitcoin price we used to get our fiat
 	// value.
-	BTCPrice *fiat.USDPrice
+	BTCPrice *fiat.Price
 }
 
 // newHarmonyEntry produces a harmony entry. If provided with a negative amount,

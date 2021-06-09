@@ -10,10 +10,10 @@ import (
 // CSVHeaders returns the headers used for harmony csv records.
 var CSVHeaders = "Timestamp,OnChain,Type,Category,Amount(Msat),Amount(%v),TxID,Reference,BTCPrice,BTCTimestamp,Note"
 
-// csv returns a csv string of the values contained in a rpc entry. For ease
+// writeToCSV returns a csv string of the values contained in a rpc entry. For ease
 // of use, the credit field is used to set a negative sign (-) on the amount
 // of an entry when it decreases our balance (credit=false).
-func csv(e *frdrpc.ReportEntry) string {
+func writeToCSV(e *frdrpc.ReportEntry) string {
 	amountPrefix := ""
 	if !e.Credit {
 		amountPrefix = "-"

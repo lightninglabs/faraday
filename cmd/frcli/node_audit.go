@@ -204,7 +204,7 @@ func queryOnChainReport(ctx *cli.Context) error {
 
 	csvStrs := []string{headers}
 	for _, report := range report.Reports {
-		csvStrs = append(csvStrs, csv(report))
+		csvStrs = append(csvStrs, writeToCSV(report))
 	}
 	csvString := strings.Join(csvStrs, "\n")
 

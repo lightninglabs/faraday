@@ -127,12 +127,23 @@ func queryOnChainReport(ctx *cli.Context) error {
 		return err
 	}
 
-	var customPrices []*frdrpc.BitcoinPrice
+	startTime := ctx.Int64("start_time")
+	endTime := ctx.Int64("end_time")
+
+	// nolint: prealloc
+	var filteredPrices []*frdrpc.BitcoinPrice
 
 	if fiatBackend == frdrpc.FiatBackend_CUSTOM {
-		customPrices, err = parsePricesFromCSV(
+		customPrices, err := parsePricesFromCSV(
 			ctx.String("prices_csv_path"),
 			ctx.String("custom_price_currency"),
+		)
+		if err != nil {
+			return err
+		}
+
+		filteredPrices, err = filterPrices(
+			customPrices, startTime, endTime,
 		)
 		if err != nil {
 			return err
@@ -142,11 +153,11 @@ func queryOnChainReport(ctx *cli.Context) error {
 	// Set start and end times from user specified values, defaulting
 	// to zero if they are not set.
 	req := &frdrpc.NodeAuditRequest{
-		StartTime:    uint64(ctx.Int64("start_time")),
-		EndTime:      uint64(ctx.Int64("end_time")),
+		StartTime:    uint64(startTime),
+		EndTime:      uint64(endTime),
 		DisableFiat:  !ctx.IsSet("enable_fiat"),
 		FiatBackend:  fiatBackend,
-		CustomPrices: customPrices,
+		CustomPrices: filteredPrices,
 	}
 
 	// If start time is zero, default to a week ago.

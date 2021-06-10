@@ -67,13 +67,19 @@ func queryFiatEstimate(ctx *cli.Context) error {
 		return err
 	}
 
-	var customPrices []*frdrpc.BitcoinPrice
+	// nolint: prealloc
+	var filteredPrices []*frdrpc.BitcoinPrice
 
 	if fiatBackend == frdrpc.FiatBackend_CUSTOM {
-		customPrices, err = parsePricesFromCSV(
+		customPrices, err := parsePricesFromCSV(
 			ctx.String("prices_csv_path"),
 			ctx.String("custom_price_currency"),
 		)
+		if err != nil {
+			return err
+		}
+
+		filteredPrices, err = filterPrices(customPrices, ts, ts)
 		if err != nil {
 			return err
 		}
@@ -84,7 +90,7 @@ func queryFiatEstimate(ctx *cli.Context) error {
 	req := &frdrpc.ExchangeRateRequest{
 		Timestamps:   []uint64{uint64(ts)},
 		FiatBackend:  fiatBackend,
-		CustomPrices: customPrices,
+		CustomPrices: filteredPrices,
 	}
 
 	rpcCtx := context.Background()

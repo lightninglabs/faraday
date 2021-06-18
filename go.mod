@@ -1,15 +1,15 @@
 module github.com/lightninglabs/faraday
 
 require (
-	github.com/btcsuite/btcd v0.21.0-beta.0.20210429225535-ce697fe7e82b
+	github.com/btcsuite/btcd v0.21.0-beta.0.20210513141527-ee5896bad5be
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f
-	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
+	github.com/btcsuite/btcutil v1.0.3-0.20210527170813-e2ba6805a890
 	github.com/golang/protobuf v1.4.3
 	github.com/grpc-ecosystem/grpc-gateway v1.14.3
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/lightninglabs/lndclient v0.11.1-7
 	github.com/lightninglabs/protobuf-hex-display v1.4.3-hex-display
-	github.com/lightningnetwork/lnd v0.13.0-beta.rc3
+	github.com/lightningnetwork/lnd v0.13.0-beta
 	github.com/lightningnetwork/lnd/cert v1.0.3
 	github.com/shopspring/decimal v1.2.0
 	github.com/stretchr/testify v1.7.0

@@ -4,6 +4,11 @@
     "title": "faraday.proto",
     "version": "version not set"
   },
+  "tags": [
+    {
+      "name": "FaradayServer"
+    }
+  ],
   "consumes": [
     "application/json"
   ],
@@ -15,7 +20,7 @@
       "get": {
         "summary": "*\nGet a channel close report for a specific channel.",
         "description": "Example request:\nhttp://localhost:8466/v1/faraday/closereport",
-        "operationId": "CloseReport",
+        "operationId": "FaradayServer_CloseReport",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -24,9 +29,9 @@
             }
           },
           "default": {
-            "description": "An unexpected error response",
+            "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -48,7 +53,7 @@
       "get": {
         "summary": "* frcli:\nGet fiat prices for btc.",
         "description": "Example request:\nhttp://localhost:8466/v1/faraday/exchangerate",
-        "operationId": "ExchangeRate",
+        "operationId": "FaradayServer_ExchangeRate",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -57,9 +62,9 @@
             }
           },
           "default": {
-            "description": "An unexpected error response",
+            "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -118,7 +123,7 @@
       "get": {
         "summary": "* frcli: `insights`\nList currently open channel with routing and uptime information.",
         "description": "Example request:\nhttp://localhost:8466/v1/faraday/insights",
-        "operationId": "ChannelInsights",
+        "operationId": "FaradayServer_ChannelInsights",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -127,9 +132,9 @@
             }
           },
           "default": {
-            "description": "An unexpected error response",
+            "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -142,7 +147,7 @@
       "get": {
         "summary": "*\nGet a report of your node's activity over a period.",
         "description": "Example request:\nhttp://localhost:8466/v1/faraday/nodeaudit",
-        "operationId": "NodeAudit",
+        "operationId": "FaradayServer_NodeAudit",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -151,9 +156,9 @@
             }
           },
           "default": {
-            "description": "An unexpected error response",
+            "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -179,8 +184,7 @@
             "description": "Set to generate a report without conversion to fiat. If set, fiat values\nwill display as 0.",
             "in": "query",
             "required": false,
-            "type": "boolean",
-            "format": "boolean"
+            "type": "boolean"
           },
           {
             "name": "granularity",
@@ -224,7 +228,7 @@
       "get": {
         "summary": "* frcli: `outliers`\nGet close recommendations for currently open channels based on whether it is\nan outlier.",
         "description": "Example request:\nhttp://localhost:8466/v1/faraday/outliers/REVENUE?rec_request.minimum_monitored=123",
-        "operationId": "OutlierRecommendations",
+        "operationId": "FaradayServer_OutlierRecommendations",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -233,9 +237,9 @@
             }
           },
           "default": {
-            "description": "An unexpected error response",
+            "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -281,7 +285,7 @@
       "get": {
         "summary": "* frcli: `revenue`\nGet a pairwise revenue report for a channel.",
         "description": "Example request:\nhttp://localhost:8466/v1/faraday/revenue",
-        "operationId": "RevenueReport",
+        "operationId": "FaradayServer_RevenueReport",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -290,9 +294,9 @@
             }
           },
           "default": {
-            "description": "An unexpected error response",
+            "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -334,7 +338,7 @@
       "get": {
         "summary": "* frcli: `threshold`\nGet close recommendations for currently open channels based whether they are\nbelow a set threshold.",
         "description": "Example request:\nhttp://localhost:8466/v1/faraday/threshold/UPTIME?rec_request.minimum_monitored=123",
-        "operationId": "ThresholdRecommendations",
+        "operationId": "FaradayServer_ThresholdRecommendations",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -343,9 +347,9 @@
             }
           },
           "default": {
-            "description": "An unexpected error response",
+            "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -454,7 +458,6 @@
         },
         "private": {
           "type": "boolean",
-          "format": "boolean",
           "description": "True if the channel is private."
         }
       }
@@ -516,7 +519,6 @@
         },
         "channel_initiator": {
           "type": "boolean",
-          "format": "boolean",
           "description": "True if we opened the channel, false if the remote peer did."
         },
         "close_type": {
@@ -546,12 +548,10 @@
         },
         "on_chain": {
           "type": "boolean",
-          "format": "boolean",
           "description": "Set to true to apply this category to on chain transactions. Can be set in\nconjunction with off_chain to apply the category to all transactions."
         },
         "off_chain": {
           "type": "boolean",
-          "format": "boolean",
           "description": "Set to true to apply this category to off chain transactions. Can be set in\nconjunction with on_chain to apply the category to all transactions."
         },
         "label_patterns": {
@@ -689,7 +689,6 @@
         },
         "recommend_close": {
           "type": "boolean",
-          "format": "boolean",
           "description": "A boolean indicating whether we recommend closing the channel."
         }
       }
@@ -704,7 +703,6 @@
         },
         "on_chain": {
           "type": "boolean",
-          "format": "boolean",
           "description": "Whether the entry occurred on chain or off chain."
         },
         "amount": {
@@ -714,7 +712,6 @@
         },
         "credit": {
           "type": "boolean",
-          "format": "boolean",
           "description": "Whether the entry is a credit or a debit."
         },
         "asset": {
@@ -791,12 +788,9 @@
         }
       }
     },
-    "runtimeError": {
+    "rpcStatus": {
       "type": "object",
       "properties": {
-        "error": {
-          "type": "string"
-        },
         "code": {
           "type": "integer",
           "format": "int32"

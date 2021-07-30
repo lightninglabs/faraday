@@ -13,14 +13,14 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/golang/protobuf/descriptor"
-	"github.com/golang/protobuf/proto"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/grpc-ecosystem/grpc-gateway/utilities"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/utilities"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 // Suppress "imported and not used" errors
@@ -29,7 +29,7 @@ var _ io.Reader
 var _ status.Status
 var _ = runtime.String
 var _ = utilities.NewDoubleArray
-var _ = descriptor.ForMessage
+var _ = metadata.Join
 
 var (
 	filter_FaradayServer_OutlierRecommendations_0 = &utilities.DoubleArray{Encoding: map[string]int{"rec_request": 0, "metric": 1}, Base: []int{1, 1, 1, 0}, Check: []int{0, 1, 2, 3}}
@@ -53,11 +53,13 @@ func request_FaradayServer_OutlierRecommendations_0(ctx context.Context, marshal
 	}
 
 	err = runtime.PopulateFieldFromPath(&protoReq, "rec_request.metric", val)
-
-	e, err = runtime.Enum(val, CloseRecommendationRequest_Metric_value)
-
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "rec_request.metric", err)
+	}
+
+	e, err = runtime.Enum(val, CloseRecommendationRequest_Metric_value)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "could not parse path as enum value, parameter: %s, error: %v", "rec_request.metric", err)
 	}
 
 	protoReq.RecRequest.Metric = CloseRecommendationRequest_Metric(e)
@@ -92,16 +94,21 @@ func local_request_FaradayServer_OutlierRecommendations_0(ctx context.Context, m
 	}
 
 	err = runtime.PopulateFieldFromPath(&protoReq, "rec_request.metric", val)
-
-	e, err = runtime.Enum(val, CloseRecommendationRequest_Metric_value)
-
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "rec_request.metric", err)
 	}
 
+	e, err = runtime.Enum(val, CloseRecommendationRequest_Metric_value)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "could not parse path as enum value, parameter: %s, error: %v", "rec_request.metric", err)
+	}
+
 	protoReq.RecRequest.Metric = CloseRecommendationRequest_Metric(e)
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_FaradayServer_OutlierRecommendations_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_FaradayServer_OutlierRecommendations_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -132,11 +139,13 @@ func request_FaradayServer_ThresholdRecommendations_0(ctx context.Context, marsh
 	}
 
 	err = runtime.PopulateFieldFromPath(&protoReq, "rec_request.metric", val)
-
-	e, err = runtime.Enum(val, CloseRecommendationRequest_Metric_value)
-
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "rec_request.metric", err)
+	}
+
+	e, err = runtime.Enum(val, CloseRecommendationRequest_Metric_value)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "could not parse path as enum value, parameter: %s, error: %v", "rec_request.metric", err)
 	}
 
 	protoReq.RecRequest.Metric = CloseRecommendationRequest_Metric(e)
@@ -171,16 +180,21 @@ func local_request_FaradayServer_ThresholdRecommendations_0(ctx context.Context,
 	}
 
 	err = runtime.PopulateFieldFromPath(&protoReq, "rec_request.metric", val)
-
-	e, err = runtime.Enum(val, CloseRecommendationRequest_Metric_value)
-
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "rec_request.metric", err)
 	}
 
+	e, err = runtime.Enum(val, CloseRecommendationRequest_Metric_value)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "could not parse path as enum value, parameter: %s, error: %v", "rec_request.metric", err)
+	}
+
 	protoReq.RecRequest.Metric = CloseRecommendationRequest_Metric(e)
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_FaradayServer_ThresholdRecommendations_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_FaradayServer_ThresholdRecommendations_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -213,7 +227,10 @@ func local_request_FaradayServer_RevenueReport_0(ctx context.Context, marshaler 
 	var protoReq RevenueReportRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_FaradayServer_RevenueReport_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_FaradayServer_RevenueReport_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -264,7 +281,10 @@ func local_request_FaradayServer_ExchangeRate_0(ctx context.Context, marshaler r
 	var protoReq ExchangeRateRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_FaradayServer_ExchangeRate_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_FaradayServer_ExchangeRate_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -297,7 +317,10 @@ func local_request_FaradayServer_NodeAudit_0(ctx context.Context, marshaler runt
 	var protoReq NodeAuditRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_FaradayServer_NodeAudit_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_FaradayServer_NodeAudit_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -330,7 +353,10 @@ func local_request_FaradayServer_CloseReport_0(ctx context.Context, marshaler ru
 	var protoReq CloseReportRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_FaradayServer_CloseReport_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_FaradayServer_CloseReport_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -342,18 +368,22 @@ func local_request_FaradayServer_CloseReport_0(ctx context.Context, marshaler ru
 // RegisterFaradayServerHandlerServer registers the http handlers for service FaradayServer to "mux".
 // UnaryRPC     :call FaradayServerServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
+// Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterFaradayServerHandlerFromEndpoint instead.
 func RegisterFaradayServerHandlerServer(ctx context.Context, mux *runtime.ServeMux, server FaradayServerServer) error {
 
 	mux.Handle("GET", pattern_FaradayServer_OutlierRecommendations_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/frdrpc.FaradayServer/OutlierRecommendations", runtime.WithHTTPPathPattern("/v1/faraday/outliers/{rec_request.metric}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 		resp, md, err := local_request_FaradayServer_OutlierRecommendations_0(rctx, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -367,13 +397,16 @@ func RegisterFaradayServerHandlerServer(ctx context.Context, mux *runtime.ServeM
 	mux.Handle("GET", pattern_FaradayServer_ThresholdRecommendations_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/frdrpc.FaradayServer/ThresholdRecommendations", runtime.WithHTTPPathPattern("/v1/faraday/threshold/{rec_request.metric}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 		resp, md, err := local_request_FaradayServer_ThresholdRecommendations_0(rctx, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -387,13 +420,16 @@ func RegisterFaradayServerHandlerServer(ctx context.Context, mux *runtime.ServeM
 	mux.Handle("GET", pattern_FaradayServer_RevenueReport_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/frdrpc.FaradayServer/RevenueReport", runtime.WithHTTPPathPattern("/v1/faraday/revenue"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 		resp, md, err := local_request_FaradayServer_RevenueReport_0(rctx, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -407,13 +443,16 @@ func RegisterFaradayServerHandlerServer(ctx context.Context, mux *runtime.ServeM
 	mux.Handle("GET", pattern_FaradayServer_ChannelInsights_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/frdrpc.FaradayServer/ChannelInsights", runtime.WithHTTPPathPattern("/v1/faraday/insights"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 		resp, md, err := local_request_FaradayServer_ChannelInsights_0(rctx, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -427,13 +466,16 @@ func RegisterFaradayServerHandlerServer(ctx context.Context, mux *runtime.ServeM
 	mux.Handle("GET", pattern_FaradayServer_ExchangeRate_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/frdrpc.FaradayServer/ExchangeRate", runtime.WithHTTPPathPattern("/v1/faraday/exchangerate"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 		resp, md, err := local_request_FaradayServer_ExchangeRate_0(rctx, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -447,13 +489,16 @@ func RegisterFaradayServerHandlerServer(ctx context.Context, mux *runtime.ServeM
 	mux.Handle("GET", pattern_FaradayServer_NodeAudit_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/frdrpc.FaradayServer/NodeAudit", runtime.WithHTTPPathPattern("/v1/faraday/nodeaudit"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 		resp, md, err := local_request_FaradayServer_NodeAudit_0(rctx, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -467,13 +512,16 @@ func RegisterFaradayServerHandlerServer(ctx context.Context, mux *runtime.ServeM
 	mux.Handle("GET", pattern_FaradayServer_CloseReport_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/frdrpc.FaradayServer/CloseReport", runtime.WithHTTPPathPattern("/v1/faraday/closereport"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 		resp, md, err := local_request_FaradayServer_CloseReport_0(rctx, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -529,7 +577,7 @@ func RegisterFaradayServerHandlerClient(ctx context.Context, mux *runtime.ServeM
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/frdrpc.FaradayServer/OutlierRecommendations", runtime.WithHTTPPathPattern("/v1/faraday/outliers/{rec_request.metric}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -549,7 +597,7 @@ func RegisterFaradayServerHandlerClient(ctx context.Context, mux *runtime.ServeM
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/frdrpc.FaradayServer/ThresholdRecommendations", runtime.WithHTTPPathPattern("/v1/faraday/threshold/{rec_request.metric}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -569,7 +617,7 @@ func RegisterFaradayServerHandlerClient(ctx context.Context, mux *runtime.ServeM
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/frdrpc.FaradayServer/RevenueReport", runtime.WithHTTPPathPattern("/v1/faraday/revenue"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -589,7 +637,7 @@ func RegisterFaradayServerHandlerClient(ctx context.Context, mux *runtime.ServeM
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/frdrpc.FaradayServer/ChannelInsights", runtime.WithHTTPPathPattern("/v1/faraday/insights"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -609,7 +657,7 @@ func RegisterFaradayServerHandlerClient(ctx context.Context, mux *runtime.ServeM
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/frdrpc.FaradayServer/ExchangeRate", runtime.WithHTTPPathPattern("/v1/faraday/exchangerate"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -629,7 +677,7 @@ func RegisterFaradayServerHandlerClient(ctx context.Context, mux *runtime.ServeM
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/frdrpc.FaradayServer/NodeAudit", runtime.WithHTTPPathPattern("/v1/faraday/nodeaudit"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -649,7 +697,7 @@ func RegisterFaradayServerHandlerClient(ctx context.Context, mux *runtime.ServeM
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/frdrpc.FaradayServer/CloseReport", runtime.WithHTTPPathPattern("/v1/faraday/closereport"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -669,19 +717,19 @@ func RegisterFaradayServerHandlerClient(ctx context.Context, mux *runtime.ServeM
 }
 
 var (
-	pattern_FaradayServer_OutlierRecommendations_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v1", "faraday", "outliers", "rec_request.metric"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_FaradayServer_OutlierRecommendations_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v1", "faraday", "outliers", "rec_request.metric"}, ""))
 
-	pattern_FaradayServer_ThresholdRecommendations_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v1", "faraday", "threshold", "rec_request.metric"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_FaradayServer_ThresholdRecommendations_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v1", "faraday", "threshold", "rec_request.metric"}, ""))
 
-	pattern_FaradayServer_RevenueReport_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "faraday", "revenue"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_FaradayServer_RevenueReport_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "faraday", "revenue"}, ""))
 
-	pattern_FaradayServer_ChannelInsights_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "faraday", "insights"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_FaradayServer_ChannelInsights_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "faraday", "insights"}, ""))
 
-	pattern_FaradayServer_ExchangeRate_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "faraday", "exchangerate"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_FaradayServer_ExchangeRate_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "faraday", "exchangerate"}, ""))
 
-	pattern_FaradayServer_NodeAudit_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "faraday", "nodeaudit"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_FaradayServer_NodeAudit_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "faraday", "nodeaudit"}, ""))
 
-	pattern_FaradayServer_CloseReport_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "faraday", "closereport"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_FaradayServer_CloseReport_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "faraday", "closereport"}, ""))
 )
 
 var (

@@ -20,11 +20,12 @@ import (
 	"sync"
 	"sync/atomic"
 
-	proxy "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	proxy "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/encoding/protojson"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 
 	"github.com/lightninglabs/faraday/accounting"
@@ -44,8 +45,10 @@ var (
 	// falsey.
 	customMarshalerOption = proxy.WithMarshalerOption(
 		proxy.MIMEWildcard, &proxy.JSONPb{
-			OrigName:     true,
-			EmitDefaults: true,
+			MarshalOptions: protojson.MarshalOptions{
+				UseProtoNames:   true,
+				EmitUnpopulated: true,
+			},
 		},
 	)
 
@@ -83,6 +86,11 @@ type RPCServer struct {
 
 	// To be used atomically.
 	stopped int32
+
+	// Required by the grpc-gateway/v2 library for forward compatibility.
+	// Must be after the atomically used variables to not break struct
+	// alignment.
+	UnimplementedFaradayServerServer
 
 	// cfg contains closures and settings required for operation.
 	cfg *Config

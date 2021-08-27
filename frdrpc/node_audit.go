@@ -67,6 +67,14 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
+	if req.FiatBackend == FiatBackend_CUSTOM {
+		if err := validateCustomPricePoints(
+			pricePoints, time.Unix(int64(req.StartTime), 0),
+		); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	priceSourceCfg := &fiat.PriceSourceConfig{
 		Backend:     fiatBackend,
 		Granularity: granularity,
@@ -160,6 +168,21 @@ func pricePointsFromRPC(prices []*BitcoinPrice) ([]*fiat.Price, error) {
 	}
 
 	return res, nil
+}
+
+// validateCustomPricePoints checks that there is at lease one price point
+// in the set before the given start time.
+func validateCustomPricePoints(prices []*fiat.Price,
+	startTime time.Time) error {
+
+	for _, price := range prices {
+		if price.Timestamp.Before(startTime) {
+			return nil
+		}
+	}
+
+	return errors.New("expected at least one price point with a " +
+		"timestamp preceding the given start time")
 }
 
 func getCategories(categories []*CustomCategory) ([]accounting.CustomCategory,

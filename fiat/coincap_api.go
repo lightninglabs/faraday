@@ -15,6 +15,10 @@ import (
 const (
 	// coinCapHistoryAPI is the endpoint we hit for historical price data.
 	coinCapHistoryAPI = "https://api.coincap.io/v2/assets/bitcoin/history"
+
+	// coinCapDefaultCurrency is the currency that the price data returned
+	// by the Coin Cap API is quoted in.
+	coinCapDefaultCurrency = "USD"
 )
 
 // ErrQueryTooLong is returned when we cannot get a granularity level for a
@@ -127,7 +131,7 @@ type coinCapAPI struct {
 
 	// convert produces usd prices from the output of the query function.
 	// It is set within the struct so that it can be mocked for testing.
-	convert func([]byte) ([]*USDPrice, error)
+	convert func([]byte) ([]*Price, error)
 }
 
 // newCoinCapAPI returns a coin cap api struct which can be used to query
@@ -176,13 +180,13 @@ type coinCapDataPoint struct {
 
 // parseCoinCapData parses http response data to usc price structs, using
 // intermediary structs to get around parsing.
-func parseCoinCapData(data []byte) ([]*USDPrice, error) {
+func parseCoinCapData(data []byte) ([]*Price, error) {
 	var priceEntries coinCapResponse
 	if err := json.Unmarshal(data, &priceEntries); err != nil {
 		return nil, err
 	}
 
-	var usdRecords = make([]*USDPrice, len(priceEntries.Data))
+	var usdRecords = make([]*Price, len(priceEntries.Data))
 
 	// Convert each entry from the api to a usable record with a converted
 	// time and parsed price.
@@ -193,9 +197,10 @@ func parseCoinCapData(data []byte) ([]*USDPrice, error) {
 		}
 
 		ns := time.Duration(entry.Timestamp) * time.Millisecond
-		usdRecords[i] = &USDPrice{
+		usdRecords[i] = &Price{
 			Timestamp: time.Unix(0, ns.Nanoseconds()),
 			Price:     decPrice,
+			Currency:  coinCapDefaultCurrency,
 		}
 	}
 
@@ -206,7 +211,7 @@ func parseCoinCapData(data []byte) ([]*USDPrice, error) {
 // requested is more than coincap will serve us in a single request, we break
 // our queries up into multiple chunks.
 func (c *coinCapAPI) rawPriceData(ctx context.Context, startTime,
-	endTime time.Time) ([]*USDPrice, error) {
+	endTime time.Time) ([]*Price, error) {
 
 	// When we query prices over a range, it is likely that the first data
 	// point we get is after our starting point, since we have discrete
@@ -217,7 +222,7 @@ func (c *coinCapAPI) rawPriceData(ctx context.Context, startTime,
 	// so that we do not have overlapping data across queries.
 	startTime = startTime.Add(c.granularity.aggregation * -1)
 
-	var historicalRecords []*USDPrice
+	var historicalRecords []*Price
 
 	// Create start and end vars to query one maximum length at a time.
 	maxPeriod := c.granularity.maximumQuery

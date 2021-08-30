@@ -70,6 +70,9 @@ func fiatBackendFromRPC(backend FiatBackend) (fiat.PriceBackend, error) {
 	case FiatBackend_COINDESK:
 		return fiat.CoinDeskPriceBackend, nil
 
+	case FiatBackend_CUSTOM:
+		return fiat.CustomPriceBackend, nil
+
 	default:
 		return fiat.UnknownPriceBackend,
 			fmt.Errorf("unknown fiat backend: %v", backend)
@@ -77,11 +80,10 @@ func fiatBackendFromRPC(backend FiatBackend) (fiat.PriceBackend, error) {
 }
 
 func parseExchangeRateRequest(req *ExchangeRateRequest) ([]time.Time,
-	fiat.PriceBackend, *fiat.Granularity, error) {
+	*fiat.PriceSourceConfig, error) {
 
 	if len(req.Timestamps) == 0 {
-		return nil, fiat.UnknownPriceBackend, nil,
-			errors.New("at least one timestamp required")
+		return nil, nil, errors.New("at least one timestamp required")
 	}
 
 	timestamps := make([]time.Time, len(req.Timestamps))
@@ -104,18 +106,27 @@ func parseExchangeRateRequest(req *ExchangeRateRequest) ([]time.Time,
 		req.Granularity, false, end.Sub(start),
 	)
 	if err != nil {
-		return nil, fiat.UnknownPriceBackend, nil, err
+		return nil, nil, err
 	}
 
 	fiatBackend, err := fiatBackendFromRPC(req.FiatBackend)
 	if err != nil {
-		return nil, fiat.UnknownPriceBackend, nil, err
+		return nil, nil, err
 	}
 
-	return timestamps, fiatBackend, granularity, nil
+	pricePoints, err := pricePointsFromRPC(req.CustomPrices)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return timestamps, &fiat.PriceSourceConfig{
+		Backend:     fiatBackend,
+		Granularity: granularity,
+		PricePoints: pricePoints,
+	}, nil
 }
 
-func exchangeRateResponse(prices map[time.Time]*fiat.USDPrice) *ExchangeRateResponse {
+func exchangeRateResponse(prices map[time.Time]*fiat.Price) *ExchangeRateResponse {
 	fiatVals := make([]*ExchangeRate, 0, len(prices))
 
 	for ts, price := range prices {
@@ -124,6 +135,7 @@ func exchangeRateResponse(prices map[time.Time]*fiat.USDPrice) *ExchangeRateResp
 			BtcPrice: &BitcoinPrice{
 				Price:          price.Price.String(),
 				PriceTimestamp: uint64(price.Timestamp.Unix()),
+				Currency:       price.Currency,
 			},
 		})
 	}

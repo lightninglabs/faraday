@@ -52,7 +52,7 @@ type HarmonyEntry struct {
 
 	// BTCPrice is the timestamped bitcoin price we used to get our fiat
 	// value.
-	BTCPrice *fiat.USDPrice
+	BTCPrice *fiat.Price
 }
 
 // newHarmonyEntry produces a harmony entry. If provided with a negative amount,
@@ -63,7 +63,7 @@ type HarmonyEntry struct {
 // a credit.
 func newHarmonyEntry(ts time.Time, amountMsat int64, e EntryType, txid,
 	reference, note, category string, onChain bool,
-	convert usdPrice) (*HarmonyEntry,
+	convert fiatPrice) (*HarmonyEntry,
 
 	error) {
 
@@ -86,7 +86,7 @@ func newHarmonyEntry(ts time.Time, amountMsat int64, e EntryType, txid,
 	return &HarmonyEntry{
 		Timestamp: ts,
 		Amount:    amtMsat,
-		FiatValue: fiat.MsatToUSD(btcPrice.Price, amtMsat),
+		FiatValue: fiat.MsatToFiat(btcPrice.Price, amtMsat),
 		TxID:      txid,
 		Reference: reference,
 		Note:      note,

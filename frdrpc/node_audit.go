@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/lightningnetwork/lnd/routing/route"
+	"github.com/shopspring/decimal"
 
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/fees"
+	"github.com/lightninglabs/faraday/fiat"
 )
 
 var (
@@ -52,6 +55,32 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
+	if len(req.CustomPrices) > 0 && req.FiatBackend != FiatBackend_CUSTOM {
+		return nil, nil, errors.New(
+			"custom price points provided but custom fiat " +
+				"backend not set",
+		)
+	}
+
+	pricePoints, err := pricePointsFromRPC(req.CustomPrices)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if req.FiatBackend == FiatBackend_CUSTOM {
+		if err := validateCustomPricePoints(
+			pricePoints, time.Unix(int64(req.StartTime), 0),
+		); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	priceSourceCfg := &fiat.PriceSourceConfig{
+		Backend:     fiatBackend,
+		Granularity: granularity,
+		PricePoints: pricePoints,
+	}
+
 	pubkey, err := route.NewVertexFromBytes(info.IdentityPubkey[:])
 	if err != nil {
 		return nil, nil, err
@@ -71,7 +100,7 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 	offChain := accounting.NewOffChainConfig(
 		ctx, cfg.Lnd, uint64(maxInvoiceQueries),
 		uint64(maxPaymentQueries), uint64(maxForwardQueries),
-		pubkey, start, end, req.DisableFiat, fiatBackend, granularity,
+		pubkey, start, end, req.DisableFiat, priceSourceCfg,
 		offChainCategories,
 	)
 
@@ -87,7 +116,7 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 
 	onChain := accounting.NewOnChainConfig(
 		ctx, cfg.Lnd, start, end, req.DisableFiat,
-		feeLookup, fiatBackend, granularity, onChainCategories,
+		feeLookup, priceSourceCfg, onChainCategories,
 	)
 
 	return onChain, offChain, nil
@@ -120,6 +149,40 @@ func validateCustomCategories(categories []*CustomCategory) error {
 	}
 
 	return nil
+}
+
+func pricePointsFromRPC(prices []*BitcoinPrice) ([]*fiat.Price, error) {
+	res := make([]*fiat.Price, len(prices))
+
+	for i, p := range prices {
+		price, err := decimal.NewFromString(p.Price)
+		if err != nil {
+			return nil, err
+		}
+
+		res[i] = &fiat.Price{
+			Timestamp: time.Unix(int64(p.PriceTimestamp), 0),
+			Price:     price,
+			Currency:  p.Currency,
+		}
+	}
+
+	return res, nil
+}
+
+// validateCustomPricePoints checks that there is at lease one price point
+// in the set before the given start time.
+func validateCustomPricePoints(prices []*fiat.Price,
+	startTime time.Time) error {
+
+	for _, price := range prices {
+		if price.Timestamp.Before(startTime) {
+			return nil
+		}
+	}
+
+	return errors.New("expected at least one price point with a " +
+		"timestamp preceding the given start time")
 }
 
 func getCategories(categories []*CustomCategory) ([]accounting.CustomCategory,
@@ -165,7 +228,8 @@ func rpcReportResponse(report accounting.Report) (*NodeAuditResponse,
 			Reference:      entry.Reference,
 			Note:           entry.Note,
 			BtcPrice: &BitcoinPrice{
-				Price: entry.BTCPrice.Price.String(),
+				Price:    entry.BTCPrice.Price.String(),
+				Currency: entry.BTCPrice.Currency,
 			},
 		}
 

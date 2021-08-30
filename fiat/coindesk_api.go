@@ -17,6 +17,10 @@ const (
 
 	// coinDeskTimeFormat is the date format used by coindesk.
 	coinDeskTimeFormat = "2006-01-02"
+
+	// coinDeskDefaultCurrency is the default currency that the price data
+	// returned by the Coin Desk API is quoted in.
+	coinDeskDefaultCurrency = "USD"
 )
 
 // coinDeskAPI implements the fiatBackend interface.
@@ -46,15 +50,15 @@ func queryCoinDesk(start, end time.Time) ([]byte, error) {
 	return ioutil.ReadAll(response.Body)
 }
 
-// parseCoinDeskData parses http response data from coindesk into USDPrice
+// parseCoinDeskData parses http response data from coindesk into Price
 // structs.
-func parseCoinDeskData(data []byte) ([]*USDPrice, error) {
+func parseCoinDeskData(data []byte) ([]*Price, error) {
 	var priceEntries coinDeskResponse
 	if err := json.Unmarshal(data, &priceEntries); err != nil {
 		return nil, err
 	}
 
-	var usdRecords = make([]*USDPrice, 0, len(priceEntries.Data))
+	var usdRecords = make([]*Price, 0, len(priceEntries.Data))
 
 	for date, price := range priceEntries.Data {
 		timestamp, err := time.Parse(coinDeskTimeFormat, date)
@@ -62,9 +66,10 @@ func parseCoinDeskData(data []byte) ([]*USDPrice, error) {
 			return nil, err
 		}
 
-		usdRecords = append(usdRecords, &USDPrice{
+		usdRecords = append(usdRecords, &Price{
 			Timestamp: timestamp,
 			Price:     decimal.NewFromFloat(price),
+			Currency:  coinDeskDefaultCurrency,
 		})
 	}
 
@@ -74,7 +79,7 @@ func parseCoinDeskData(data []byte) ([]*USDPrice, error) {
 // rawPriceData retrieves price information from coindesks's api for the given
 // time range.
 func (c *coinDeskAPI) rawPriceData(ctx context.Context, start,
-	end time.Time) ([]*USDPrice, error) {
+	end time.Time) ([]*Price, error) {
 
 	query := func() ([]byte, error) {
 		return queryCoinDesk(start, end)

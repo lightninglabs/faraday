@@ -4,13 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/lightninglabs/faraday/utils"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
@@ -288,9 +293,66 @@ func parseFiatBackend(fiatBackend string) (frdrpc.FiatBackend, error) {
 	case fiat.CoinDeskPriceBackend.String():
 		return frdrpc.FiatBackend_COINDESK, nil
 
+	case fiat.CustomPriceBackend.String():
+		return frdrpc.FiatBackend_CUSTOM, nil
+
 	default:
 		return frdrpc.FiatBackend_UNKNOWN_FIATBACKEND, fmt.Errorf(
 			"unknown fiat backend",
 		)
 	}
+}
+
+// filterPrices filters a slice of prices based on given start and end
+// timestamps.
+func filterPrices(prices []*frdrpc.BitcoinPrice, startTime, endTime int64) (
+	[]*frdrpc.BitcoinPrice, error) {
+
+	// Ensure that startTime is before endTime.
+	if err := utils.ValidateTimeRange(
+		time.Unix(startTime, 0), time.Unix(endTime, 0),
+		utils.DisallowFutureRange,
+	); err != nil {
+		return nil, err
+	}
+
+	// Sort the prices by timestamp.
+	sort.SliceStable(prices, func(i, j int) bool {
+		return prices[i].PriceTimestamp < prices[j].PriceTimestamp
+	})
+
+	// Filter out timestamps that are not within the start time to
+	// end time range but ensure that the timestamp right before
+	// or equal to the start timestamp is kept.
+	//
+	// nolint: prealloc
+	var (
+		filteredPrices    []*frdrpc.BitcoinPrice
+		earliestTimeStamp *frdrpc.BitcoinPrice
+	)
+	for _, p := range prices {
+		if p.PriceTimestamp <= uint64(startTime) {
+			if earliestTimeStamp == nil ||
+				earliestTimeStamp.PriceTimestamp <
+					p.PriceTimestamp {
+
+				earliestTimeStamp = p
+			}
+			continue
+		}
+
+		if p.PriceTimestamp >= uint64(endTime) {
+			continue
+		}
+
+		filteredPrices = append(filteredPrices, p)
+	}
+
+	if earliestTimeStamp == nil {
+		return nil, errors.New("a price point with a timestamp " +
+			"earlier than the given start timestamp is required")
+	}
+
+	return append([]*frdrpc.BitcoinPrice{earliestTimeStamp},
+		filteredPrices...), nil
 }

@@ -45,7 +45,7 @@ func OffChainReport(ctx context.Context, cfg *OffChainConfig) (Report, error) {
 	// or a no-op function if we do not want prices.
 	getPrice, err := getConversion(
 		ctx, cfg.StartTime, cfg.EndTime, cfg.DisableFiat,
-		cfg.FiatBackend, cfg.Granularity,
+		cfg.PriceSourceCfg,
 	)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func OffChainReport(ctx context.Context, cfg *OffChainConfig) (Report, error) {
 // offChainReportWithPrices produces off chain reports using the getPrice
 // function provided. This allows testing of our report creation without calling
 // the actual price API.
-func offChainReportWithPrices(cfg *OffChainConfig, getPrice usdPrice) (Report,
+func offChainReportWithPrices(cfg *OffChainConfig, getPrice fiatPrice) (Report,
 	error) {
 
 	invoices, err := cfg.ListInvoices()

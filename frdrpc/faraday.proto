@@ -335,6 +335,9 @@ enum FiatBackend {
     // This API is reached through the following URL:
     // https://api.coindesk.com/v1/bpi/historical/close.json
     COINDESK = 2;
+
+    // Use custom price data provided in a CSV file for fiat price information.
+    CUSTOM = 3;
 }
 
 message ExchangeRateRequest {
@@ -350,6 +353,9 @@ message ExchangeRateRequest {
 
     // The api to be used for fiat related queries.
     FiatBackend fiat_backend = 5;
+
+    // Custom price points to use if the CUSTOM FiatBackend option is set.
+    repeated BitcoinPrice custom_prices = 8;
 }
 
 message ExchangeRateResponse {
@@ -365,6 +371,9 @@ message BitcoinPrice {
 
     // The timestamp for this price price provided.
     uint64 price_timestamp = 2;
+
+    // The currency that the price is denoted in.
+    string currency = 3;
 }
 
 message ExchangeRate {
@@ -407,6 +416,9 @@ message NodeAuditRequest {
 
     // The api to be used for fiat related queries.
     FiatBackend fiat_backend = 7;
+
+    // Custom price points to use if the CUSTOM FiatBackend option is set.
+    repeated BitcoinPrice custom_prices = 8;
 }
 
 message CustomCategory {
@@ -522,7 +534,8 @@ message ReportEntry {
     // The transaction id of the entry.
     string txid = 7;
 
-    // The fiat amount of the entry's amount in USD.
+    // The fiat amount of the entry's amount in the currency specified in the
+    // btc_price field.
     string fiat = 8;
 
     // A unique identifier for the entry, if available.
@@ -531,7 +544,7 @@ message ReportEntry {
     // An additional note for the entry, providing additional context.
     string note = 10;
 
-    // The bitcoin price and timestamp used to calcualte our fiat value.
+    // The bitcoin price and timestamp used to calculate our fiat value.
     BitcoinPrice btc_price = 11;
 }
 

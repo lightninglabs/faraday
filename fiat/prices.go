@@ -22,13 +22,19 @@ var (
 	// required fiat prices but the granularity of those prices is not set.
 	errGranularityRequired = errors.New("granularity required when " +
 		"fiat prices are enabled")
+
+	errPricePointsRequired = errors.New("at least one price point " +
+		"required for a custom price backend")
+
+	errPriceSourceConfigExpected = errors.New("a non-nil " +
+		"PriceSourceConfig is expected")
 )
 
 // fiatBackend is an interface that must be implemented by any backend that
 // is used to fetch fiat price information.
 type fiatBackend interface {
 	rawPriceData(ctx context.Context, startTime,
-		endTime time.Time) ([]*USDPrice, error)
+		endTime time.Time) ([]*Price, error)
 }
 
 // PriceSource holds a fiatBackend that can be used to fetch fiat price
@@ -37,11 +43,45 @@ type PriceSource struct {
 	impl fiatBackend
 }
 
+// PriceSourceConfig is a struct holding various config options used for
+// initialising a new PriceSource.
+type PriceSourceConfig struct {
+	// Backend is the PriceBackend to be used for fetching price data.
+	Backend PriceBackend
+
+	// Granularity specifies the level of granularity with which we want to
+	// get fiat prices. This option is only used for the CoinCap
+	// PriceBackend.
+	Granularity *Granularity
+
+	// PricePoints is a set of price points that is used for fiat related
+	// queries if the PriceBackend being used is the CustomPriceBackend.
+	PricePoints []*Price
+}
+
+// validatePriceSourceConfig checks that the PriceSourceConfig fields are valid
+// given the chosen price backend.
+func (cfg *PriceSourceConfig) validatePriceSourceConfig() error {
+	switch cfg.Backend {
+	case UnknownPriceBackend, CoinCapPriceBackend:
+		if cfg.Granularity == nil {
+			return errGranularityRequired
+		}
+
+	case CustomPriceBackend:
+		if len(cfg.PricePoints) == 0 {
+			return errPricePointsRequired
+		}
+	}
+
+	return nil
+}
+
 // GetPrices fetches price information using the given the PriceSource
 // fiatBackend implementation. GetPrices also validates the time parameters and
 // sorts the results.
 func (p PriceSource) GetPrices(ctx context.Context, startTime,
-	endTime time.Time) ([]*USDPrice, error) {
+	endTime time.Time) ([]*Price, error) {
 
 	// First, check that we have a valid start and end time, and that the
 	// range specified is not in the future.
@@ -83,12 +123,16 @@ const (
 
 	// CoinDeskPriceBackend uses CoinDesk's API for fiat price data.
 	CoinDeskPriceBackend
+
+	// CustomPriceBackend uses user provided fiat price data.
+	CustomPriceBackend
 )
 
 var priceBackendNames = map[PriceBackend]string{
 	UnknownPriceBackend:  "unknown",
 	CoinCapPriceBackend:  "coincap",
 	CoinDeskPriceBackend: "coindesk",
+	CustomPriceBackend:   "custom",
 }
 
 // String returns the string representation of a price backend.
@@ -98,21 +142,31 @@ func (p PriceBackend) String() string {
 
 // NewPriceSource returns a PriceSource which can be used to query price
 // data.
-func NewPriceSource(backend PriceBackend, granularity *Granularity) (
-	*PriceSource, error) {
+func NewPriceSource(cfg *PriceSourceConfig) (*PriceSource, error) {
+	if cfg == nil {
+		return nil, errPriceSourceConfigExpected
+	}
 
-	switch backend {
+	if err := cfg.validatePriceSourceConfig(); err != nil {
+		return nil, err
+	}
+
+	switch cfg.Backend {
 	case UnknownPriceBackend, CoinCapPriceBackend:
-		if granularity == nil {
-			return nil, errGranularityRequired
-		}
 		return &PriceSource{
-			impl: newCoinCapAPI(*granularity),
+			impl: newCoinCapAPI(*cfg.Granularity),
 		}, nil
 
 	case CoinDeskPriceBackend:
 		return &PriceSource{
 			impl: &coinDeskAPI{},
+		}, nil
+
+	case CustomPriceBackend:
+		return &PriceSource{
+			impl: &customPrices{
+				entries: cfg.PricePoints,
+			},
 		}, nil
 	}
 
@@ -133,8 +187,8 @@ type PriceRequest struct {
 
 // GetPrices gets a set of prices for a set of timestamps.
 func GetPrices(ctx context.Context, timestamps []time.Time,
-	backend PriceBackend, granularity Granularity) (
-	map[time.Time]*USDPrice, error) {
+	priceCfg *PriceSourceConfig) (
+	map[time.Time]*Price, error) {
 
 	if len(timestamps) == 0 {
 		return nil, nil
@@ -152,7 +206,7 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 	// timestamp if we have 1 entry, but that's ok.
 	start, end := timestamps[0], timestamps[len(timestamps)-1]
 
-	client, err := NewPriceSource(backend, &granularity)
+	client, err := NewPriceSource(priceCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -162,8 +216,8 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 		return nil, err
 	}
 
-	// Prices will map transaction timestamps to their USD prices.
-	var prices = make(map[time.Time]*USDPrice, len(timestamps))
+	// Prices will map transaction timestamps to their fiat prices.
+	var prices = make(map[time.Time]*Price, len(timestamps))
 
 	for _, ts := range timestamps {
 		price, err := GetPrice(priceData, ts)
@@ -177,9 +231,9 @@ func GetPrices(ctx context.Context, timestamps []time.Time,
 	return prices, nil
 }
 
-// MsatToUSD converts a msat amount to usd. Note that this function coverts
+// MsatToFiat converts a msat amount to fiat. Note that this function converts
 // values to Bitcoin values, then gets the fiat price for that BTC value.
-func MsatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
+func MsatToFiat(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
 	msatDecimal := decimal.NewFromInt(int64(amt))
 
 	// We are quoted price per whole bitcoin. We need to scale this price
@@ -195,12 +249,12 @@ func MsatToUSD(price decimal.Decimal, amt lnwire.MilliSatoshi) decimal.Decimal {
 // querying. The last datapoint's timestamp may be before the timestamp we are
 // querying. If a request lies between two price points, we just return the
 // earlier price.
-func GetPrice(prices []*USDPrice, timestamp time.Time) (*USDPrice, error) {
+func GetPrice(prices []*Price, timestamp time.Time) (*Price, error) {
 	if len(prices) == 0 {
 		return nil, errNoPrices
 	}
 
-	var lastPrice *USDPrice
+	var lastPrice *Price
 
 	// Run through our prices until we find a timestamp that our price
 	// point lies before. Since we always return the previous price, this

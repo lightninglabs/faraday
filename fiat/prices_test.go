@@ -1,6 +1,7 @@
 package fiat
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -18,22 +19,22 @@ func TestGetPrice(t *testing.T) {
 	price10K := decimal.New(10000, 1)
 	price20K := decimal.New(20000, 1)
 
-	now10k := &USDPrice{
+	now10k := &Price{
 		Timestamp: now,
 		Price:     price10K,
 	}
 
-	hourAgo20K := &USDPrice{
+	hourAgo20K := &Price{
 		Timestamp: oneHourAgo,
 		Price:     price20K,
 	}
 
 	tests := []struct {
 		name          string
-		prices        []*USDPrice
+		prices        []*Price
 		request       time.Time
 		expectedErr   error
-		expectedPrice *USDPrice
+		expectedPrice *Price
 	}{
 		{
 			name:        "no prices",
@@ -43,21 +44,21 @@ func TestGetPrice(t *testing.T) {
 		},
 		{
 			name:          "timestamp before range",
-			prices:        []*USDPrice{now10k},
+			prices:        []*Price{now10k},
 			request:       oneHourAgo,
 			expectedErr:   errPriceOutOfRange,
 			expectedPrice: nil,
 		},
 		{
 			name:          "timestamp equals data point timestamp",
-			prices:        []*USDPrice{hourAgo20K, now10k},
+			prices:        []*Price{hourAgo20K, now10k},
 			request:       now,
 			expectedErr:   nil,
 			expectedPrice: now10k,
 		},
 		{
 			name: "timestamp after range",
-			prices: []*USDPrice{
+			prices: []*Price{
 				{
 					Timestamp: twoHoursAgo,
 					Price:     price10K,
@@ -70,7 +71,7 @@ func TestGetPrice(t *testing.T) {
 		},
 		{
 			name:          "timestamp between prices, pick earlier",
-			prices:        []*USDPrice{hourAgo20K, now10k},
+			prices:        []*Price{hourAgo20K, now10k},
 			request:       now.Add(time.Minute * -30),
 			expectedErr:   nil,
 			expectedPrice: hourAgo20K,
@@ -92,8 +93,8 @@ func TestGetPrice(t *testing.T) {
 	}
 }
 
-// TestMSatToUsd tests conversion of msat to usd. This
-func TestMSatToUsd(t *testing.T) {
+// TestMSatToFiat tests conversion of msat to fiat. This
+func TestMSatToFiat(t *testing.T) {
 	tests := []struct {
 		name         string
 		amount       lnwire.MilliSatoshi
@@ -126,11 +127,86 @@ func TestMSatToUsd(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			amt := MsatToUSD(test.price, test.amount)
+			amt := MsatToFiat(test.price, test.amount)
 			if !amt.Equals(test.expectedFiat) {
 				t.Fatalf("expected: %v, got: %v",
 					test.expectedFiat, amt)
 			}
 		})
+	}
+}
+
+// TestValidatePriceSourceConfig tests that the validatePriceSourceConfig
+// function correctly validates the fields of PriceSourceConfig given the
+// chosen price backend.
+func TestValidatePriceSourceConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		cfg         *PriceSourceConfig
+		expectedErr error
+	}{
+		{
+			name: "valid Coin Cap config",
+			cfg: &PriceSourceConfig{
+				Backend:     CoinCapPriceBackend,
+				Granularity: &GranularityDay,
+			},
+		},
+		{
+			name: "invalid Coin Cap config",
+			cfg: &PriceSourceConfig{
+				Backend: CoinCapPriceBackend,
+			},
+			expectedErr: errGranularityRequired,
+		},
+		{
+			name: "valid default config",
+			cfg: &PriceSourceConfig{
+				Backend:     UnknownPriceBackend,
+				Granularity: &GranularityDay,
+			},
+		},
+		{
+			name: "invalid default config",
+			cfg: &PriceSourceConfig{
+				Backend: UnknownPriceBackend,
+			},
+			expectedErr: errGranularityRequired,
+		},
+		{
+			name: "valid custom prices config",
+			cfg: &PriceSourceConfig{
+				Backend: CustomPriceBackend,
+				PricePoints: []*Price{
+					{
+						Timestamp: time.Now(),
+						Price:     decimal.NewFromInt(10),
+						Currency:  "USD",
+					},
+				},
+			},
+		},
+		{
+			name: "invalid custom prices config",
+			cfg: &PriceSourceConfig{
+				Backend: CustomPriceBackend,
+			},
+			expectedErr: errPricePointsRequired,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := test.cfg.validatePriceSourceConfig()
+			if !errors.Is(err, test.expectedErr) {
+				t.Fatalf("expected: %v, got %v",
+					test.expectedErr, err)
+			}
+		})
+
 	}
 }

@@ -55,15 +55,17 @@ func TestParseCoinDeskData(t *testing.T) {
 			prices, err := parseCoinDeskData(bytes)
 			require.NoError(t, err)
 
-			expectedPrices := []*USDPrice{
+			expectedPrices := []*Price{
 				{
 					Price:     price,
 					Timestamp: timestamp,
+					Currency:  coinDeskDefaultCurrency,
 				},
 			}
 
 			require.True(t, expectedPrices[0].Price.Equal(prices[0].Price))
 			require.True(t, expectedPrices[0].Timestamp.Equal(prices[0].Timestamp))
+			require.Equal(t, expectedPrices[0].Currency, prices[0].Currency)
 		})
 	}
 }

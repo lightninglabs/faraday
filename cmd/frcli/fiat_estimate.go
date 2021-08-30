@@ -32,6 +32,18 @@ var fiatEstimateCommand = cli.Command{
 			Usage: "fiat backend to be used. Options include: " +
 				"'coincap' (default) and 'coindesk'",
 		},
+		cli.StringFlag{
+			Name: "prices_csv_path",
+			Usage: "Path to a CSV file containing custom fiat " +
+				"price data. This is only required if " +
+				"'fiat_backend' is set to 'custom'.",
+		},
+		cli.StringFlag{
+			Name: "custom_price_currency",
+			Usage: "The currency that the custom prices are " +
+				"quoted in. This is only required if " +
+				"'fiat_backend' is set to 'custom'.",
+		},
 	},
 	Action: queryFiatEstimate,
 }
@@ -55,11 +67,30 @@ func queryFiatEstimate(ctx *cli.Context) error {
 		return err
 	}
 
+	// nolint: prealloc
+	var filteredPrices []*frdrpc.BitcoinPrice
+
+	if fiatBackend == frdrpc.FiatBackend_CUSTOM {
+		customPrices, err := parsePricesFromCSV(
+			ctx.String("prices_csv_path"),
+			ctx.String("custom_price_currency"),
+		)
+		if err != nil {
+			return err
+		}
+
+		filteredPrices, err = filterPrices(customPrices, ts, ts)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Set start and end times from user specified values, defaulting
 	// to zero if they are not set.
 	req := &frdrpc.ExchangeRateRequest{
-		Timestamps:  []uint64{uint64(ts)},
-		FiatBackend: fiatBackend,
+		Timestamps:   []uint64{uint64(ts)},
+		FiatBackend:  fiatBackend,
+		CustomPrices: filteredPrices,
 	}
 
 	rpcCtx := context.Background()
@@ -85,10 +116,11 @@ func queryFiatEstimate(ctx *cli.Context) error {
 		return err
 	}
 
-	usdVal := fiat.MsatToUSD(bitcoinPrice, lnwire.MilliSatoshi(amt))
+	fiatVal := fiat.MsatToFiat(bitcoinPrice, lnwire.MilliSatoshi(amt))
 	priceTs := time.Unix(int64(estimate.BtcPrice.PriceTimestamp), 0)
 
-	fmt.Printf("%v msat = %v USD, priced at %v\n", amt, usdVal, priceTs)
+	fmt.Printf("%v msat = %v %s, priced at %v\n",
+		amt, fiatVal, estimate.BtcPrice.Currency, priceTs)
 
 	return nil
 }

@@ -74,7 +74,7 @@ func TestCoinCapGetPrices(t *testing.T) {
 			}
 
 			// Create a mocked convert function.
-			convert := func([]byte) ([]*USDPrice, error) {
+			convert := func([]byte) ([]*Price, error) {
 				return nil, nil
 			}
 
@@ -189,14 +189,16 @@ func TestParseCoinCapData(t *testing.T) {
 	prices, err := parseCoinCapData(bytes)
 	require.NoError(t, err)
 
-	expectedPrices := []*USDPrice{
+	expectedPrices := []*Price{
 		{
 			Price:     price1,
 			Timestamp: time1,
+			Currency:  coinCapDefaultCurrency,
 		},
 		{
 			Price:     price2,
 			Timestamp: time2,
+			Currency:  coinCapDefaultCurrency,
 		},
 	}
 

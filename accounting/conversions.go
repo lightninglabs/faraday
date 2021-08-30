@@ -10,8 +10,8 @@ import (
 	"github.com/lightninglabs/faraday/utils"
 )
 
-// usdPrice is a function which gets the USD price of bitcoin at a given time.
-type usdPrice func(timestamp time.Time) (*fiat.USDPrice, error)
+// fiatPrice is a function which gets the fiat price of bitcoin at a given time.
+type fiatPrice func(timestamp time.Time) (*fiat.Price, error)
 
 // satsToMsat converts an amount expressed in sats to msat.
 func satsToMsat(sats btcutil.Amount) int64 {
@@ -33,14 +33,13 @@ func invertMsat(msat int64) int64 {
 // of price data and returns a convert function which can be used to get
 // individual price points from this data.
 func getConversion(ctx context.Context, startTime, endTime time.Time,
-	disableFiat bool, fiatBackend fiat.PriceBackend,
-	granularity *fiat.Granularity) (usdPrice, error) {
+	disableFiat bool, priceCfg *fiat.PriceSourceConfig) (fiatPrice, error) {
 
 	// If we don't want fiat values, just return a price which will yield
 	// a zero price and timestamp.
 	if disableFiat {
-		return func(_ time.Time) (*fiat.USDPrice, error) {
-			return &fiat.USDPrice{}, nil
+		return func(_ time.Time) (*fiat.Price, error) {
+			return &fiat.Price{}, nil
 		}, nil
 	}
 
@@ -49,7 +48,7 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 		return nil, err
 	}
 
-	fiatClient, err := fiat.NewPriceSource(fiatBackend, granularity)
+	fiatClient, err := fiat.NewPriceSource(priceCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +63,7 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 
 	// Create a wrapper function which can be used to get individual price
 	// points from our set of price data as we create our report.
-	return func(ts time.Time) (*fiat.USDPrice, error) {
+	return func(ts time.Time) (*fiat.Price, error) {
 		return fiat.GetPrice(prices, ts)
 	}, nil
 }

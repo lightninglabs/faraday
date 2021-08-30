@@ -20,6 +20,8 @@ This file tracks release notes for the faraday client.
   tag on GitHub.
 
 ## Next release
+* The option to provide custom price data for the APIs that require fiat 
+  information has been added.
 
 #### New Features
 

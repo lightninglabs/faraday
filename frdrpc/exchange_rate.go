@@ -9,6 +9,54 @@ import (
 	"github.com/lightninglabs/faraday/fiat"
 )
 
+func priceCfgFromRPC(rpcBackend FiatBackend, rpcGranularity Granularity,
+	disable bool, start, end time.Time, prices []*BitcoinPrice) (
+	*fiat.PriceSourceConfig, error) {
+
+	backend, err := fiatBackendFromRPC(rpcBackend)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(prices) > 0 && backend != fiat.CustomPriceBackend {
+		return nil, errors.New(
+			"custom price points provided but custom fiat " +
+				"backend not set",
+		)
+	}
+
+	var (
+		granularity *fiat.Granularity
+		pricePoints []*fiat.Price
+	)
+
+	// Get additional values for backends that require additional
+	// information.
+	switch backend {
+	case fiat.CoinCapPriceBackend:
+		granularity, err = granularityFromRPC(
+			rpcGranularity, disable, end.Sub(start),
+		)
+
+	case fiat.CustomPriceBackend:
+		pricePoints, err = pricePointsFromRPC(prices)
+		if err != nil {
+			return nil, err
+		}
+
+		err = validateCustomPricePoints(pricePoints, start)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &fiat.PriceSourceConfig{
+		Backend:     backend,
+		Granularity: granularity,
+		PricePoints: pricePoints,
+	}, nil
+}
+
 // granularityFromRPC gets a granularity enum value from a rpc request,
 // defaulting getting the best granularity for the period being queried.
 func granularityFromRPC(g Granularity, disableFiat bool,
@@ -102,28 +150,15 @@ func parseExchangeRateRequest(req *ExchangeRateRequest) ([]time.Time,
 	// single timestamp.
 	start, end := timestamps[0], timestamps[len(timestamps)-1]
 
-	granularity, err := granularityFromRPC(
-		req.Granularity, false, end.Sub(start),
+	cfg, err := priceCfgFromRPC(
+		req.FiatBackend, req.Granularity, false, start, end,
+		req.CustomPrices,
 	)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	fiatBackend, err := fiatBackendFromRPC(req.FiatBackend)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	pricePoints, err := pricePointsFromRPC(req.CustomPrices)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return timestamps, &fiat.PriceSourceConfig{
-		Backend:     fiatBackend,
-		Granularity: granularity,
-		PricePoints: pricePoints,
-	}, nil
+	return timestamps, cfg, nil
 }
 
 func exchangeRateResponse(prices map[time.Time]*fiat.Price) *ExchangeRateResponse {

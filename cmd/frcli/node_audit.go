@@ -93,15 +93,7 @@ var onChainReportCommand = cli.Command{
 				"category currently does not include off " +
 				"chain payments.",
 		},
-		cli.StringFlag{
-			Name: "fiat_backend",
-			Usage: "fiat backend to be used. Options include: " +
-				"'coincap' (default), 'coindesk' or " +
-				"'custom' which allows custom price data to " +
-				"be used. The 'custom' option requires the" +
-				"'prices_csv_path' and " +
-				"'custom_price_currency' options to be set.",
-		},
+		fiatBackendFlag,
 		cli.StringFlag{
 			Name: "prices_csv_path",
 			Usage: "Path to a CSV file containing custom fiat " +

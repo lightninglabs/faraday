@@ -157,21 +157,22 @@ func TestValidatePriceSourceConfig(t *testing.T) {
 			cfg: &PriceSourceConfig{
 				Backend: CoinCapPriceBackend,
 			},
-			expectedErr: errGranularityRequired,
-		},
-		{
-			name: "valid default config",
-			cfg: &PriceSourceConfig{
-				Backend:     UnknownPriceBackend,
-				Granularity: &GranularityDay,
-			},
+			expectedErr: errCoincapGranularityRequired,
 		},
 		{
 			name: "invalid default config",
 			cfg: &PriceSourceConfig{
+				Backend:     UnknownPriceBackend,
+				Granularity: &GranularityDay,
+			},
+			expectedErr: errGranularityUnexpected,
+		},
+		{
+			name: "valid default config, no granularity",
+			cfg: &PriceSourceConfig{
 				Backend: UnknownPriceBackend,
 			},
-			expectedErr: errGranularityRequired,
+			expectedErr: nil,
 		},
 		{
 			name: "valid custom prices config",
@@ -192,6 +193,27 @@ func TestValidatePriceSourceConfig(t *testing.T) {
 				Backend: CustomPriceBackend,
 			},
 			expectedErr: errPricePointsRequired,
+		},
+		{
+			name: "coindesk no granularity allowed",
+			cfg: &PriceSourceConfig{
+				Backend: CoinDeskPriceBackend,
+			},
+		},
+		{
+			name: "coindesk daily granularity allowed",
+			cfg: &PriceSourceConfig{
+				Backend:     CoinDeskPriceBackend,
+				Granularity: &GranularityDay,
+			},
+		},
+		{
+			name: "coindesk non-daily granularity disallowed",
+			cfg: &PriceSourceConfig{
+				Backend:     CoinDeskPriceBackend,
+				Granularity: &GranularityHour,
+			},
+			expectedErr: errGranularityUnsupported,
 		},
 	}
 

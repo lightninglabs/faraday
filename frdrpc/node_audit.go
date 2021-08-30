@@ -43,42 +43,12 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 		return nil, nil, err
 	}
 
-	fiatBackend, err := fiatBackendFromRPC(req.FiatBackend)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	granularity, err := granularityFromRPC(
-		req.Granularity, req.DisableFiat, end.Sub(start),
+	priceSourceCfg, err := priceCfgFromRPC(
+		req.FiatBackend, req.Granularity, false, start, end,
+		req.CustomPrices,
 	)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	if len(req.CustomPrices) > 0 && req.FiatBackend != FiatBackend_CUSTOM {
-		return nil, nil, errors.New(
-			"custom price points provided but custom fiat " +
-				"backend not set",
-		)
-	}
-
-	pricePoints, err := pricePointsFromRPC(req.CustomPrices)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if req.FiatBackend == FiatBackend_CUSTOM {
-		if err := validateCustomPricePoints(
-			pricePoints, time.Unix(int64(req.StartTime), 0),
-		); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	priceSourceCfg := &fiat.PriceSourceConfig{
-		Backend:     fiatBackend,
-		Granularity: granularity,
-		PricePoints: pricePoints,
 	}
 
 	pubkey, err := route.NewVertexFromBytes(info.IdentityPubkey[:])

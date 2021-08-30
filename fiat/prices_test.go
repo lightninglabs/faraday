@@ -215,6 +215,27 @@ func TestValidatePriceSourceConfig(t *testing.T) {
 			},
 			expectedErr: errGranularityUnsupported,
 		},
+		{
+			name: "coingecko no granularity",
+			cfg: &PriceSourceConfig{
+				Backend: CoinGeckoPriceBackend,
+			},
+		},
+		{
+			name: "coingecko hour granularity",
+			cfg: &PriceSourceConfig{
+				Backend:     CoinGeckoPriceBackend,
+				Granularity: &GranularityHour,
+			},
+		},
+		{
+			name: "coingecko wrong granularity",
+			cfg: &PriceSourceConfig{
+				Backend:     CoinGeckoPriceBackend,
+				Granularity: &GranularityDay,
+			},
+			expectedErr: errGranularityUnsupported,
+		},
 	}
 
 	for _, test := range tests {

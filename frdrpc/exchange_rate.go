@@ -121,6 +121,9 @@ func fiatBackendFromRPC(backend FiatBackend) (fiat.PriceBackend, error) {
 	case FiatBackend_CUSTOM:
 		return fiat.CustomPriceBackend, nil
 
+	case FiatBackend_COINGECKO:
+		return fiat.CoinGeckoPriceBackend, nil
+
 	default:
 		return fiat.UnknownPriceBackend,
 			fmt.Errorf("unknown fiat backend: %v", backend)

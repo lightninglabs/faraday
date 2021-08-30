@@ -93,6 +93,13 @@ func (cfg *PriceSourceConfig) validatePriceSourceConfig() error {
 				"price granularity", errGranularityUnsupported)
 		}
 
+	case CoinGeckoPriceBackend:
+		if cfg.Granularity != nil &&
+			*cfg.Granularity != GranularityHour {
+
+			return fmt.Errorf("%w: coingecko only provides hourly "+
+				"price granularity", errGranularityUnsupported)
+		}
 	case CustomPriceBackend:
 		if len(cfg.PricePoints) == 0 {
 			return errPricePointsRequired
@@ -151,13 +158,17 @@ const (
 
 	// CustomPriceBackend uses user provided fiat price data.
 	CustomPriceBackend
+
+	// CoinGeckoPriceBackend uses CoinGecko's API for fiat price data.
+	CoinGeckoPriceBackend
 )
 
 var priceBackendNames = map[PriceBackend]string{
-	UnknownPriceBackend:  "unknown",
-	CoinCapPriceBackend:  "coincap",
-	CoinDeskPriceBackend: "coindesk",
-	CustomPriceBackend:   "custom",
+	UnknownPriceBackend:   "unknown",
+	CoinCapPriceBackend:   "coincap",
+	CoinDeskPriceBackend:  "coindesk",
+	CustomPriceBackend:    "custom",
+	CoinGeckoPriceBackend: "coingecko",
 }
 
 // String returns the string representation of a price backend.
@@ -194,6 +205,16 @@ func NewPriceSource(cfg *PriceSourceConfig) (*PriceSource, error) {
 			impl: &customPrices{
 				entries: cfg.PricePoints,
 			},
+		}, nil
+
+	case CoinGeckoPriceBackend:
+		impl, err := newCoinGeckoAPI(cfg.Granularity)
+		if err != nil {
+			return nil, err
+		}
+
+		return &PriceSource{
+			impl: impl,
 		}, nil
 	}
 

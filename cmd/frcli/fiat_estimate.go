@@ -13,6 +13,17 @@ import (
 	"github.com/lightninglabs/faraday/frdrpc"
 )
 
+var fiatBackendFlag = cli.StringFlag{
+	Name: "fiat_backend",
+	Usage: fmt.Sprintf("fiat backend to be used. Options include: '%v' "+
+		"(default), '%v', `%v` or `%v`, which allows custom price "+
+		"data to be used. The `%v` option requires the "+
+		"`prices_csv_path` and `custom_price_currency` options to be "+
+		"set", fiat.CoinDeskPriceBackend, fiat.CoinCapPriceBackend,
+		fiat.CoinGeckoPriceBackend,
+		fiat.CustomPriceBackend, fiat.CustomPriceBackend),
+}
+
 var fiatEstimateCommand = cli.Command{
 	Name:     "fiat",
 	Category: "prices",
@@ -27,11 +38,7 @@ var fiatEstimateCommand = cli.Command{
 			Usage: "the time at which price should be quoted, " +
 				"the current price will be used if not supplied",
 		},
-		cli.StringFlag{
-			Name: "fiat_backend",
-			Usage: "fiat backend to be used. Options include: " +
-				"'coincap' (default) and 'coindesk'",
-		},
+		fiatBackendFlag,
 		cli.StringFlag{
 			Name: "prices_csv_path",
 			Usage: "Path to a CSV file containing custom fiat " +

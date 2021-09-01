@@ -338,6 +338,11 @@ enum FiatBackend {
 
     // Use custom price data provided in a CSV file for fiat price information.
     CUSTOM = 3;
+
+    // Use the CoinGecko API for fiat price information.
+    // This API is reached through the following URL:
+    // https://api.coingecko.com/api/v3/coins/bitcoin/market_chart
+    COINGECKO = 4;
 }
 
 message ExchangeRateRequest {

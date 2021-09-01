@@ -3,6 +3,7 @@ package fiat
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"time"
 
@@ -18,16 +19,22 @@ var (
 	errPriceOutOfRange     = errors.New("timestamp before beginning of price " +
 		"dataset")
 
-	// errGranularityRequired is returned when a request is made that
-	// required fiat prices but the granularity of those prices is not set.
-	errGranularityRequired = errors.New("granularity required when " +
+	// errCoincapGranularityRequired is returned when a request is made
+	// for the coincap API but the granularity of those prices is not set.
+	errCoincapGranularityRequired = errors.New("granularity required " +
 		"fiat prices are enabled")
+
+	errGranularityUnexpected = errors.New("granularity unexpect for " +
+		"default price backend")
 
 	errPricePointsRequired = errors.New("at least one price point " +
 		"required for a custom price backend")
 
 	errPriceSourceConfigExpected = errors.New("a non-nil " +
 		"PriceSourceConfig is expected")
+
+	errGranularityUnsupported = errors.New("api does not support " +
+		"requested granularity")
 )
 
 // fiatBackend is an interface that must be implemented by any backend that
@@ -63,11 +70,36 @@ type PriceSourceConfig struct {
 // given the chosen price backend.
 func (cfg *PriceSourceConfig) validatePriceSourceConfig() error {
 	switch cfg.Backend {
-	case UnknownPriceBackend, CoinCapPriceBackend:
-		if cfg.Granularity == nil {
-			return errGranularityRequired
+	// If an unknown price backend is set, we don't expect granularity to
+	// be set. The caller should provide a backend if they wish to use
+	// a specific granularity.
+	case UnknownPriceBackend:
+		if cfg.Granularity != nil {
+			return errGranularityUnexpected
 		}
 
+	case CoinCapPriceBackend:
+		if cfg.Granularity == nil {
+			return errCoincapGranularityRequired
+		}
+
+	// CoinDesk only supports daily price granularity, fail if another
+	// value is set but allow setting to the correct value.
+	case CoinDeskPriceBackend:
+		if cfg.Granularity != nil &&
+			*cfg.Granularity != GranularityDay {
+
+			return fmt.Errorf("%w: coindesk only provides daily "+
+				"price granularity", errGranularityUnsupported)
+		}
+
+	case CoinGeckoPriceBackend:
+		if cfg.Granularity != nil &&
+			*cfg.Granularity != GranularityHour {
+
+			return fmt.Errorf("%w: coingecko only provides hourly "+
+				"price granularity", errGranularityUnsupported)
+		}
 	case CustomPriceBackend:
 		if len(cfg.PricePoints) == 0 {
 			return errPricePointsRequired
@@ -126,13 +158,17 @@ const (
 
 	// CustomPriceBackend uses user provided fiat price data.
 	CustomPriceBackend
+
+	// CoinGeckoPriceBackend uses CoinGecko's API for fiat price data.
+	CoinGeckoPriceBackend
 )
 
 var priceBackendNames = map[PriceBackend]string{
-	UnknownPriceBackend:  "unknown",
-	CoinCapPriceBackend:  "coincap",
-	CoinDeskPriceBackend: "coindesk",
-	CustomPriceBackend:   "custom",
+	UnknownPriceBackend:   "unknown",
+	CoinCapPriceBackend:   "coincap",
+	CoinDeskPriceBackend:  "coindesk",
+	CustomPriceBackend:    "custom",
+	CoinGeckoPriceBackend: "coingecko",
 }
 
 // String returns the string representation of a price backend.
@@ -152,12 +188,14 @@ func NewPriceSource(cfg *PriceSourceConfig) (*PriceSource, error) {
 	}
 
 	switch cfg.Backend {
-	case UnknownPriceBackend, CoinCapPriceBackend:
+	// We expect granularity to be set for coincap.
+	case CoinCapPriceBackend:
 		return &PriceSource{
 			impl: newCoinCapAPI(*cfg.Granularity),
 		}, nil
 
-	case CoinDeskPriceBackend:
+	// Default to coindesk api.
+	case UnknownPriceBackend, CoinDeskPriceBackend:
 		return &PriceSource{
 			impl: &coinDeskAPI{},
 		}, nil
@@ -167,6 +205,16 @@ func NewPriceSource(cfg *PriceSourceConfig) (*PriceSource, error) {
 			impl: &customPrices{
 				entries: cfg.PricePoints,
 			},
+		}, nil
+
+	case CoinGeckoPriceBackend:
+		impl, err := newCoinGeckoAPI(cfg.Granularity)
+		if err != nil {
+			return nil, err
+		}
+
+		return &PriceSource{
+			impl: impl,
 		}, nil
 	}
 

@@ -20,6 +20,11 @@ This file tracks release notes for the faraday client.
   tag on GitHub.
 
 ## Next release
+* The option to provide custom price data for the APIs that require fiat 
+  information has been added.
+* The default fiat source has been updated to coindesk. Note that this api 
+  provides prices at a daily granularity.
+* [CoinGecko](https://www.coingecko.com/en/api) has been added as an optional fiat source.
 
 #### New Features
 

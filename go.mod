@@ -6,9 +6,9 @@ require (
 	github.com/btcsuite/btcutil v1.0.3-0.20210527170813-e2ba6805a890
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.5.0
 	github.com/jessevdk/go-flags v1.4.0
-	github.com/lightninglabs/lndclient v0.11.1-7
+	github.com/lightninglabs/lndclient v0.13.0-9
 	github.com/lightninglabs/protobuf-hex-display v1.4.3-hex-display
-	github.com/lightningnetwork/lnd v0.13.0-beta.rc5.0.20210728112744-ebabda671786
+	github.com/lightningnetwork/lnd v0.13.0-beta.rc5.0.20210802115842-44971f0c46c9
 	github.com/lightningnetwork/lnd/cert v1.0.3
 	github.com/shopspring/decimal v1.2.0
 	github.com/stretchr/testify v1.7.0

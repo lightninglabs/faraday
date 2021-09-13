@@ -12,6 +12,7 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
+	"github.com/lightninglabs/faraday"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/channeldb"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -89,20 +90,22 @@ func newTestContext(t *testing.T) *testContext {
 	// Setup rpc client for lnd instances.
 	ctx.aliceClient, err = lndclient.NewLndServices(
 		&lndclient.LndServicesConfig{
-			LndAddress:  "localhost:10009",
-			Network:     lndclient.NetworkRegtest,
-			MacaroonDir: "lnd-alice/data/chain/bitcoin/regtest",
-			TLSPath:     "lnd-alice/tls.cert",
+			LndAddress:   "localhost:10009",
+			Network:      lndclient.NetworkRegtest,
+			MacaroonDir:  "lnd-alice/data/chain/bitcoin/regtest",
+			TLSPath:      "lnd-alice/tls.cert",
+			CheckVersion: faraday.MinLndVersion,
 		},
 	)
 	require.NoError(t, err)
 
 	ctx.bobClient, err = lndclient.NewLndServices(
 		&lndclient.LndServicesConfig{
-			LndAddress:  "localhost:10002",
-			Network:     lndclient.NetworkRegtest,
-			MacaroonDir: "lnd-bob/data/chain/bitcoin/regtest",
-			TLSPath:     "lnd-bob/tls.cert",
+			LndAddress:   "localhost:10002",
+			Network:      lndclient.NetworkRegtest,
+			MacaroonDir:  "lnd-bob/data/chain/bitcoin/regtest",
+			TLSPath:      "lnd-bob/tls.cert",
+			CheckVersion: faraday.MinLndVersion,
 		},
 	)
 	require.NoError(t, err)
@@ -431,7 +434,7 @@ func (c *testContext) waitForChannelOpen(targetChannel *wire.OutPoint) {
 			c.mine()
 
 			aliceChans, err := c.aliceClient.Client.ListChannels(
-				context.Background(),
+				context.Background(), false, false,
 			)
 			require.NoError(c.t, err)
 
@@ -441,7 +444,7 @@ func (c *testContext) waitForChannelOpen(targetChannel *wire.OutPoint) {
 			}
 
 			bobChans, err := c.bobClient.Client.ListChannels(
-				context.Background(),
+				context.Background(), false, false,
 			)
 			require.NoError(c.t, err)
 

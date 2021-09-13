@@ -10,11 +10,22 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/build"
+	"github.com/lightningnetwork/lnd/lnrpc/verrpc"
 	"github.com/lightningnetwork/lnd/signal"
 
 	"github.com/lightninglabs/faraday/chain"
 	"github.com/lightninglabs/faraday/frdrpc"
 )
+
+// MinLndVersion is the minimum lnd version required. Note that apis that are
+// only available in more recent versions are available at compile time, so this
+// version should be bumped if additional functionality is included that depends
+// on newer apis.
+var MinLndVersion = &verrpc.Version{
+	AppMajor: 0,
+	AppMinor: 11,
+	AppPatch: 0,
+}
 
 // Main is the real entry point for faraday. It is required to ensure that
 // defers are properly executed when os.Exit() is called.
@@ -65,9 +76,7 @@ func Main() error {
 		Network:            lndclient.Network(config.Network),
 		CustomMacaroonPath: config.Lnd.MacaroonPath,
 		TLSPath:            config.Lnd.TLSCertPath,
-		// Use the default lnd version check which checks for version
-		// v0.11.0 and requires all build tags.
-		CheckVersion: nil,
+		CheckVersion:       MinLndVersion,
 	})
 	if err != nil {
 		return fmt.Errorf("cannot connect to lightning services: %v",

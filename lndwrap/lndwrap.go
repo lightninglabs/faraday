@@ -124,27 +124,11 @@ func ListChannels(ctx context.Context, lnd lndclient.LightningClient,
 	publicOnly bool) func() ([]lndclient.ChannelInfo, error) {
 
 	return func() ([]lndclient.ChannelInfo, error) {
-		resp, err := lnd.ListChannels(ctx)
+		resp, err := lnd.ListChannels(ctx, false, publicOnly)
 		if err != nil {
 			return nil, fmt.Errorf("ListChannels failed: %w", err)
 		}
 
-		// If we want all channels, we can just return now.
-		if !publicOnly {
-			return resp, err
-		}
-
-		// If we only want public channels, we skip over all private
-		// channels and return a list of public only.
-		var publicChannels []lndclient.ChannelInfo
-		for _, channel := range resp {
-			if channel.Private {
-				continue
-			}
-
-			publicChannels = append(publicChannels, channel)
-		}
-
-		return publicChannels, nil
+		return resp, nil
 	}
 }

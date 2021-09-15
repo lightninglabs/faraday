@@ -67,7 +67,7 @@ func TestNodeAudit(t *testing.T) {
 	// We need our channel ID (because it is used as a unique reference
 	// for our report), so we look it up once we know both nodes are aware
 	// of it.
-	channels, err := c.aliceClient.Client.ListChannels(ctx)
+	channels, err := c.aliceClient.Client.ListChannels(ctx, false, false)
 	require.NoError(c.t, err, "alice list channels failed")
 
 	aliceChan := findChannel(channels, aliceChannel)

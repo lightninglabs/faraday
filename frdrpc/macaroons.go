@@ -7,9 +7,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/lightningnetwork/lnd/kvdb"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/lightningnetwork/lnd/rpcperms"
+	"go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 )
@@ -95,11 +97,27 @@ var (
 // unlocks the macaroon database and creates the default macaroon if it doesn't
 // exist yet.
 func (s *RPCServer) startMacaroonService() error {
+	backend, err := kvdb.GetBoltBackend(&kvdb.BoltBackendConfig{
+		DBPath:     s.cfg.FaradayDir,
+		DBFileName: "macaroons.db",
+		DBTimeout:  macDatabaseOpenTimeout,
+	})
+	if err == bbolt.ErrTimeout {
+		return fmt.Errorf("error while trying to open %s/%s: "+
+			"timed out after %v when trying to obtain exclusive "+
+			"lock - make sure no other faraday daemon process "+
+			"(standalone or embedded in lightning-terminal) is "+
+			"running", s.cfg.FaradayDir, "macaroons.db",
+			macDatabaseOpenTimeout)
+	}
+	if err != nil {
+		return fmt.Errorf("unable to load macaroon db: %v", err)
+	}
+
 	// Create the macaroon authentication/authorization service.
-	var err error
 	s.macaroonService, err = macaroons.NewService(
-		s.cfg.FaradayDir, faradayMacaroonLocation, false,
-		macDatabaseOpenTimeout, macaroons.IPLockChecker,
+		backend, faradayMacaroonLocation, false,
+		macaroons.IPLockChecker,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to set up macaroon authentication: "+
@@ -156,7 +174,7 @@ func (s *RPCServer) stopMacaroonService() error {
 // macaroonInterceptor creates gRPC server options with the macaroon security
 // interceptors.
 func (s *RPCServer) macaroonInterceptor() ([]grpc.ServerOption, error) {
-	interceptor := rpcperms.NewInterceptorChain(log, false)
+	interceptor := rpcperms.NewInterceptorChain(log, false, nil)
 
 	err := interceptor.Start()
 	if err != nil {

@@ -22,6 +22,7 @@ import (
 
 	proxy "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/kvdb"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -106,6 +107,7 @@ type RPCServer struct {
 	restServer *http.Server
 
 	macaroonService *macaroons.Service
+	macaroonDB      kvdb.Backend
 
 	restCancel func()
 	wg         sync.WaitGroup
@@ -436,7 +438,7 @@ func (s *RPCServer) ChannelInsights(ctx context.Context,
 	return rpcChannelInsightsResponse(insights), nil
 }
 
-// FiatEstimate provides a fiat estimate for a set of timestamped bitcoin
+// ExchangeRate provides a fiat estimate for a set of timestamped bitcoin
 // prices.
 func (s *RPCServer) ExchangeRate(ctx context.Context,
 	req *ExchangeRateRequest) (*ExchangeRateResponse, error) {

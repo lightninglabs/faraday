@@ -96,7 +96,7 @@ var (
 // startMacaroonService starts the macaroon validation service, creates or
 // unlocks the macaroon database and creates the default macaroon if it doesn't
 // exist yet.
-func (s *RPCServer) startMacaroonService() error {
+func (s *RPCServer) startMacaroonService(noMacaroonCreation bool) error {
 	backend, err := kvdb.GetBoltBackend(&kvdb.BoltBackendConfig{
 		DBPath:     s.cfg.FaradayDir,
 		DBFileName: "macaroons.db",
@@ -131,7 +131,7 @@ func (s *RPCServer) startMacaroonService() error {
 	}
 
 	// Create macaroon files for faraday CLI to use if they don't exist.
-	if !lnrpc.FileExists(s.cfg.MacaroonPath) {
+	if !noMacaroonCreation && !lnrpc.FileExists(s.cfg.MacaroonPath) {
 		// We don't offer the ability to rotate macaroon root keys yet,
 		// so just use the default one since the service expects some
 		// value to be set.

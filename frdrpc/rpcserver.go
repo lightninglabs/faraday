@@ -182,7 +182,7 @@ func (s *RPCServer) Start() error {
 
 	// Start the macaroon service and let it create its default macaroon in
 	// case it doesn't exist yet.
-	if err := s.startMacaroonService(); err != nil {
+	if err := s.startMacaroonService(true); err != nil {
 		return fmt.Errorf("error starting macaroon service: %v", err)
 	}
 	shutdownFuncs["macaroon"] = s.stopMacaroonService
@@ -301,14 +301,16 @@ func (s *RPCServer) Start() error {
 // create its own gRPC server but registers to an existing one. The same goes
 // for REST (if enabled), instead of creating an own mux and HTTP server, we
 // register to an existing one.
-func (s *RPCServer) StartAsSubserver(lndClient lndclient.LndServices) error {
+func (s *RPCServer) StartAsSubserver(lndClient lndclient.LndServices,
+	createDefaultMacaroonFile bool) error {
+
 	if atomic.AddInt32(&s.started, 1) != 1 {
 		return errServerAlreadyStarted
 	}
 
 	// Start the macaroon service and let it create its default macaroon in
 	// case it doesn't exist yet.
-	if err := s.startMacaroonService(); err != nil {
+	if err := s.startMacaroonService(createDefaultMacaroonFile); err != nil {
 		return fmt.Errorf("error starting macaroon service: %v", err)
 	}
 

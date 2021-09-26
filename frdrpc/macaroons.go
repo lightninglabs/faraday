@@ -60,11 +60,11 @@ var (
 		}},
 	}
 
-	// allPermissions is the list of all existing permissions that exist
+	// AllPermissions is the list of all existing permissions that exist
 	// for faraday's RPC. The default macaroon that is created on startup
 	// contains all these permissions and is therefore equivalent to lnd's
 	// admin.macaroon but for faraday.
-	allPermissions = []bakery.Op{{
+	AllPermissions = []bakery.Op{{
 		Entity: "recommendation",
 		Action: "read",
 	}, {
@@ -144,7 +144,7 @@ func (s *RPCServer) startMacaroonService() error {
 		// lnd). Custom macaroons can be created through the bakery
 		// RPC.
 		faradayMac, err := s.macaroonService.Oven.NewMacaroon(
-			idCtx, bakery.LatestVersion, nil, allPermissions...,
+			idCtx, bakery.LatestVersion, nil, AllPermissions...,
 		)
 		if err != nil {
 			return err

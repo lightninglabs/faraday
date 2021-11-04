@@ -30,6 +30,11 @@ const (
 	// By default we do not require connecting to a bitcoin node so that
 	// we can serve basic functionality by default.
 	defaultChainConn = false
+
+	// DefaultAutogenValidity is the default validity of a self-signed
+	// certificate. The value corresponds to 14 months
+	// (14 months * 30 days * 24 hours).
+	DefaultAutogenValidity = 14 * 30 * 24 * time.Hour
 )
 
 var (
@@ -353,7 +358,7 @@ func loadCertWithCreate(cfg *Config) (tls.Certificate, *x509.Certificate,
 			defaultSelfSignedOrganization, cfg.TLSCertPath,
 			cfg.TLSKeyPath, cfg.TLSExtraIPs,
 			cfg.TLSExtraDomains, cfg.TLSDisableAutofill,
-			cert.DefaultAutogenValidity,
+			DefaultAutogenValidity,
 		)
 		if err != nil {
 			return tls.Certificate{}, nil, err

@@ -347,7 +347,7 @@ func (s *RPCServer) Stop() error {
 		}
 	}
 
-	if err := s.macaroonService.Close(); err != nil {
+	if err := s.stopMacaroonService(); err != nil {
 		log.Errorf("Error stopping macaroon service: %v", err)
 	}
 

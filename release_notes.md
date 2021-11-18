@@ -35,3 +35,4 @@ This file tracks release notes for the faraday client.
 #### Maintenance
 * Updated compile time dependencies of `lnd`, `grpc-gateway`, `protobuf` and
   `grpc`.
+* Updated compile time dependency of `lnd` to `v0.14.0-beta`.

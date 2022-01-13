@@ -1,6 +1,6 @@
 # Accounting Reports
 Faraday produces accounting reports on a node's on chain and off chain activity. 
-These reports are formatted using the [Harmony Reporting Standard](https://github.com/picksco/harmony). 
+These reports are formatted using the [Harmony Reporting Standard](https://github.com/alexbosworth/harmony). 
 This document provides a description of the entries in these reports. 
 
 ## Bitcoin Backend

@@ -76,7 +76,7 @@ var (
 
 	// defaultLndMacaroon is the default macaroon file we use to connect to
 	// lnd.
-	defaultLndMacaroon = "readonly.macaroon"
+	defaultLndMacaroon = "admin.macaroon"
 
 	// DefaultLndDir is the default location where we look for lnd's tls and
 	// macaroon files.
@@ -103,7 +103,7 @@ type LndConfig struct {
 	// all of lnd's macaroons. The specified macaroon MUST have all
 	// permissions that all the subservers use, otherwise permission errors
 	// will occur.
-	MacaroonPath string `long:"macaroonpath" description:"The full path to the single macaroon to use, either the readonly.macaroon or a custom baked one. Cannot be specified at the same time as macaroondir. A custom macaroon must contain ALL permissions required for all subservers to work, otherwise permission errors will occur."`
+	MacaroonPath string `long:"macaroonpath" description:"The full path to the single macaroon to use, either the admin.macaroon or a custom baked one. Cannot be specified at the same time as macaroondir. A custom macaroon must contain ALL permissions required for all subservers to work, otherwise permission errors will occur."`
 
 	// TLSCertPath is the path to the tls cert that faraday should use.
 	TLSCertPath string `long:"tlscertpath" description:"Path to TLS cert"`

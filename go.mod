@@ -10,11 +10,9 @@ require (
 	github.com/lightninglabs/protobuf-hex-display v1.4.3-hex-display
 	github.com/lightningnetwork/lnd v0.14.1-beta.0.20220324135938-0dcaa511a249
 	github.com/lightningnetwork/lnd/cert v1.1.1
-	github.com/lightningnetwork/lnd/kvdb v1.3.1
 	github.com/shopspring/decimal v1.2.0
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli v1.22.4
-	go.etcd.io/bbolt v1.3.6
 	google.golang.org/grpc v1.38.0
 	google.golang.org/protobuf v1.26.0
 	gopkg.in/macaroon-bakery.v2 v2.0.1

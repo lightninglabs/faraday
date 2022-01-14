@@ -21,10 +21,10 @@ make && make install
 ```
 
 ## Usage
-Faraday connects to a single instance of lnd. It requires access to `lnd`'s `readonly.macaroon` and a valid TLS certificate. It will attempt to use the default `lnd` values if no command line flags are specified.
+Faraday connects to a single instance of lnd. It requires access to `lnd`'s `admin.macaroon` and a valid TLS certificate. It will attempt to use the default `lnd` values if no command line flags are specified.
 ```
 ./faraday                                                   \
---lnd.macaroonpath={full path to lnd's readonly.macaroon}   \
+--lnd.macaroonpath={full path to lnd's admin.macaroon}   \
 --lnd.tlscertpath={path to lnd cert}                        \
 --lnd.rpcserver={host:port of lnd's rpcserver} 
 ```

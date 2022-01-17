@@ -327,13 +327,13 @@ func (s *RPCServer) Start() error {
 // for REST (if enabled), instead of creating an own mux and HTTP server, we
 // register to an existing one.
 func (s *RPCServer) StartAsSubserver(lndClient lndclient.LndServices,
-	createDefaultMacaroonFile bool) error {
+	withMacaroonService bool) error {
 
 	if atomic.AddInt32(&s.started, 1) != 1 {
 		return errServerAlreadyStarted
 	}
 
-	if createDefaultMacaroonFile {
+	if withMacaroonService {
 		// Start the macaroon service and let it create its default
 		// macaroon in case it doesn't exist yet.
 		if err := s.macaroonService.Start(); err != nil {

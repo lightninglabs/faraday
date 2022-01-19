@@ -32,6 +32,9 @@ This file tracks release notes for the faraday client.
 
 #### Bug Fixes
 
+* Fixed a config issue where the `--lnd.tlscertpath` flag wouldn't work if the
+  `~` shortcut for the home directory was used.
+
 #### Maintenance
 * Updated compile time dependencies of `lnd`, `grpc-gateway`, `protobuf` and
   `grpc`.

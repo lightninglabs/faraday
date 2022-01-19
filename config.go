@@ -294,6 +294,13 @@ func ValidateConfig(config *Config) error {
 		)
 	}
 
+	// Expand the lnd cert path, in case the user is specifying the home
+	// directory with ~ (which only the shell understands, not the low-level
+	// file system).
+	config.Lnd.TLSCertPath = lncfg.CleanAndExpandPath(
+		config.Lnd.TLSCertPath,
+	)
+
 	return nil
 }
 

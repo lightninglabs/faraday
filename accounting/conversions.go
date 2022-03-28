@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcd/btcutil"
 
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/utils"

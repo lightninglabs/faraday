@@ -50,6 +50,9 @@ jobs:
 
       - name: run imports check
         run: make imports
+      
+      - name: run JS stubs check
+        run: make rpc-js-compile
 
   ########################
   # lint code

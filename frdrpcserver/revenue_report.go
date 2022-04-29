@@ -1,20 +1,20 @@
-package frdrpc
+package frdrpcserver
 
 import (
 	"context"
 	"time"
 
-	"github.com/lightninglabs/lndclient"
-
+	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/faraday/lndwrap"
 	"github.com/lightninglabs/faraday/revenue"
+	"github.com/lightninglabs/lndclient"
 )
 
 // parseRevenueRequest parses a request for a revenue report and wraps
 // calls to lnd client to produce the config required to get a revenue
 // report.
 func parseRevenueRequest(ctx context.Context, cfg *Config,
-	req *RevenueReportRequest) *revenue.Config {
+	req *frdrpc.RevenueReportRequest) *revenue.Config {
 
 	// Progress end time to the present if it is not set.
 	// We allow start time to be zero so that revenue can
@@ -50,9 +50,9 @@ func getRevenueConfig(ctx context.Context, cfg *Config,
 // a revenue report response. If the channel had no revenue, an empty report is
 // returned.
 func rpcRevenueResponse(targetChannels []string,
-	revenueReport *revenue.Report) (*RevenueReportResponse, error) {
+	revenueReport *revenue.Report) (*frdrpc.RevenueReportResponse, error) {
 
-	resp := &RevenueReportResponse{}
+	resp := &frdrpc.RevenueReportResponse{}
 
 	// If no channels were specifically requested, set all channels in the
 	// report as our set of target channels.
@@ -65,9 +65,9 @@ func rpcRevenueResponse(targetChannels []string,
 	// Run through each channel that we want a report for, and create a rpc
 	// report for it.
 	for _, targetChannel := range targetChannels {
-		rpcReport := &RevenueReport{
+		rpcReport := &frdrpc.RevenueReport{
 			TargetChannel: targetChannel,
-			PairReports:   make(map[string]*PairReport),
+			PairReports:   make(map[string]*frdrpc.PairReport),
 		}
 
 		// Lookup the target channel in the revenue report. If it is
@@ -84,7 +84,7 @@ func rpcRevenueResponse(targetChannels []string,
 
 		// Add revenue reports for each of our peers to the response.
 		for peer, rp := range report {
-			rpcReport.PairReports[peer] = &PairReport{
+			rpcReport.PairReports[peer] = &frdrpc.PairReport{
 				AmountOutgoingMsat: int64(rp.AmountOutgoing),
 				FeesOutgoingMsat:   int64(rp.FeesOutgoing),
 				AmountIncomingMsat: int64(rp.AmountIncoming),

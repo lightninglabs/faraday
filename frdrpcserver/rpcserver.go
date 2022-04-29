@@ -1,5 +1,5 @@
-// Package frdrpc contains the proto files, generated code and server logic
-// for faraday's grpc server which serves requests for close recommendations.
+// Package frdrpcserver contains the server logic for faraday's grpc server
+// which serves requests for close recommendations.
 //
 // The Faraday server interface is implemented by the RPCServer struct.
 // To keep this file readable, each function implemented by the interface
@@ -7,7 +7,7 @@
 // code for the request and response. If the call requires extensive
 // additional logic, and unexported function with the same name should
 // be created in this file as well.
-package frdrpc
+package frdrpcserver
 
 import (
 	"context"
@@ -21,6 +21,13 @@ import (
 	"sync/atomic"
 
 	proxy "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/lightninglabs/faraday/accounting"
+	"github.com/lightninglabs/faraday/chain"
+	"github.com/lightninglabs/faraday/fiat"
+	"github.com/lightninglabs/faraday/frdrpc"
+	"github.com/lightninglabs/faraday/recommend"
+	"github.com/lightninglabs/faraday/resolutions"
+	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/kvdb"
 	"github.com/lightningnetwork/lnd/macaroons"
@@ -28,13 +35,6 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/encoding/protojson"
 	"gopkg.in/macaroon-bakery.v2/bakery"
-
-	"github.com/lightninglabs/faraday/accounting"
-	"github.com/lightninglabs/faraday/chain"
-	"github.com/lightninglabs/faraday/fiat"
-	"github.com/lightninglabs/faraday/recommend"
-	"github.com/lightninglabs/faraday/resolutions"
-	"github.com/lightninglabs/faraday/revenue"
 )
 
 var (
@@ -91,7 +91,7 @@ type RPCServer struct {
 	// Required by the grpc-gateway/v2 library for forward compatibility.
 	// Must be after the atomically used variables to not break struct
 	// alignment.
-	UnimplementedFaradayServerServer
+	frdrpc.UnimplementedFaradayServerServer
 
 	// cfg contains closures and settings required for operation.
 	cfg *Config
@@ -213,7 +213,7 @@ func (s *RPCServer) Start() error {
 	shutdownFuncs["gRPC listener"] = s.rpcListener.Close
 	log.Infof("gRPC server listening on %s", s.rpcListener.Addr())
 
-	RegisterFaradayServerServer(s.grpcServer, s)
+	frdrpc.RegisterFaradayServerServer(s.grpcServer, s)
 
 	// We'll also create and start an accompanying proxy to serve clients
 	// through REST. An empty address indicates REST is disabled.
@@ -260,7 +260,7 @@ func (s *RPCServer) Start() error {
 				restProxyDest, "[::]", "[::1]", 1,
 			)
 		}
-		err = RegisterFaradayServerHandlerFromEndpoint(
+		err = frdrpc.RegisterFaradayServerHandlerFromEndpoint(
 			restCtx, mux, restProxyDest, proxyOpts,
 		)
 		if err != nil {
@@ -363,7 +363,7 @@ func (s *RPCServer) Stop() error {
 // OutlierRecommendations provides a set of close recommendations for the
 // current set of open channels based on whether they are outliers.
 func (s *RPCServer) OutlierRecommendations(ctx context.Context,
-	req *OutlierRecommendationsRequest) (*CloseRecommendationsResponse,
+	req *frdrpc.OutlierRecommendationsRequest) (*frdrpc.CloseRecommendationsResponse,
 	error) {
 
 	if req.RecRequest == nil {
@@ -387,7 +387,7 @@ func (s *RPCServer) OutlierRecommendations(ctx context.Context,
 // current set of open channels based on whether they are above or below a
 // given threshold.
 func (s *RPCServer) ThresholdRecommendations(ctx context.Context,
-	req *ThresholdRecommendationsRequest) (*CloseRecommendationsResponse,
+	req *frdrpc.ThresholdRecommendationsRequest) (*frdrpc.CloseRecommendationsResponse,
 	error) {
 
 	if req.RecRequest == nil {
@@ -410,7 +410,7 @@ func (s *RPCServer) ThresholdRecommendations(ctx context.Context,
 // RevenueReport returns a pairwise revenue report for a channel
 // over the period requested.
 func (s *RPCServer) RevenueReport(ctx context.Context,
-	req *RevenueReportRequest) (*RevenueReportResponse, error) {
+	req *frdrpc.RevenueReportRequest) (*frdrpc.RevenueReportResponse, error) {
 
 	log.Debugf("[RevenueReport]: range: %v-%v, channels: %v", req.StartTime,
 		req.EndTime, req.ChanPoints)
@@ -428,7 +428,7 @@ func (s *RPCServer) RevenueReport(ctx context.Context,
 // ChannelInsights returns the channel insights for our currently open set
 // of channels.
 func (s *RPCServer) ChannelInsights(ctx context.Context,
-	_ *ChannelInsightsRequest) (*ChannelInsightsResponse, error) {
+	_ *frdrpc.ChannelInsightsRequest) (*frdrpc.ChannelInsightsResponse, error) {
 
 	log.Debugf("[ChannelInsights]")
 
@@ -443,7 +443,7 @@ func (s *RPCServer) ChannelInsights(ctx context.Context,
 // ExchangeRate provides a fiat estimate for a set of timestamped bitcoin
 // prices.
 func (s *RPCServer) ExchangeRate(ctx context.Context,
-	req *ExchangeRateRequest) (*ExchangeRateResponse, error) {
+	req *frdrpc.ExchangeRateRequest) (*frdrpc.ExchangeRateResponse, error) {
 
 	log.Debugf("[FiatEstimate]: %v requests", len(req.Timestamps))
 
@@ -462,7 +462,7 @@ func (s *RPCServer) ExchangeRate(ctx context.Context,
 
 // NodeAudit returns an on chain report for the period requested.
 func (s *RPCServer) NodeAudit(ctx context.Context,
-	req *NodeAuditRequest) (*NodeAuditResponse, error) {
+	req *frdrpc.NodeAuditRequest) (*frdrpc.NodeAuditResponse, error) {
 
 	log.Debugf("[NodeAudit]: range: %v-%v, fiat: %v", req.StartTime,
 		req.EndTime, req.DisableFiat)
@@ -488,7 +488,7 @@ func (s *RPCServer) NodeAudit(ctx context.Context,
 // CloseReport returns a close report for the channel provided. Note that this
 // endpoint requires connection to an external bitcoind node.
 func (s *RPCServer) CloseReport(ctx context.Context,
-	req *CloseReportRequest) (*CloseReportResponse, error) {
+	req *frdrpc.CloseReportRequest) (*frdrpc.CloseReportResponse, error) {
 
 	log.Debugf("[CloseReport]: %v", req.ChannelPoint)
 

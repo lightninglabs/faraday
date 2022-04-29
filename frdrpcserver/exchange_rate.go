@@ -1,4 +1,4 @@
-package frdrpc
+package frdrpcserver
 
 import (
 	"errors"
@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/lightninglabs/faraday/fiat"
+	"github.com/lightninglabs/faraday/frdrpc"
 )
 
-func priceCfgFromRPC(rpcBackend FiatBackend, rpcGranularity Granularity,
-	disable bool, start, end time.Time, prices []*BitcoinPrice) (
-	*fiat.PriceSourceConfig, error) {
+func priceCfgFromRPC(rpcBackend frdrpc.FiatBackend,
+	rpcGranularity frdrpc.Granularity, disable bool, start, end time.Time,
+	prices []*frdrpc.BitcoinPrice) (*fiat.PriceSourceConfig, error) {
 
 	backend, err := fiatBackendFromRPC(rpcBackend)
 	if err != nil {
@@ -59,7 +60,7 @@ func priceCfgFromRPC(rpcBackend FiatBackend, rpcGranularity Granularity,
 
 // granularityFromRPC gets a granularity enum value from a rpc request,
 // defaulting getting the best granularity for the period being queried.
-func granularityFromRPC(g Granularity, disableFiat bool,
+func granularityFromRPC(g frdrpc.Granularity, disableFiat bool,
 	duration time.Duration) (*fiat.Granularity, error) {
 
 	// If we do not need fiat prices, we can return nil granularity.
@@ -70,7 +71,7 @@ func granularityFromRPC(g Granularity, disableFiat bool,
 	switch g {
 	// If granularity is not set, allow it to default to the best
 	// granularity that we can get for the query period.
-	case Granularity_UNKNOWN_GRANULARITY:
+	case frdrpc.Granularity_UNKNOWN_GRANULARITY:
 		best, err := fiat.BestGranularity(duration)
 		if err != nil {
 			return nil, err
@@ -78,28 +79,28 @@ func granularityFromRPC(g Granularity, disableFiat bool,
 
 		return &best, nil
 
-	case Granularity_MINUTE:
+	case frdrpc.Granularity_MINUTE:
 		return &fiat.GranularityMinute, nil
 
-	case Granularity_FIVE_MINUTES:
+	case frdrpc.Granularity_FIVE_MINUTES:
 		return &fiat.Granularity5Minute, nil
 
-	case Granularity_FIFTEEN_MINUTES:
+	case frdrpc.Granularity_FIFTEEN_MINUTES:
 		return &fiat.Granularity15Minute, nil
 
-	case Granularity_THIRTY_MINUTES:
+	case frdrpc.Granularity_THIRTY_MINUTES:
 		return &fiat.Granularity30Minute, nil
 
-	case Granularity_HOUR:
+	case frdrpc.Granularity_HOUR:
 		return &fiat.GranularityHour, nil
 
-	case Granularity_SIX_HOURS:
+	case frdrpc.Granularity_SIX_HOURS:
 		return &fiat.Granularity6Hour, nil
 
-	case Granularity_TWELVE_HOURS:
+	case frdrpc.Granularity_TWELVE_HOURS:
 		return &fiat.Granularity12Hour, nil
 
-	case Granularity_DAY:
+	case frdrpc.Granularity_DAY:
 		return &fiat.GranularityDay, nil
 
 	default:
@@ -107,21 +108,21 @@ func granularityFromRPC(g Granularity, disableFiat bool,
 	}
 }
 
-func fiatBackendFromRPC(backend FiatBackend) (fiat.PriceBackend, error) {
+func fiatBackendFromRPC(backend frdrpc.FiatBackend) (fiat.PriceBackend, error) {
 	switch backend {
-	case FiatBackend_UNKNOWN_FIATBACKEND:
+	case frdrpc.FiatBackend_UNKNOWN_FIATBACKEND:
 		return fiat.UnknownPriceBackend, nil
 
-	case FiatBackend_COINCAP:
+	case frdrpc.FiatBackend_COINCAP:
 		return fiat.CoinCapPriceBackend, nil
 
-	case FiatBackend_COINDESK:
+	case frdrpc.FiatBackend_COINDESK:
 		return fiat.CoinDeskPriceBackend, nil
 
-	case FiatBackend_CUSTOM:
+	case frdrpc.FiatBackend_CUSTOM:
 		return fiat.CustomPriceBackend, nil
 
-	case FiatBackend_COINGECKO:
+	case frdrpc.FiatBackend_COINGECKO:
 		return fiat.CoinGeckoPriceBackend, nil
 
 	default:
@@ -130,7 +131,7 @@ func fiatBackendFromRPC(backend FiatBackend) (fiat.PriceBackend, error) {
 	}
 }
 
-func parseExchangeRateRequest(req *ExchangeRateRequest) ([]time.Time,
+func parseExchangeRateRequest(req *frdrpc.ExchangeRateRequest) ([]time.Time,
 	*fiat.PriceSourceConfig, error) {
 
 	if len(req.Timestamps) == 0 {
@@ -164,13 +165,15 @@ func parseExchangeRateRequest(req *ExchangeRateRequest) ([]time.Time,
 	return timestamps, cfg, nil
 }
 
-func exchangeRateResponse(prices map[time.Time]*fiat.Price) *ExchangeRateResponse {
-	fiatVals := make([]*ExchangeRate, 0, len(prices))
+func exchangeRateResponse(
+	prices map[time.Time]*fiat.Price) *frdrpc.ExchangeRateResponse {
+
+	fiatVals := make([]*frdrpc.ExchangeRate, 0, len(prices))
 
 	for ts, price := range prices {
-		fiatVals = append(fiatVals, &ExchangeRate{
+		fiatVals = append(fiatVals, &frdrpc.ExchangeRate{
 			Timestamp: uint64(ts.Unix()),
-			BtcPrice: &BitcoinPrice{
+			BtcPrice: &frdrpc.BitcoinPrice{
 				Price:          price.Price.String(),
 				PriceTimestamp: uint64(price.Timestamp.Unix()),
 				Currency:       price.Currency,
@@ -178,7 +181,7 @@ func exchangeRateResponse(prices map[time.Time]*fiat.Price) *ExchangeRateRespons
 		})
 	}
 
-	return &ExchangeRateResponse{
+	return &frdrpc.ExchangeRateResponse{
 		Rates: fiatVals,
 	}
 }

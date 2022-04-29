@@ -1,4 +1,4 @@
-package frdrpc
+package frdrpcserver
 
 import (
 	"context"
@@ -7,12 +7,12 @@ import (
 	"sort"
 	"time"
 
-	"github.com/lightningnetwork/lnd/routing/route"
-	"github.com/shopspring/decimal"
-
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/fees"
 	"github.com/lightninglabs/faraday/fiat"
+	"github.com/lightninglabs/faraday/frdrpc"
+	"github.com/lightningnetwork/lnd/routing/route"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -28,7 +28,7 @@ var (
 // parseNodeAuditRequest parses a report request and returns the config
 // required to produce a report containing on chain and off chain.
 func parseNodeAuditRequest(ctx context.Context, cfg *Config,
-	req *NodeAuditRequest) (*accounting.OnChainConfig,
+	req *frdrpc.NodeAuditRequest) (*accounting.OnChainConfig,
 	*accounting.OffChainConfig, error) {
 
 	start, end, err := validateTimes(req.StartTime, req.EndTime)
@@ -95,7 +95,7 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 // validateCustomCategories validates a set of custom categories. It checks that
 // each has a name, and at least one bool indicating which transactions to
 // classify, as well as checking that each regex provided is unique.
-func validateCustomCategories(categories []*CustomCategory) error {
+func validateCustomCategories(categories []*frdrpc.CustomCategory) error {
 	existing := make(map[string]struct{})
 
 	for _, category := range categories {
@@ -121,7 +121,7 @@ func validateCustomCategories(categories []*CustomCategory) error {
 	return nil
 }
 
-func pricePointsFromRPC(prices []*BitcoinPrice) ([]*fiat.Price, error) {
+func pricePointsFromRPC(prices []*frdrpc.BitcoinPrice) ([]*fiat.Price, error) {
 	res := make([]*fiat.Price, len(prices))
 
 	for i, p := range prices {
@@ -155,7 +155,8 @@ func validateCustomPricePoints(prices []*fiat.Price,
 		"timestamp preceding the given start time")
 }
 
-func getCategories(categories []*CustomCategory) ([]accounting.CustomCategory,
+func getCategories(
+	categories []*frdrpc.CustomCategory) ([]accounting.CustomCategory,
 	[]accounting.CustomCategory, error) {
 
 	var onChainCategories, offChainCategories []accounting.CustomCategory
@@ -180,13 +181,13 @@ func getCategories(categories []*CustomCategory) ([]accounting.CustomCategory,
 	return onChainCategories, offChainCategories, nil
 }
 
-func rpcReportResponse(report accounting.Report) (*NodeAuditResponse,
+func rpcReportResponse(report accounting.Report) (*frdrpc.NodeAuditResponse,
 	error) {
 
-	entries := make([]*ReportEntry, len(report))
+	entries := make([]*frdrpc.ReportEntry, len(report))
 
 	for i, entry := range report {
-		rpcEntry := &ReportEntry{
+		rpcEntry := &frdrpc.ReportEntry{
 			Timestamp:      uint64(entry.Timestamp.Unix()),
 			OnChain:        entry.OnChain,
 			CustomCategory: entry.Category,
@@ -197,7 +198,7 @@ func rpcReportResponse(report accounting.Report) (*NodeAuditResponse,
 			Fiat:           entry.FiatValue.String(),
 			Reference:      entry.Reference,
 			Note:           entry.Note,
-			BtcPrice: &BitcoinPrice{
+			BtcPrice: &frdrpc.BitcoinPrice{
 				Price:    entry.BTCPrice.Price.String(),
 				Currency: entry.BTCPrice.Currency,
 			},
@@ -223,55 +224,55 @@ func rpcReportResponse(report accounting.Report) (*NodeAuditResponse,
 		return entries[i].Timestamp < entries[j].Timestamp
 	})
 
-	return &NodeAuditResponse{Reports: entries}, nil
+	return &frdrpc.NodeAuditResponse{Reports: entries}, nil
 }
 
-func rpcEntryType(t accounting.EntryType) (EntryType, error) {
+func rpcEntryType(t accounting.EntryType) (frdrpc.EntryType, error) {
 	switch t {
 	case accounting.EntryTypeLocalChannelOpen:
-		return EntryType_LOCAL_CHANNEL_OPEN, nil
+		return frdrpc.EntryType_LOCAL_CHANNEL_OPEN, nil
 
 	case accounting.EntryTypeRemoteChannelOpen:
-		return EntryType_REMOTE_CHANNEL_OPEN, nil
+		return frdrpc.EntryType_REMOTE_CHANNEL_OPEN, nil
 
 	case accounting.EntryTypeChannelOpenFee:
-		return EntryType_CHANNEL_OPEN_FEE, nil
+		return frdrpc.EntryType_CHANNEL_OPEN_FEE, nil
 
 	case accounting.EntryTypeChannelClose:
-		return EntryType_CHANNEL_CLOSE, nil
+		return frdrpc.EntryType_CHANNEL_CLOSE, nil
 
 	case accounting.EntryTypeReceipt:
-		return EntryType_RECEIPT, nil
+		return frdrpc.EntryType_RECEIPT, nil
 
 	case accounting.EntryTypePayment:
-		return EntryType_PAYMENT, nil
+		return frdrpc.EntryType_PAYMENT, nil
 
 	case accounting.EntryTypeFee:
-		return EntryType_FEE, nil
+		return frdrpc.EntryType_FEE, nil
 
 	case accounting.EntryTypeCircularReceipt:
-		return EntryType_CIRCULAR_RECEIPT, nil
+		return frdrpc.EntryType_CIRCULAR_RECEIPT, nil
 
 	case accounting.EntryTypeForward:
-		return EntryType_FORWARD, nil
+		return frdrpc.EntryType_FORWARD, nil
 
 	case accounting.EntryTypeForwardFee:
-		return EntryType_FORWARD_FEE, nil
+		return frdrpc.EntryType_FORWARD_FEE, nil
 
 	case accounting.EntryTypeCircularPayment:
-		return EntryType_CIRCULAR_PAYMENT, nil
+		return frdrpc.EntryType_CIRCULAR_PAYMENT, nil
 
 	case accounting.EntryTypeCircularPaymentFee:
-		return EntryType_CIRCULAR_FEE, nil
+		return frdrpc.EntryType_CIRCULAR_FEE, nil
 
 	case accounting.EntryTypeSweep:
-		return EntryType_SWEEP, nil
+		return frdrpc.EntryType_SWEEP, nil
 
 	case accounting.EntryTypeSweepFee:
-		return EntryType_SWEEP_FEE, nil
+		return frdrpc.EntryType_SWEEP_FEE, nil
 
 	case accounting.EntryTypeChannelCloseFee:
-		return EntryType_CHANNEL_CLOSE_FEE, nil
+		return frdrpc.EntryType_CHANNEL_CLOSE_FEE, nil
 
 	default:
 		return 0, fmt.Errorf("unknown entrytype: %v", t)

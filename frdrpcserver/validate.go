@@ -1,4 +1,4 @@
-package frdrpc
+package frdrpcserver
 
 import (
 	"fmt"

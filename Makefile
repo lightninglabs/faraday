@@ -156,6 +156,10 @@ rpc-format:
 	@$(call print, "Formatting protos.")
 	cd ./frdrpc; find . -name "*.proto" | xargs clang-format --style=file -i
 
+rpc-js-compile:
+	@$(call print, "Compiling JSON/WASM stubs.")
+	GOOS=js GOARCH=wasm $(GOBUILD) $(PKG)/frdrpc
+
 list:
 	@$(call print, "Listing commands.")
 	@$(MAKE)  -qp | \

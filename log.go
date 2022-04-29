@@ -8,7 +8,7 @@ import (
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/dataset"
 	"github.com/lightninglabs/faraday/fiat"
-	"github.com/lightninglabs/faraday/frdrpc"
+	"github.com/lightninglabs/faraday/frdrpcserver"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
 )
@@ -32,7 +32,9 @@ func SetupLoggers(root *build.RotatingLogWriter, intercept signal.Interceptor) {
 	setSubLogger(root, Subsystem, log, nil)
 	addSubLogger(root, recommend.Subsystem, intercept, recommend.UseLogger)
 	addSubLogger(root, dataset.Subsystem, intercept, dataset.UseLogger)
-	addSubLogger(root, frdrpc.Subsystem, intercept, frdrpc.UseLogger)
+	addSubLogger(
+		root, frdrpcserver.Subsystem, intercept, frdrpcserver.UseLogger,
+	)
 	addSubLogger(root, revenue.Subsystem, intercept, revenue.UseLogger)
 	addSubLogger(root, fiat.Subsystem, intercept, fiat.UseLogger)
 	addSubLogger(root, accounting.Subsystem, intercept, accounting.UseLogger)

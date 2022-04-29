@@ -1,4 +1,4 @@
-package frdrpc
+package frdrpcserver
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"github.com/lightninglabs/lndclient"
 
 	"github.com/lightninglabs/faraday/fees"
+	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/faraday/resolutions"
 )
 
@@ -28,8 +29,10 @@ func parseCloseReportRequest(ctx context.Context, cfg *Config) *resolutions.Conf
 	}
 }
 
-func rpcCloseReportResponse(report *resolutions.CloseReport) *CloseReportResponse {
-	return &CloseReportResponse{
+func rpcCloseReportResponse(
+	report *resolutions.CloseReport) *frdrpc.CloseReportResponse {
+
+	return &frdrpc.CloseReportResponse{
 		ChannelPoint:     report.ChannelPoint.String(),
 		ChannelInitiator: report.ChannelInitiator,
 		CloseType:        report.CloseType.String(),

@@ -1,9 +1,10 @@
-package frdrpc
+package frdrpcserver
 
 import (
 	"context"
 	"time"
 
+	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/faraday/insights"
 	"github.com/lightninglabs/faraday/lndwrap"
 	"github.com/lightninglabs/faraday/revenue"
@@ -41,12 +42,12 @@ func channelInsights(ctx context.Context,
 }
 
 func rpcChannelInsightsResponse(
-	insights []*insights.ChannelInfo) *ChannelInsightsResponse {
+	insights []*insights.ChannelInfo) *frdrpc.ChannelInsightsResponse {
 
-	rpcInsights := make([]*ChannelInsight, 0, len(insights))
+	rpcInsights := make([]*frdrpc.ChannelInsight, 0, len(insights))
 
 	for _, i := range insights {
-		insight := &ChannelInsight{
+		insight := &frdrpc.ChannelInsight{
 			ChanPoint:          i.ChannelPoint,
 			MonitoredSeconds:   uint64(i.MonitoredFor.Seconds()),
 			UptimeSeconds:      uint64(i.Uptime.Seconds()),
@@ -60,5 +61,5 @@ func rpcChannelInsightsResponse(
 		rpcInsights = append(rpcInsights, insight)
 	}
 
-	return &ChannelInsightsResponse{ChannelInsights: rpcInsights}
+	return &frdrpc.ChannelInsightsResponse{ChannelInsights: rpcInsights}
 }

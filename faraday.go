@@ -14,7 +14,7 @@ import (
 	"github.com/lightningnetwork/lnd/signal"
 
 	"github.com/lightninglabs/faraday/chain"
-	"github.com/lightninglabs/faraday/frdrpc"
+	"github.com/lightninglabs/faraday/frdrpcserver"
 )
 
 // MinLndVersion is the minimum lnd version required. Note that apis that are
@@ -85,7 +85,7 @@ func Main() error {
 	defer client.Close()
 
 	// Instantiate the faraday gRPC server.
-	cfg := &frdrpc.Config{
+	cfg := &frdrpcserver.Config{
 		Lnd:              client.LndServices,
 		RPCListen:        config.RPCListen,
 		RESTListen:       config.RESTListen,
@@ -104,7 +104,7 @@ func Main() error {
 		}
 	}
 
-	server := frdrpc.NewRPCServer(cfg)
+	server := frdrpcserver.NewRPCServer(cfg)
 
 	// Start the server.
 	if err := server.Start(); err != nil {

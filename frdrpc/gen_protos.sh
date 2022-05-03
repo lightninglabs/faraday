@@ -27,6 +27,16 @@ function generate() {
     --openapiv2_opt grpc_api_configuration=faraday.yaml \
     --openapiv2_opt json_names_for_fields=false \
     faraday.proto
+  
+  # Generate the JSON/WASM client stubs.
+  falafel=$(which falafel)
+  pkg="frdrpc"
+  opts="package_name=$pkg,api_prefix=1,js_stubs=1,build_tags=// +build js"
+  protoc -I/usr/local/include -I. -I.. \
+    --plugin=protoc-gen-custom=$falafel\
+    --custom_out=. \
+    --custom_opt="$opts" \
+    faraday.proto
 }
 
 # format formats the *.proto files with the clang-format utility.

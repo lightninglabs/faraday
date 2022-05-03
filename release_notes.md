@@ -39,3 +39,4 @@ This file tracks release notes for the faraday client.
 * Updated compile time dependencies of `lnd`, `grpc-gateway`, `protobuf` and
   `grpc`.
 * Updated compile time dependency of `lnd` to `v0.14.0-beta`.
+* Added JSON/WASM client stubs so Faraday can be integrated into LNC.

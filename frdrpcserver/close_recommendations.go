@@ -1,10 +1,11 @@
-package frdrpc
+package frdrpcserver
 
 import (
 	"context"
 	"sort"
 	"time"
 
+	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/faraday/insights"
 	"github.com/lightninglabs/faraday/recommend"
 )
@@ -12,7 +13,7 @@ import (
 // parseRecommendationRequest parses a close recommendation request and
 // returns the config required to get recommendations.
 func parseRecommendationRequest(ctx context.Context, cfg *Config,
-	req *CloseRecommendationRequest) *recommend.CloseRecommendationConfig {
+	req *frdrpc.CloseRecommendationRequest) *recommend.CloseRecommendationConfig {
 
 	// Create a close recommendations config with the minimum monitored
 	// value provided in the request and the default outlier multiplier.
@@ -27,19 +28,19 @@ func parseRecommendationRequest(ctx context.Context, cfg *Config,
 	// Get the metric that the recommendations are being calculated based
 	// on.
 	switch req.Metric {
-	case CloseRecommendationRequest_UPTIME:
+	case frdrpc.CloseRecommendationRequest_UPTIME:
 		recCfg.Metric = recommend.UptimeMetric
 
-	case CloseRecommendationRequest_REVENUE:
+	case frdrpc.CloseRecommendationRequest_REVENUE:
 		recCfg.Metric = recommend.RevenueMetric
 
-	case CloseRecommendationRequest_INCOMING_VOLUME:
+	case frdrpc.CloseRecommendationRequest_INCOMING_VOLUME:
 		recCfg.Metric = recommend.IncomingVolume
 
-	case CloseRecommendationRequest_OUTGOING_VOLUME:
+	case frdrpc.CloseRecommendationRequest_OUTGOING_VOLUME:
 		recCfg.Metric = recommend.OutgoingVolume
 
-	case CloseRecommendationRequest_TOTAL_VOLUME:
+	case frdrpc.CloseRecommendationRequest_TOTAL_VOLUME:
 		recCfg.Metric = recommend.Volume
 	}
 
@@ -49,7 +50,7 @@ func parseRecommendationRequest(ctx context.Context, cfg *Config,
 // parseOutlierRequest parses a rpc outlier recommendation request and returns
 // the close recommendation config and multiplier required.
 func parseOutlierRequest(ctx context.Context, cfg *Config,
-	req *OutlierRecommendationsRequest) (
+	req *frdrpc.OutlierRecommendationsRequest) (
 	*recommend.CloseRecommendationConfig, float64) {
 
 	multiplier := recommend.DefaultOutlierMultiplier
@@ -65,7 +66,7 @@ func parseOutlierRequest(ctx context.Context, cfg *Config,
 // threshold boolean is inverted to allow for
 // a default that returns values below a threshold.
 func parseThresholdRequest(ctx context.Context, cfg *Config,
-	req *ThresholdRecommendationsRequest) (
+	req *frdrpc.ThresholdRecommendationsRequest) (
 	*recommend.CloseRecommendationConfig, float64) {
 
 	return parseRecommendationRequest(ctx, cfg, req.RecRequest),
@@ -74,15 +75,15 @@ func parseThresholdRequest(ctx context.Context, cfg *Config,
 
 // rpcResponse parses the response obtained getting a close recommendation
 // and converts it to a close recommendation response.
-func rpcResponse(report *recommend.Report) *CloseRecommendationsResponse {
-	resp := &CloseRecommendationsResponse{
+func rpcResponse(report *recommend.Report) *frdrpc.CloseRecommendationsResponse {
+	resp := &frdrpc.CloseRecommendationsResponse{
 		TotalChannels:      int32(report.TotalChannels),
 		ConsideredChannels: int32(report.ConsideredChannels),
 	}
 
 	for chanPoint, rec := range report.Recommendations {
 		resp.Recommendations = append(
-			resp.Recommendations, &Recommendation{
+			resp.Recommendations, &frdrpc.Recommendation{
 				ChanPoint:      chanPoint,
 				Value:          float32(rec.Value),
 				RecommendClose: rec.RecommendClose,

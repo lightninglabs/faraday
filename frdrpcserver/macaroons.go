@@ -14,6 +14,8 @@ import (
 	"go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 	"gopkg.in/macaroon-bakery.v2/bakery"
+
+	"github.com/lightninglabs/faraday/frdrpcserver/perms"
 )
 
 const (
@@ -27,38 +29,6 @@ const (
 )
 
 var (
-	// RequiredPermissions is a map of all faraday RPC methods and their
-	// required macaroon permissions to access faraday.
-	RequiredPermissions = map[string][]bakery.Op{
-		"/frdrpc.FaradayServer/OutlierRecommendations": {{
-			Entity: "recommendation",
-			Action: "read",
-		}},
-		"/frdrpc.FaradayServer/ThresholdRecommendations": {{
-			Entity: "recommendation",
-			Action: "read",
-		}},
-		"/frdrpc.FaradayServer/RevenueReport": {{
-			Entity: "report",
-			Action: "read",
-		}},
-		"/frdrpc.FaradayServer/ChannelInsights": {{
-			Entity: "insights",
-			Action: "read",
-		}},
-		"/frdrpc.FaradayServer/ExchangeRate": {{
-			Entity: "rates",
-			Action: "read",
-		}},
-		"/frdrpc.FaradayServer/NodeAudit": {{
-			Entity: "audit",
-			Action: "read",
-		}},
-		"/frdrpc.FaradayServer/CloseReport": {{
-			Entity: "report",
-			Action: "read",
-		}},
-	}
 
 	// allPermissions is the list of all existing permissions that exist
 	// for faraday's RPC. The default macaroon that is created on startup
@@ -199,7 +169,7 @@ func (s *RPCServer) macaroonInterceptor() ([]grpc.ServerOption, error) {
 	interceptor.SetWalletUnlocked()
 	interceptor.AddMacaroonService(s.macaroonService)
 
-	for method, permissions := range RequiredPermissions {
+	for method, permissions := range perms.RequiredPermissions {
 		err := interceptor.AddPermission(method, permissions)
 		if err != nil {
 			return nil, err

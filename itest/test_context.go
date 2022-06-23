@@ -39,7 +39,7 @@ var (
 	faradayArgs = []string{
 		"--rpclisten=localhost:8465",
 		"--network=regtest",
-		"--lnd.macaroonpath=lnd-alice/data/chain/bitcoin/regtest/readonly.macaroon",
+		"--lnd.macaroonpath=lnd-alice/data/chain/bitcoin/regtest/admin.macaroon",
 		"--lnd.tlscertpath=lnd-alice/tls.cert",
 		"--debuglevel=debug",
 		"--connect_bitcoin",

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,7 +16,8 @@ func TestSetup(t *testing.T) {
 
 	// Supply client and server with coins.
 	aliceAddr, err := c.aliceClient.WalletKit.NextAddr(
-		context.Background(),
+		context.Background(), "",
+		walletrpc.AddressType_WITNESS_PUBKEY_HASH, false,
 	)
 	require.NoError(c.t, err)
 
@@ -23,7 +25,8 @@ func TestSetup(t *testing.T) {
 	require.NoError(c.t, err)
 
 	bobAddr, err := c.bobClient.WalletKit.NextAddr(
-		context.Background(),
+		context.Background(), "",
+		walletrpc.AddressType_WITNESS_PUBKEY_HASH, false,
 	)
 	require.NoError(c.t, err)
 

@@ -197,7 +197,8 @@ func (s *RPCServer) Start() error {
 			LndClient:     &s.cfg.Lnd,
 			EphemeralKey:  lndclient.SharedKeyNUMS,
 			KeyLocator:    lndclient.SharedKeyLocator,
-		})
+		},
+	)
 	if err != nil {
 		return fmt.Errorf("error creating macroon service: %v", err)
 	}
@@ -334,10 +335,35 @@ func (s *RPCServer) StartAsSubserver(lndClient lndclient.LndServices,
 	}
 
 	if withMacaroonService {
+		// Set up the macaroon service.
+		var err error
+		s.macaroonService, err = lndclient.NewMacaroonService(
+			&lndclient.MacaroonServiceConfig{
+				DBPath:           s.cfg.FaradayDir,
+				DBFileName:       "macaroons.db",
+				DBTimeout:        macDatabaseOpenTimeout,
+				MacaroonLocation: faradayMacaroonLocation,
+				MacaroonPath:     s.cfg.MacaroonPath,
+				Checkers: []macaroons.Checker{
+					macaroons.IPLockChecker,
+				},
+				RequiredPerms: perms.RequiredPermissions,
+				DBPassword:    macDbDefaultPw,
+				LndClient:     &lndClient,
+				EphemeralKey:  lndclient.SharedKeyNUMS,
+				KeyLocator:    lndclient.SharedKeyLocator,
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("error creating macroon service: %v",
+				err)
+		}
+
 		// Start the macaroon service and let it create its default
 		// macaroon in case it doesn't exist yet.
 		if err := s.macaroonService.Start(); err != nil {
-			return fmt.Errorf("error starting macaroon service: %v", err)
+			return fmt.Errorf("error starting macaroon service: %v",
+				err)
 		}
 	}
 

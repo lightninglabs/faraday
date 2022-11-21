@@ -23,8 +23,8 @@ import (
 // on newer apis.
 var MinLndVersion = &verrpc.Version{
 	AppMajor: 0,
-	AppMinor: 11,
-	AppPatch: 0,
+	AppMinor: 15,
+	AppPatch: 4,
 }
 
 // Main is the real entry point for faraday. It is required to ensure that

@@ -2,15 +2,14 @@ package faraday
 
 import (
 	"github.com/btcsuite/btclog"
-	"github.com/lightningnetwork/lnd/build"
-	"github.com/lightningnetwork/lnd/signal"
-
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/dataset"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/frdrpcserver"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
+	"github.com/lightningnetwork/lnd/build"
+	"github.com/lightningnetwork/lnd/signal"
 )
 
 // Subsystem defines the logging code for this subsystem.
@@ -73,6 +72,7 @@ func genSubLogger(root *build.RotatingLogWriter,
 // logger of a sub system.
 func addSubLogger(root *build.RotatingLogWriter, subsystem string,
 	interceptor signal.Interceptor, useLogger func(btclog.Logger)) {
+
 	logger := build.NewSubLogger(subsystem, genSubLogger(root, interceptor))
 	setSubLogger(root, subsystem, logger, useLogger)
 }

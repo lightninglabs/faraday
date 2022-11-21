@@ -3,9 +3,8 @@ package main
 import (
 	"os"
 
-	"github.com/urfave/cli"
-
 	"github.com/lightninglabs/faraday"
+	"github.com/urfave/cli"
 )
 
 var (

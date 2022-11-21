@@ -130,7 +130,6 @@ func TestGetRevenueReport(t *testing.T) {
 				t.Fatalf("expected: \n%+v, got: \n%+v",
 					test.expectedReport, report)
 			}
-
 		})
 	}
 }

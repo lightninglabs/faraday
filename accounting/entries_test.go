@@ -8,6 +8,7 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntypes"
@@ -15,8 +16,6 @@ import (
 	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-
-	"github.com/lightninglabs/faraday/fiat"
 )
 
 var (
@@ -222,7 +221,6 @@ func TestChannelOpenEntry(t *testing.T) {
 			Credit:    credit,
 			BTCPrice:  mockBTCPrice,
 		}
-
 	}
 
 	feeAmt := satsToMsat(channelFeesSats)

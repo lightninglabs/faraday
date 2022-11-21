@@ -5,10 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnwire"
-
-	"github.com/lightninglabs/faraday/revenue"
 )
 
 // TestGetChannels tests gathering of channel insights from a set of lnrpc
@@ -144,7 +143,6 @@ func TestGetChannels(t *testing.T) {
 						insight, insights[i])
 				}
 			}
-
 		})
 	}
 }

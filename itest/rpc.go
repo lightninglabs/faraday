@@ -5,12 +5,11 @@ import (
 	"io/ioutil"
 
 	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
-
-	"github.com/lightninglabs/faraday/frdrpc"
 )
 
 // getBitcoindClient returns an rpc client connection to the running bitcoind

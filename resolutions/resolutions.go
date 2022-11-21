@@ -8,10 +8,9 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/lightninglabs/faraday/utils"
 	"github.com/lightninglabs/lndclient"
 	"github.com/shopspring/decimal"
-
-	"github.com/lightninglabs/faraday/utils"
 )
 
 var (

@@ -6,12 +6,11 @@ import (
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/lightninglabs/lndclient"
-	"github.com/lightningnetwork/lnd/routing/route"
-
 	"github.com/lightninglabs/faraday/fees"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/lndwrap"
+	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/routing/route"
 )
 
 // decodePaymentRequest is a signature for decoding payment requests.

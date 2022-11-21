@@ -132,7 +132,6 @@ func TestFilterOnChain(t *testing.T) {
 	expctedAmount := payment.Amount + payment.Fee
 
 	require.Equal(t, expctedAmount, filtered[0].Amount)
-
 }
 
 // TestFilterInvoices tests filtering out of invoices that are not settled.

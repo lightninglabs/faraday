@@ -3,9 +3,8 @@ package main
 import (
 	"context"
 
-	"github.com/urfave/cli"
-
 	"github.com/lightninglabs/faraday/frdrpc"
+	"github.com/urfave/cli"
 )
 
 var channelInsightsCommand = cli.Command{

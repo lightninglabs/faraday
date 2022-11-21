@@ -21,13 +21,6 @@ import (
 	"sync/atomic"
 
 	proxy "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/lightninglabs/lndclient"
-	"github.com/lightningnetwork/lnd/macaroons"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/protobuf/encoding/protojson"
-	"gopkg.in/macaroon-bakery.v2/bakery"
-
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/chain"
 	"github.com/lightninglabs/faraday/fiat"
@@ -36,6 +29,12 @@ import (
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/resolutions"
 	"github.com/lightninglabs/faraday/revenue"
+	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/macaroons"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/encoding/protojson"
+	"gopkg.in/macaroon-bakery.v2/bakery"
 )
 
 var (
@@ -234,7 +233,6 @@ func (s *RPCServer) Start() error {
 	if err != nil {
 		return fmt.Errorf("RPC RPCServer unable to listen on %v",
 			s.cfg.RPCListen)
-
 	}
 	shutdownFuncs["gRPC listener"] = s.rpcListener.Close
 	log.Infof("gRPC server listening on %s", s.rpcListener.Addr())
@@ -249,7 +247,6 @@ func (s *RPCServer) Start() error {
 		if err != nil {
 			return fmt.Errorf("REST server unable to listen on "+
 				"%v: %v", s.cfg.RESTListen, err)
-
 		}
 		restListener = tls.NewListener(
 			restListener, s.cfg.TLSServerConfig,

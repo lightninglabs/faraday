@@ -8,13 +8,12 @@ import (
 	"strings"
 
 	"github.com/jessevdk/go-flags"
+	"github.com/lightninglabs/faraday/chain"
+	"github.com/lightninglabs/faraday/frdrpcserver"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/build"
 	"github.com/lightningnetwork/lnd/lnrpc/verrpc"
 	"github.com/lightningnetwork/lnd/signal"
-
-	"github.com/lightninglabs/faraday/chain"
-	"github.com/lightninglabs/faraday/frdrpcserver"
 )
 
 // MinLndVersion is the minimum lnd version required. Note that apis that are

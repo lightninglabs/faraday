@@ -1,32 +1,22 @@
 PKG := github.com/lightninglabs/faraday
-ESCPKG := github.com\/lightninglabs\/faraday
 
-LINT_PKG := github.com/golangci/golangci-lint/cmd/golangci-lint
-GOVERALLS_PKG := github.com/mattn/goveralls
 GOACC_PKG := github.com/ory/go-acc
-
-IMPORTS_PKG := github.com/pavius/impi/cmd/impi
-IMPORTS_COMMIT := 3cdbde3d3cbb0ead2b9491272bccb5c652174656
+GOIMPORTS_PKG := github.com/rinchsan/gosimports/cmd/gosimports
+TOOLS_DIR := tools
 
 GO_BIN := ${GOPATH}/bin
-GOVERALLS_BIN := $(GO_BIN)/goveralls
-LINT_BIN := $(GO_BIN)/golangci-lint
 GOACC_BIN := $(GO_BIN)/go-acc
-IMPORTS_BIN := $(GO_BIN)/impi
+GOIMPORTS_BIN := $(GO_BIN)/gosimports
 
 COMMIT := $(shell git describe --abbrev=40 --dirty)
 LDFLAGS := -ldflags "-X $(PKG).Commit=$(COMMIT)"
 
-LINT_COMMIT := v1.18.0
-GOACC_COMMIT := ddc355013f90fea78d83d3a6c71f1d37ac07ecd5
-
-DEPGET := cd /tmp && go get -v
 GOBUILD := go build -v
 GOINSTALL := go install -v
 GOTEST := go test -v
 GOMOD := go mod
 
-GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
+GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -name "*pb.go" -not -name "*pb.gw.go" -not -name "*.pb.json.go")
 GOLIST := go list -deps $(PKG)/... | grep '$(PKG)'| grep -v '/vendor/' | grep -v '/itest'
 GOLISTCOVER := $(shell go list -deps -f '{{.ImportPath}}' ./... | grep '$(PKG)' | sed -e 's/^$(ESCPKG)/./')
 
@@ -38,6 +28,7 @@ XARGS := xargs -L 1
 include make/testing_flags.mk
 
 LINT = $(LINT_BIN) run -v
+DOCKER_TOOLS = docker run -v $$(pwd):/build faraday-tools
 
 default: scratch
 
@@ -47,21 +38,13 @@ all: scratch check install
 # DEPENDENCIES
 # ============
 
-$(GOVERALLS_BIN):
-	@$(call print, "Fetching goveralls.")
-	go get -u $(GOVERALLS_PKG)
-
-$(LINT_BIN):
-	@$(call print, "Fetching linter")
-	$(DEPGET) $(LINT_PKG)@$(LINT_COMMIT)
-
 $(GOACC_BIN):
-	@$(call print, "Fetching go-acc")
-	$(DEPGET) $(GOACC_PKG)@$(GOACC_COMMIT)
+	@$(call print, "Installing go-acc.")
+	cd $(TOOLS_DIR); go install -trimpath -tags=tools $(GOACC_PKG)
 
-$(IMPORTS_BIN):
-	@$(call print, "Fetching imports check")
-	$(DEPGET) $(IMPORTS_PKG)@$(IMPORTS_COMMIT)
+$(GOIMPORTS_BIN):
+	@$(call print, "Installing goimports.")
+	cd $(TOOLS_DIR); go install -trimpath $(GOIMPORTS_PKG)
 
 # ============
 # INSTALLATION
@@ -76,6 +59,10 @@ install:
 	@$(call print, "Installing faraday.")
 	$(GOINSTALL) $(LDFLAGS) $(PKG)/cmd/faraday
 	$(GOINSTALL) $(LDFLAGS) $(PKG)/cmd/frcli
+
+docker-tools:
+	@$(call print, "Building tools docker image.")
+	docker build -q -t faraday-tools $(TOOLS_DIR)
 
 scratch: build
 
@@ -101,16 +88,6 @@ unit-race:
 	@$(call print, "Running unit race tests.")
 	env CGO_ENABLED=1 GORACE="history_size=7 halt_on_errors=1" $(UNIT_RACE)
 
-goveralls: $(GOVERALLS_BIN)
-	@$(call print, "Sending coverage report.")
-	$(GOVERALLS_BIN) -coverprofile=coverage.txt -service=travis-ci
-
-travis-race: lint unit-race
-
-travis-cover: lint unit-cover goveralls
-
-travis-itest: lint
-
 
 # =============
 # FLAKE HUNTING
@@ -122,18 +99,15 @@ flake-unit:
 # =========
 # UTILITIES
 # =========
-fmt:
+fmt: $(GOIMPORTS_BIN)
+	@$(call print, "Fixing imports.")
+	gosimports -w $(GOFILES_NOVENDOR)
 	@$(call print, "Formatting source.")
 	gofmt -l -w -s $(GOFILES_NOVENDOR)
 
-imports: $(IMPORTS_BIN)
-	@$(call print, "Checking imports.")
-	$(IMPORTS_BIN) --local github.com/lightninglabs/faraday/ --scheme stdThirdPartyLocal --ignore-generated=true *
-
-
-lint: $(LINT_BIN)
+lint: docker-tools
 	@$(call print, "Linting source.")
-	$(LINT)
+	$(DOCKER_TOOLS) golangci-lint run -v $(LINT_WORKERS)
 
 mod:
 	@$(call print, "Tidying modules.")

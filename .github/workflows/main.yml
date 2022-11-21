@@ -49,7 +49,7 @@ jobs:
         run: make rpc-check
 
       - name: run imports check
-        run: make imports
+        run: make fmt
       
       - name: run JS stubs check
         run: make rpc-js-compile

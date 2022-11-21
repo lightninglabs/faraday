@@ -27,7 +27,7 @@ import (
 
 var (
 	waitDuration = 20 * time.Second
-	waitTick     = 500 * time.Millisecond
+	waitTick     = 200 * time.Millisecond
 
 	processKillTimeout = 5 * time.Second
 

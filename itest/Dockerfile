@@ -4,7 +4,7 @@
 # binaries required to run the tests with.
 FROM golang:1.18.8-alpine as builder
 
-ARG LND_VERSION=v0.11.1-beta
+ARG LND_VERSION=v0.15.4-beta
 
 RUN apk add --no-cache git make
 
@@ -18,7 +18,7 @@ RUN git clone https://github.com/lightningnetwork/lnd.git && \
 # Second build stage, this time we use the bitcoind base image from ruimarinho.
 # We use the same image to run bitcoind in our testnet cluster so this should be
 # fine for integration tests.
-FROM ruimarinho/bitcoin-core:0.19.1-alpine as final
+FROM lightninglabs/bitcoin-core:23.0-alpine as final
 
 WORKDIR /root
 

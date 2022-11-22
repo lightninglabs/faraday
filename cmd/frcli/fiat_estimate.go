@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lightninglabs/faraday/fiat"
+	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/shopspring/decimal"
 	"github.com/urfave/cli"
-
-	"github.com/lightninglabs/faraday/fiat"
-	"github.com/lightninglabs/faraday/frdrpc"
 )
 
 var fiatBackendFlag = cli.StringFlag{

@@ -5,11 +5,10 @@ import (
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/lightninglabs/faraday/utils"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/lightningnetwork/lnd/routing/route"
-
-	"github.com/lightninglabs/faraday/utils"
 )
 
 // OnChainReport produces a report of our on chain activity for a period using

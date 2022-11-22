@@ -7,13 +7,12 @@ import (
 	"sort"
 	"time"
 
-	"github.com/lightningnetwork/lnd/routing/route"
-	"github.com/shopspring/decimal"
-
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/fees"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/frdrpc"
+	"github.com/lightningnetwork/lnd/routing/route"
+	"github.com/shopspring/decimal"
 )
 
 var (

@@ -7,10 +7,9 @@ import (
 	"sort"
 	"time"
 
+	"github.com/lightninglabs/faraday/utils"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/shopspring/decimal"
-
-	"github.com/lightninglabs/faraday/utils"
 )
 
 var (

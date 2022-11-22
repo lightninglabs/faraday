@@ -44,9 +44,13 @@ func filterOnChain(startTime, endTime time.Time,
 
 	for _, tx := range txns {
 		// Unconfirmed transactions are listed with 0 confirmations,
-		// they have no timestamp so we skip them.
+		// they have no timestamp, so we set a current one.
+		//
+		// TODO(guggero): Find out why the channel force close sweep
+		// doesn't show as confirmed in itests since updating to lnd
+		// v0.15.4-beta.
 		if tx.Confirmations == 0 {
-			continue
+			tx.Timestamp = time.Now()
 		}
 
 		if !inRange(tx.Timestamp, startTime, endTime) {

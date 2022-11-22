@@ -250,6 +250,5 @@ func TestValidatePriceSourceConfig(t *testing.T) {
 					test.expectedErr, err)
 			}
 		})
-
 	}
 }

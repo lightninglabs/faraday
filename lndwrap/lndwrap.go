@@ -8,9 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lightninglabs/lndclient"
-
 	"github.com/lightninglabs/faraday/paginater"
+	"github.com/lightninglabs/lndclient"
 )
 
 // ListInvoices makes paginated calls to lnd to get our full set of

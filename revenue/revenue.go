@@ -179,6 +179,7 @@ func (r Report) setRevenue(targetChan, pairChan string,
 // Revenue Report.
 func (r Report) addIncoming(incomingChannel,
 	outgoingChannel string, amount, fees lnwire.MilliSatoshi) {
+
 	revenue := r.getRevenue(incomingChannel, outgoingChannel)
 
 	// Add the fees and revenue that have been earned to the existing revenue
@@ -195,6 +196,7 @@ func (r Report) addIncoming(incomingChannel,
 // Revenue Report.
 func (r Report) addOutgoing(outgoingChannel,
 	incomingChannel string, amount, fees lnwire.MilliSatoshi) {
+
 	revenue := r.getRevenue(outgoingChannel, incomingChannel)
 
 	// Add the fees and revenue that have been earned to the existing revenue

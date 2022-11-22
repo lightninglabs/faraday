@@ -4,11 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/lightninglabs/lndclient"
-
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/faraday/lndwrap"
 	"github.com/lightninglabs/faraday/revenue"
+	"github.com/lightninglabs/lndclient"
 )
 
 // parseRevenueRequest parses a request for a revenue report and wraps

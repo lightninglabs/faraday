@@ -222,14 +222,7 @@ func TestValidatePriceSourceConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "coingecko hour granularity",
-			cfg: &PriceSourceConfig{
-				Backend:     CoinGeckoPriceBackend,
-				Granularity: &GranularityHour,
-			},
-		},
-		{
-			name: "coingecko wrong granularity",
+			name: "coingecko with granularity disallowed",
 			cfg: &PriceSourceConfig{
 				Backend:     CoinGeckoPriceBackend,
 				Granularity: &GranularityDay,

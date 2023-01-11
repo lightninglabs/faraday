@@ -93,12 +93,14 @@ func (cfg *PriceSourceConfig) validatePriceSourceConfig() error {
 		}
 
 	case CoinGeckoPriceBackend:
-		if cfg.Granularity != nil &&
-			*cfg.Granularity != GranularityHour {
-
-			return fmt.Errorf("%w: coingecko only provides hourly "+
-				"price granularity", errGranularityUnsupported)
+		if cfg.Granularity != nil {
+			return fmt.Errorf("%w: coingecko automatically "+
+				"provides hourly price granularity for the "+
+				"last 90 days and daily price granularity for "+
+				"dates older than that",
+				errGranularityUnsupported)
 		}
+
 	case CustomPriceBackend:
 		if len(cfg.PricePoints) == 0 {
 			return errPricePointsRequired
@@ -207,13 +209,8 @@ func NewPriceSource(cfg *PriceSourceConfig) (*PriceSource, error) {
 		}, nil
 
 	case CoinGeckoPriceBackend:
-		impl, err := newCoinGeckoAPI(cfg.Granularity)
-		if err != nil {
-			return nil, err
-		}
-
 		return &PriceSource{
-			impl: impl,
+			impl: &coinGeckoAPI{},
 		}, nil
 	}
 

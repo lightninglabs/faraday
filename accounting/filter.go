@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/lndclient"
-	"github.com/lightningnetwork/lnd/channeldb"
+	invoicespkg "github.com/lightningnetwork/lnd/invoices"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/routing/route"
 )
@@ -95,7 +95,7 @@ func filterInvoices(startTime, endTime time.Time,
 	for _, invoice := range invoices {
 		// If the invoice was not settled, we do not need to create an
 		// entry for it.
-		if invoice.State != channeldb.ContractSettled {
+		if invoice.State != invoicespkg.ContractSettled {
 			continue
 		}
 

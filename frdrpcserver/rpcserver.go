@@ -30,6 +30,8 @@ import (
 	"github.com/lightninglabs/faraday/resolutions"
 	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/kvdb"
+	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -107,6 +109,7 @@ type RPCServer struct {
 	restServer *http.Server
 
 	macaroonService *lndclient.MacaroonService
+	macaroonDB      kvdb.Backend
 
 	restCancel func()
 	wg         sync.WaitGroup
@@ -180,12 +183,18 @@ func (s *RPCServer) Start() error {
 	}()
 
 	// Set up the macaroon service.
-	var err error
+	rks, db, err := lndclient.NewBoltMacaroonStore(
+		s.cfg.FaradayDir, lncfg.MacaroonDBName, macDatabaseOpenTimeout,
+	)
+	if err != nil {
+		return err
+	}
+	shutdownFuncs["macaroondb"] = db.Close
+
+	s.macaroonDB = db
 	s.macaroonService, err = lndclient.NewMacaroonService(
 		&lndclient.MacaroonServiceConfig{
-			DBPath:           s.cfg.FaradayDir,
-			DBFileName:       "macaroons.db",
-			DBTimeout:        macDatabaseOpenTimeout,
+			RootKeyStore:     rks,
 			MacaroonLocation: faradayMacaroonLocation,
 			MacaroonPath:     s.cfg.MacaroonPath,
 			Checkers: []macaroons.Checker{
@@ -333,12 +342,18 @@ func (s *RPCServer) StartAsSubserver(lndClient lndclient.LndServices,
 
 	if withMacaroonService {
 		// Set up the macaroon service.
-		var err error
+		rks, db, err := lndclient.NewBoltMacaroonStore(
+			s.cfg.FaradayDir, lncfg.MacaroonDBName,
+			macDatabaseOpenTimeout,
+		)
+		if err != nil {
+			return err
+		}
+
+		s.macaroonDB = db
 		s.macaroonService, err = lndclient.NewMacaroonService(
 			&lndclient.MacaroonServiceConfig{
-				DBPath:           s.cfg.FaradayDir,
-				DBFileName:       "macaroons.db",
-				DBTimeout:        macDatabaseOpenTimeout,
+				RootKeyStore:     rks,
 				MacaroonLocation: faradayMacaroonLocation,
 				MacaroonPath:     s.cfg.MacaroonPath,
 				Checkers: []macaroons.Checker{
@@ -404,6 +419,11 @@ func (s *RPCServer) Stop() error {
 	if s.macaroonService != nil {
 		if err := s.macaroonService.Stop(); err != nil {
 			log.Errorf("Error stopping macaroon service: %v", err)
+		}
+	}
+	if s.macaroonDB != nil {
+		if err := s.macaroonDB.Close(); err != nil {
+			log.Errorf("Error closing macaroon DB: %v", err)
 		}
 	}
 

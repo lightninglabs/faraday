@@ -30,6 +30,7 @@ import (
 	"github.com/lightninglabs/faraday/resolutions"
 	"github.com/lightninglabs/faraday/revenue"
 	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/kvdb"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -108,6 +109,8 @@ type RPCServer struct {
 
 	macaroonService *lndclient.MacaroonService
 
+	macaroonDB kvdb.Backend
+
 	restCancel func()
 	wg         sync.WaitGroup
 }
@@ -179,13 +182,20 @@ func (s *RPCServer) Start() error {
 		}
 	}()
 
+	rks, db, err := lndclient.NewBoltMacaroonStore(
+		s.cfg.FaradayDir, "macarooons.db", macDatabaseOpenTimeout,
+	)
+	if err != nil {
+		return err
+	}
+
+	shutdownFuncs["macaroon store"] = db.Close
+	s.macaroonDB = db
+
 	// Set up the macaroon service.
-	var err error
 	s.macaroonService, err = lndclient.NewMacaroonService(
 		&lndclient.MacaroonServiceConfig{
-			DBPath:           s.cfg.FaradayDir,
-			DBFileName:       "macaroons.db",
-			DBTimeout:        macDatabaseOpenTimeout,
+			RootKeyStore:     rks,
 			MacaroonLocation: faradayMacaroonLocation,
 			MacaroonPath:     s.cfg.MacaroonPath,
 			Checkers: []macaroons.Checker{
@@ -207,7 +217,7 @@ func (s *RPCServer) Start() error {
 	if err := s.macaroonService.Start(); err != nil {
 		return fmt.Errorf("error starting macaroon service: %v", err)
 	}
-	shutdownFuncs["macaroon"] = s.macaroonService.Stop
+	shutdownFuncs["macaroon service"] = s.macaroonService.Stop
 
 	// First we add the security interceptor to our gRPC server options that
 	// checks the macaroons for validity.
@@ -313,10 +323,6 @@ func (s *RPCServer) Start() error {
 		}
 	}()
 
-	// If we got here successfully, there's no need to shutdown anything
-	// anymore.
-	shutdownFuncs = nil
-
 	return nil
 }
 
@@ -332,13 +338,20 @@ func (s *RPCServer) StartAsSubserver(lndClient lndclient.LndServices,
 	}
 
 	if withMacaroonService {
+		rks, db, err := lndclient.NewBoltMacaroonStore(
+			s.cfg.FaradayDir, "macarooons.db",
+			macDatabaseOpenTimeout,
+		)
+		if err != nil {
+			return err
+		}
+
+		s.macaroonDB = db
+
 		// Set up the macaroon service.
-		var err error
 		s.macaroonService, err = lndclient.NewMacaroonService(
 			&lndclient.MacaroonServiceConfig{
-				DBPath:           s.cfg.FaradayDir,
-				DBFileName:       "macaroons.db",
-				DBTimeout:        macDatabaseOpenTimeout,
+				RootKeyStore:     rks,
 				MacaroonLocation: faradayMacaroonLocation,
 				MacaroonPath:     s.cfg.MacaroonPath,
 				Checkers: []macaroons.Checker{
@@ -398,6 +411,14 @@ func (s *RPCServer) Stop() error {
 		err := s.restServer.Close()
 		if err != nil {
 			log.Errorf("unable to close REST listener: %v", err)
+		}
+	}
+
+	// Gracefully close the bbolt macaroon database. Note that the
+	// macaroonService.Stop() will not do this for us.
+	if s.macaroonDB != nil {
+		if err := s.macaroonDB.Close(); err != nil {
+			log.Errorf("Failed to close macaroon DB: %v", err)
 		}
 	}
 

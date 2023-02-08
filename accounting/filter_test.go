@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/lndclient"
-	"github.com/lightningnetwork/lnd/channeldb"
+	invpkg "github.com/lightningnetwork/lnd/invoices"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/stretchr/testify/require"
@@ -143,18 +143,18 @@ func TestFilterInvoices(t *testing.T) {
 	// time range that is settled.
 	settledInvoice := lndclient.Invoice{
 		SettleDate: inRange,
-		State:      channeldb.ContractSettled,
+		State:      invpkg.ContractSettled,
 	}
 
 	invoices := []lndclient.Invoice{
 		settledInvoice,
 		{
 			SettleDate: inRange,
-			State:      channeldb.ContractCanceled,
+			State:      invpkg.ContractCanceled,
 		},
 		{
 			SettleDate: time.Unix(startTime-1, 0),
-			State:      channeldb.ContractSettled,
+			State:      invpkg.ContractSettled,
 		},
 	}
 

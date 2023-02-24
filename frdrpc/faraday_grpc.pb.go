@@ -18,49 +18,49 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FaradayServerClient interface {
-	//* frcli: `outliers`
-	//Get close recommendations for currently open channels based on whether it is
-	//an outlier.
+	// * frcli: `outliers`
+	// Get close recommendations for currently open channels based on whether it is
+	// an outlier.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/outliers/REVENUE?rec_request.minimum_monitored=123
+	// Example request:
+	// http://localhost:8466/v1/faraday/outliers/REVENUE?rec_request.minimum_monitored=123
 	OutlierRecommendations(ctx context.Context, in *OutlierRecommendationsRequest, opts ...grpc.CallOption) (*CloseRecommendationsResponse, error)
-	//* frcli: `threshold`
-	//Get close recommendations for currently open channels based whether they are
-	//below a set threshold.
+	// * frcli: `threshold`
+	// Get close recommendations for currently open channels based whether they are
+	// below a set threshold.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/threshold/UPTIME?rec_request.minimum_monitored=123
+	// Example request:
+	// http://localhost:8466/v1/faraday/threshold/UPTIME?rec_request.minimum_monitored=123
 	ThresholdRecommendations(ctx context.Context, in *ThresholdRecommendationsRequest, opts ...grpc.CallOption) (*CloseRecommendationsResponse, error)
-	//* frcli: `revenue`
-	//Get a pairwise revenue report for a channel.
+	// * frcli: `revenue`
+	// Get a pairwise revenue report for a channel.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/revenue
+	// Example request:
+	// http://localhost:8466/v1/faraday/revenue
 	RevenueReport(ctx context.Context, in *RevenueReportRequest, opts ...grpc.CallOption) (*RevenueReportResponse, error)
-	//* frcli: `insights`
-	//List currently open channel with routing and uptime information.
+	// * frcli: `insights`
+	// List currently open channel with routing and uptime information.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/insights
+	// Example request:
+	// http://localhost:8466/v1/faraday/insights
 	ChannelInsights(ctx context.Context, in *ChannelInsightsRequest, opts ...grpc.CallOption) (*ChannelInsightsResponse, error)
-	//* frcli:
-	//Get fiat prices for btc.
+	// * frcli:
+	// Get fiat prices for btc.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/exchangerate
+	// Example request:
+	// http://localhost:8466/v1/faraday/exchangerate
 	ExchangeRate(ctx context.Context, in *ExchangeRateRequest, opts ...grpc.CallOption) (*ExchangeRateResponse, error)
-	//*
-	//Get a report of your node's activity over a period.
+	// *
+	// Get a report of your node's activity over a period.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/nodeaudit
+	// Example request:
+	// http://localhost:8466/v1/faraday/nodeaudit
 	NodeAudit(ctx context.Context, in *NodeAuditRequest, opts ...grpc.CallOption) (*NodeAuditResponse, error)
-	//*
-	//Get a channel close report for a specific channel.
+	// *
+	// Get a channel close report for a specific channel.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/closereport
+	// Example request:
+	// http://localhost:8466/v1/faraday/closereport
 	CloseReport(ctx context.Context, in *CloseReportRequest, opts ...grpc.CallOption) (*CloseReportResponse, error)
 }
 
@@ -139,49 +139,49 @@ func (c *faradayServerClient) CloseReport(ctx context.Context, in *CloseReportRe
 // All implementations must embed UnimplementedFaradayServerServer
 // for forward compatibility
 type FaradayServerServer interface {
-	//* frcli: `outliers`
-	//Get close recommendations for currently open channels based on whether it is
-	//an outlier.
+	// * frcli: `outliers`
+	// Get close recommendations for currently open channels based on whether it is
+	// an outlier.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/outliers/REVENUE?rec_request.minimum_monitored=123
+	// Example request:
+	// http://localhost:8466/v1/faraday/outliers/REVENUE?rec_request.minimum_monitored=123
 	OutlierRecommendations(context.Context, *OutlierRecommendationsRequest) (*CloseRecommendationsResponse, error)
-	//* frcli: `threshold`
-	//Get close recommendations for currently open channels based whether they are
-	//below a set threshold.
+	// * frcli: `threshold`
+	// Get close recommendations for currently open channels based whether they are
+	// below a set threshold.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/threshold/UPTIME?rec_request.minimum_monitored=123
+	// Example request:
+	// http://localhost:8466/v1/faraday/threshold/UPTIME?rec_request.minimum_monitored=123
 	ThresholdRecommendations(context.Context, *ThresholdRecommendationsRequest) (*CloseRecommendationsResponse, error)
-	//* frcli: `revenue`
-	//Get a pairwise revenue report for a channel.
+	// * frcli: `revenue`
+	// Get a pairwise revenue report for a channel.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/revenue
+	// Example request:
+	// http://localhost:8466/v1/faraday/revenue
 	RevenueReport(context.Context, *RevenueReportRequest) (*RevenueReportResponse, error)
-	//* frcli: `insights`
-	//List currently open channel with routing and uptime information.
+	// * frcli: `insights`
+	// List currently open channel with routing and uptime information.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/insights
+	// Example request:
+	// http://localhost:8466/v1/faraday/insights
 	ChannelInsights(context.Context, *ChannelInsightsRequest) (*ChannelInsightsResponse, error)
-	//* frcli:
-	//Get fiat prices for btc.
+	// * frcli:
+	// Get fiat prices for btc.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/exchangerate
+	// Example request:
+	// http://localhost:8466/v1/faraday/exchangerate
 	ExchangeRate(context.Context, *ExchangeRateRequest) (*ExchangeRateResponse, error)
-	//*
-	//Get a report of your node's activity over a period.
+	// *
+	// Get a report of your node's activity over a period.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/nodeaudit
+	// Example request:
+	// http://localhost:8466/v1/faraday/nodeaudit
 	NodeAudit(context.Context, *NodeAuditRequest) (*NodeAuditResponse, error)
-	//*
-	//Get a channel close report for a specific channel.
+	// *
+	// Get a channel close report for a specific channel.
 	//
-	//Example request:
-	//http://localhost:8466/v1/faraday/closereport
+	// Example request:
+	// http://localhost:8466/v1/faraday/closereport
 	CloseReport(context.Context, *CloseReportRequest) (*CloseReportResponse, error)
 	mustEmbedUnimplementedFaradayServerServer()
 }

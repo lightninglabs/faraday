@@ -156,20 +156,26 @@ func (d Dataset) isIQROutlier(value, lowerQuartile, upperQuartile,
 // Given some random set of data, with lower quartile = 5 and upper quartile
 // = 6, the inter-quartile range is 1.
 //
-//         LQ             UQ
-// [ 1  2  5  5  5  6  6  6  8 11 ]
+//	        LQ             UQ
+//	[ 1  2  5  5  5  6  6  6  8 11 ]
 //
 // For larger values, eg multiplier=3, we will detect fewer outliers:
 // Lower outlier bound: 5 - (1 * 3) = 2
-//   -> 1 is a strong lower outlier
+//
+//	-> 1 is a strong lower outlier
+//
 // Upper outlier bound: 6 + (1 * 3) = 9
-//   -> 11 is a strong upper outlier
+//
+//	-> 11 is a strong upper outlier
 //
 // For smaller values, eg multiplier=1.5, we detect more outliers:
 // Weak lower outlier bound: 5 - (1 * 1.5) = 3.5
-//   -> 1 and 2 are weak lower outliers
+//
+//	-> 1 and 2 are weak lower outliers
+//
 // Weak upper outlier bound: 6 + (1 *1.5) = 7.5
-//   -> 8 and 11 are weak upper outliers
+//
+//	-> 8 and 11 are weak upper outliers
 func (d Dataset) GetOutliers(outlierMultiplier float64) (
 	map[string]*OutlierResult, error) {
 

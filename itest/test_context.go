@@ -15,7 +15,7 @@ import (
 	"github.com/lightninglabs/faraday"
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/lndclient"
-	"github.com/lightningnetwork/lnd/channeldb"
+	invoicespkg "github.com/lightningnetwork/lnd/invoices"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
 	"github.com/lightningnetwork/lnd/lntypes"
@@ -286,7 +286,7 @@ func (c *testContext) makePayment(src, dest lndclient.LndServices,
 				return false
 			}
 
-			return inv.State == channeldb.ContractSettled
+			return inv.State == invoicespkg.ContractSettled
 		}, "payment not received")
 	}
 

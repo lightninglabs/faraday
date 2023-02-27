@@ -21,7 +21,7 @@ env:
   # /Dockerfile
   # /frdrpc/Dockerfile
   # /itest/Dockerfile
-  GO_VERSION: 1.18.8
+  GO_VERSION: 1.19.4
 
 jobs:
   ########################

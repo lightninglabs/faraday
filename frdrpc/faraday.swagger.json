@@ -119,6 +119,38 @@
         "tags": [
           "FaradayServer"
         ]
+      },
+      "post": {
+        "summary": "* frcli:\nGet fiat prices for btc.",
+        "description": "Example request:\nhttp://localhost:8466/v1/faraday/exchangerate",
+        "operationId": "FaradayServer_ExchangeRate2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcExchangeRateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/frdrpcExchangeRateRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
       }
     },
     "/v1/faraday/insights": {
@@ -226,6 +258,38 @@
         "tags": [
           "FaradayServer"
         ]
+      },
+      "post": {
+        "summary": "*\nGet a report of your node's activity over a period.",
+        "description": "Example request:\nhttp://localhost:8466/v1/faraday/nodeaudit",
+        "operationId": "FaradayServer_NodeAudit2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcNodeAuditResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/frdrpcNodeAuditRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
       }
     },
     "/v1/faraday/outliers/{rec_request.metric}": {
@@ -278,6 +342,53 @@
             "required": false,
             "type": "number",
             "format": "float"
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
+      },
+      "post": {
+        "summary": "* frcli: `outliers`\nGet close recommendations for currently open channels based on whether it is\nan outlier.",
+        "description": "Example request:\nhttp://localhost:8466/v1/faraday/outliers/REVENUE?rec_request.minimum_monitored=123",
+        "operationId": "FaradayServer_OutlierRecommendations2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcCloseRecommendationsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "rec_request.metric",
+            "description": "The data point base close recommendations on. Available options are:\nUptime: ratio of channel peer's uptime to the period they have been\nmonitored to.\nRevenue: the revenue that the channel has produced per block that its\nfunding transaction has been confirmed for.",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "UPTIME",
+              "REVENUE",
+              "INCOMING_VOLUME",
+              "OUTGOING_VOLUME",
+              "TOTAL_VOLUME"
+            ]
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/frdrpcOutlierRecommendationsRequest"
+            }
           }
         ],
         "tags": [
@@ -336,6 +447,38 @@
         "tags": [
           "FaradayServer"
         ]
+      },
+      "post": {
+        "summary": "* frcli: `revenue`\nGet a pairwise revenue report for a channel.",
+        "description": "Example request:\nhttp://localhost:8466/v1/faraday/revenue",
+        "operationId": "FaradayServer_RevenueReport2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcRevenueReportResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/frdrpcRevenueReportRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
       }
     },
     "/v1/faraday/threshold/{rec_request.metric}": {
@@ -388,6 +531,53 @@
             "required": false,
             "type": "number",
             "format": "float"
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
+      },
+      "post": {
+        "summary": "* frcli: `threshold`\nGet close recommendations for currently open channels based whether they are\nbelow a set threshold.",
+        "description": "Example request:\nhttp://localhost:8466/v1/faraday/threshold/UPTIME?rec_request.minimum_monitored=123",
+        "operationId": "FaradayServer_ThresholdRecommendations2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcCloseRecommendationsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "rec_request.metric",
+            "description": "The data point base close recommendations on. Available options are:\nUptime: ratio of channel peer's uptime to the period they have been\nmonitored to.\nRevenue: the revenue that the channel has produced per block that its\nfunding transaction has been confirmed for.",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "UPTIME",
+              "REVENUE",
+              "INCOMING_VOLUME",
+              "OUTGOING_VOLUME",
+              "TOTAL_VOLUME"
+            ]
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/frdrpcThresholdRecommendationsRequest"
+            }
           }
         ],
         "tags": [
@@ -608,6 +798,34 @@
         }
       }
     },
+    "frdrpcExchangeRateRequest": {
+      "type": "object",
+      "properties": {
+        "timestamps": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uint64"
+          },
+          "description": "A set of timestamps for which we want the bitcoin price."
+        },
+        "granularity": {
+          "$ref": "#/definitions/frdrpcGranularity",
+          "description": "The level of granularity at which we want the bitcoin price to be quoted."
+        },
+        "fiat_backend": {
+          "$ref": "#/definitions/frdrpcFiatBackend",
+          "description": "The api to be used for fiat related queries."
+        },
+        "custom_prices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/frdrpcBitcoinPrice"
+          },
+          "description": "Custom price points to use if the CUSTOM FiatBackend option is set."
+        }
+      }
+    },
     "frdrpcExchangeRateResponse": {
       "type": "object",
       "properties": {
@@ -648,6 +866,47 @@
       "default": "UNKNOWN_GRANULARITY",
       "description": "Granularity describes the aggregation level at which the Bitcoin price should\nbe queried. Note that setting lower levels of granularity may require more\nqueries to the fiat backend."
     },
+    "frdrpcNodeAuditRequest": {
+      "type": "object",
+      "properties": {
+        "start_time": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The unix time from which to produce the report, inclusive."
+        },
+        "end_time": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The unix time until which to produce the report, exclusive."
+        },
+        "disable_fiat": {
+          "type": "boolean",
+          "description": "Set to generate a report without conversion to fiat. If set, fiat values\nwill display as 0."
+        },
+        "granularity": {
+          "$ref": "#/definitions/frdrpcGranularity",
+          "description": "The level of granularity at which we wish to produce fiat prices."
+        },
+        "custom_categories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/frdrpcCustomCategory"
+          },
+          "description": "An optional set of custom categories which can be used to identify bespoke\ncategories in the report. Each category must have a unique name, and may not\nhave common identifier regexes. Transactions that are matched to these\ncategories report the category name in the CustomCategory field."
+        },
+        "fiat_backend": {
+          "$ref": "#/definitions/frdrpcFiatBackend",
+          "description": "The api to be used for fiat related queries."
+        },
+        "custom_prices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/frdrpcBitcoinPrice"
+          },
+          "description": "Custom price points to use if the CUSTOM FiatBackend option is set."
+        }
+      }
+    },
     "frdrpcNodeAuditResponse": {
       "type": "object",
       "properties": {
@@ -657,6 +916,20 @@
             "$ref": "#/definitions/frdrpcReportEntry"
           },
           "description": "On chain reports for the period queried."
+        }
+      }
+    },
+    "frdrpcOutlierRecommendationsRequest": {
+      "type": "object",
+      "properties": {
+        "rec_request": {
+          "$ref": "#/definitions/frdrpcCloseRecommendationRequest",
+          "description": "The parameters that are common to all close recommendations."
+        },
+        "outlier_multiplier": {
+          "type": "number",
+          "format": "float",
+          "description": "The number of inter-quartile ranges a value needs to be beneath the lower\nquartile/ above the upper quartile to be considered a lower/upper outlier.\nLower values will be more aggressive in recommending channel closes, and\nupper values will be more conservative. Recommended values are 1.5 for\naggressive recommendations and 3 for conservative recommendations."
         }
       }
     },
@@ -774,6 +1047,28 @@
         }
       }
     },
+    "frdrpcRevenueReportRequest": {
+      "type": "object",
+      "properties": {
+        "chan_points": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The funding transaction outpoints for the channels to generate a revenue\nreport for. If this is empty, it will be generated for all open and closed\nchannels. Channel funding points should be expressed with the format\nfundingTxID:outpoint."
+        },
+        "start_time": {
+          "type": "string",
+          "format": "uint64",
+          "description": "Start time is beginning of the range over which the report will be\ngenerated, expressed as unix epoch offset in seconds."
+        },
+        "end_time": {
+          "type": "string",
+          "format": "uint64",
+          "description": "End time is end of the range over which the report will be\ngenerated, expressed as unix epoch offset in seconds."
+        }
+      }
+    },
     "frdrpcRevenueReportResponse": {
       "type": "object",
       "properties": {
@@ -783,6 +1078,20 @@
             "$ref": "#/definitions/frdrpcRevenueReport"
           },
           "description": "Reports is a set of pairwise revenue report generated for the channel(s)\nover the period specified."
+        }
+      }
+    },
+    "frdrpcThresholdRecommendationsRequest": {
+      "type": "object",
+      "properties": {
+        "rec_request": {
+          "$ref": "#/definitions/frdrpcCloseRecommendationRequest",
+          "description": "The parameters that are common to all close recommendations."
+        },
+        "threshold_value": {
+          "type": "number",
+          "format": "float",
+          "description": "The threshold that recommendations will be calculated based on.\nFor uptime: ratio of uptime to observed lifetime beneath which channels\nwill be recommended for closure.\n\nFor revenue: revenue per block that capital has been committed to the\nchannel beneath which channels will be recommended for closure. This\nvalue is provided per block so that channels that have been open for\ndifferent periods of time can be compared.\n\nFor incoming volume: The incoming volume per block that capital has\nbeen committed to the channel beneath which channels will be recommended\nfor closure. This value is provided per block so that channels that have\nbeen open for different periods of time can be compared.\n\nFor outgoing volume: The outgoing volume per block that capital has been\ncommitted to the channel beneath which channels will be recommended for\nclosure. This value is provided per block so that channels that have been\nopen for different periods of time can be compared.\n\nFor total volume: The total volume per block that capital has been\ncommitted to the channel beneath which channels will be recommended for\nclosure. This value is provided per block so that channels that have been\nopen for different periods of time can be compared."
         }
       }
     },

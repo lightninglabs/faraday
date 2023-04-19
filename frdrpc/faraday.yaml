@@ -6,15 +6,30 @@ http:
     # rpc.proto
     - selector: frdrpc.FaradayServer.OutlierRecommendations
       get: "/v1/faraday/outliers/{rec_request.metric}"
+      additional_bindings:
+        - post: "/v1/faraday/outliers/{rec_request.metric}"
+          body: "*"
     - selector: frdrpc.FaradayServer.ThresholdRecommendations
       get: "/v1/faraday/threshold/{rec_request.metric}"
+      additional_bindings:
+        - post: "/v1/faraday/threshold/{rec_request.metric}"
+          body: "*"
     - selector: frdrpc.FaradayServer.RevenueReport
       get: "/v1/faraday/revenue"
+      additional_bindings:
+        - post: "/v1/faraday/revenue"
+          body: "*"
     - selector: frdrpc.FaradayServer.ChannelInsights
       get: "/v1/faraday/insights"
     - selector: frdrpc.FaradayServer.ExchangeRate
       get: "/v1/faraday/exchangerate"
+      additional_bindings:
+        - post: "/v1/faraday/exchangerate"
+          body: "*"
     - selector: frdrpc.FaradayServer.NodeAudit
       get: "/v1/faraday/nodeaudit"
+      additional_bindings:
+        - post: "/v1/faraday/nodeaudit"
+          body: "*"
     - selector: frdrpc.FaradayServer.CloseReport
       get: "/v1/faraday/closereport"

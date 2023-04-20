@@ -43,6 +43,10 @@ function start_lnds() {
 
         waitnoerror $LNCLI_SERVER getinfo
         waitnoerror $LNCLI_CLIENT getinfo
+        
+        # Create custom macaroon for faraday to use.
+        PERMS="onchain:read offchain:read address:read peers:read info:read invoices:read uri:/signrpc.Signer/DeriveSharedKey"
+        $LNCLI_SERVER bakemacaroon --save_to lnd-alice/faraday-custom.macaroon $PERMS
 }
 
 function stop_all() {

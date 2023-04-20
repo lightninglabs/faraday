@@ -6,7 +6,7 @@ Faraday is a suite of tools built to help node operators and businesses run [lnd
 ## LND
 Note that Faraday requires lnd to be built with **all of its subservers** and requires running at least v0.11.1. Download the [official release binary](https://github.com/lightningnetwork/lnd/releases/tag/v0.11.1-beta) or see the [instructions](https://github.com/lightningnetwork/lnd/blob/master/docs/INSTALL.md) in the lnd repo for more detailed installation instructions. If you choose to build lnd from source, following command to enable all the relevant subservers:
 
-```
+```shell
 make install tags="signrpc walletrpc chainrpc invoicesrpc"
 ```
 
@@ -14,15 +14,19 @@ make install tags="signrpc walletrpc chainrpc invoicesrpc"
 ## Installation
 A [Makefile](https://github.com/lightninglabs/faraday/blob/master/Makefile) is provided. To install faraday and all its dependencies, run:
 
-```
+```shell
 git clone https://github.com/lightninglabs/faraday.git
 cd faraday
 make && make install
 ```
 
 ## Usage
-Faraday connects to a single instance of lnd. It requires access to `lnd`'s `admin.macaroon` and a valid TLS certificate. It will attempt to use the default `lnd` values if no command line flags are specified.
-```
+Faraday connects to a single instance of lnd. It requires access to `lnd`'s
+`admin.macaroon` (or a custom scoped macaroon, see below) and a valid TLS
+certificate. It will attempt to use the default `lnd` values if no command line
+flags are specified.
+
+```shell
 ./faraday                                                   \
 --lnd.macaroonpath={full path to lnd's admin.macaroon}   \
 --lnd.tlscertpath={path to lnd cert}                        \
@@ -31,6 +35,17 @@ Faraday connects to a single instance of lnd. It requires access to `lnd`'s `adm
 
 By default, faraday runs on mainnet. The `--network` flag can be used to run in
 test environments.
+
+### Baking a custom macaroon for Faraday
+
+Faraday needs to derive a shared key with `lnd` to create an encryption password
+for its macaroon database. That's why on top of the permissions in the
+`readonly.macaroon` the `uri:/signrpc.Signer/DeriveSharedKey` is also required.
+A custom scoped macaroon just for Faraday can be baked with:
+
+```shell
+lncli bakemacaroon onchain:read offchain:read address:read peers:read info:read invoices:read uri:/signrpc.Signer/DeriveSharedKey
+```
 
 ## Authentication and transport security
 
@@ -56,7 +71,7 @@ cannot be used for both `faraday` and `lnd`.
 Faraday offers node accounting services which require access to a Bitcoin node with `--txindex` set so that it can perform transaction lookup. Currently the `CloseReport` endpoint requires this connection, and will fail if it is not present. It is *strongly recommended* to provide this connection when utilizing the `NodeAudit` endpoint, but it is not required. This connection is *optional*, and all other endpoints will function if it is not configured. 
 
 To connect Faraday to bitcoind:
-```
+```text
 --connect_bitcoin                       \
 --bitcoin.host={host:port of bitcoind}  \
 --bitcoin.user={bitcoind username}      \
@@ -64,7 +79,7 @@ To connect Faraday to bitcoind:
 ```
 
 To connect Faraday to btcd:
-```
+```text
 --connect_bitcoin                   \
 --bitcoin.host={host:port of btcd}  \
 --bitcoin.user={btcd username}      \
@@ -75,14 +90,14 @@ To connect Faraday to btcd:
 
 #### RPCServer
 Faraday serves requests over grpc by default on `localhost:8465`. This default can be overwritten:
-```
+```text
 --rpclisten={host:port to listen for requests}
 ```
 
 #### Cli Tool
 The RPC server can be conveniently accessed using a command line tool. 
 1. Run faraday as detailed above
-```
+```shell
 ./frcli {command}
 ```
 
@@ -108,15 +123,15 @@ If you would like to contribute to Faraday, please see our [issues page](https:/
 
 ### Tests
 To run all the unit tests in the repo:
-```
+```shell
 make check
 ```
 To run Faraday's itests locally, you will need docker installed. To run all itests:
-```
+```shell
 make itest
 ```
 
 Individual itests can also be run using:
-```
+```shell
 ./run_itest.sh {test name}
 ```

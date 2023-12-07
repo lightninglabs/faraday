@@ -76,6 +76,7 @@ func Main() error {
 		CustomMacaroonPath: config.Lnd.MacaroonPath,
 		TLSPath:            config.Lnd.TLSCertPath,
 		CheckVersion:       MinLndVersion,
+		RPCTimeout:         config.Lnd.RequestTimeout,
 	})
 	if err != nil {
 		return fmt.Errorf("cannot connect to lightning services: %v",

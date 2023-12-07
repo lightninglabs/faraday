@@ -106,6 +106,9 @@ type LndConfig struct {
 
 	// TLSCertPath is the path to the tls cert that faraday should use.
 	TLSCertPath string `long:"tlscertpath" description:"Path to TLS cert"`
+
+	// RequestTimeout is the maximum time to wait for a response from lnd.
+	RequestTimeout time.Duration `long:"requesttimeout" description:"The maximum time to wait for a response from lnd, if not set the default of 30 seconds will be used."`
 }
 
 type Config struct { //nolint:maligned

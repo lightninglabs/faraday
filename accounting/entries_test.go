@@ -501,12 +501,13 @@ func TestSweepEntry(t *testing.T) {
 // TestOnChainEntry tests creation of entries for receipts and payments, and the
 // generation of a fee entry where applicable.
 func TestOnChainEntry(t *testing.T) {
-	getOnChainEntry := func(amount btcutil.Amount,
-		hasFee bool, label string) []*HarmonyEntry {
+	getOnChainEntry := func(amount btcutil.Amount, hasFee bool,
+		isUtxoManagement bool, label string, note string) []*HarmonyEntry {
 
 		var (
-			entryType EntryType
-			feeType   = EntryTypeFee
+			entryType      EntryType
+			feeType        = EntryTypeFee
+			utxoManagement bool
 		)
 
 		switch {
@@ -516,8 +517,31 @@ func TestOnChainEntry(t *testing.T) {
 		case amount > 0:
 			entryType = EntryTypeReceipt
 
+		case isUtxoManagement:
+			utxoManagement = true
+
 		default:
 			return nil
+		}
+
+		if utxoManagement {
+			feeAmt := satsToMsat(onChainFeeSat)
+			feeMsat := lnwire.MilliSatoshi(feeAmt)
+
+			feeEntry := &HarmonyEntry{
+				Timestamp: onChainTimestamp,
+				Amount:    feeMsat,
+				FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, feeMsat),
+				TxID:      onChainTxID,
+				Reference: FeeReference(onChainTxID),
+				Note:      note,
+				Type:      feeType,
+				OnChain:   true,
+				Credit:    false,
+				BTCPrice:  mockBTCPrice,
+			}
+
+			return []*HarmonyEntry{feeEntry}
 		}
 
 		amt := satsToMsat(onChainAmtSat)
@@ -549,7 +573,7 @@ func TestOnChainEntry(t *testing.T) {
 			FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, feeMsat),
 			TxID:      onChainTxID,
 			Reference: FeeReference(onChainTxID),
-			Note:      "",
+			Note:      note,
 			Type:      feeType,
 			OnChain:   true,
 			Credit:    false,
@@ -569,8 +593,14 @@ func TestOnChainEntry(t *testing.T) {
 		// Whether the transaction has a fee attached.
 		hasFee bool
 
+		// Whether the transaction is a sweep.
+		isUtxoManagement bool
+
 		// txLabel is an optional label on the rpc transaction.
 		txLabel string
+
+		// Note is the expected note on the entry.
+		note string
 	}{
 		{
 			name:   "receive with fee",
@@ -597,6 +627,13 @@ func TestOnChainEntry(t *testing.T) {
 			amount: 0,
 			hasFee: false,
 		},
+		{
+			name:             "zero amount utxo management tx",
+			amount:           0,
+			hasFee:           true,
+			isUtxoManagement: true,
+			note:             utxoManagementFeeNote(onChainTxID),
+		},
 	}
 
 	for _, test := range tests {
@@ -615,6 +652,13 @@ func TestOnChainEntry(t *testing.T) {
 				chainTx.Fee = 0
 			}
 
+			chainTx.PreviousOutpoints = []*lnrpc.PreviousOutPoint{{
+				IsOurOutput: test.isUtxoManagement,
+			}}
+			chainTx.OutputDetails = []*lnrpc.OutputDetail{{
+				IsOurAddress: test.isUtxoManagement,
+			}}
+
 			// Set the label as per the test.
 			chainTx.Label = test.txLabel
 
@@ -624,7 +668,7 @@ func TestOnChainEntry(t *testing.T) {
 			// Create the entries we expect based on the test
 			// params.
 			expected := getOnChainEntry(
-				test.amount, test.hasFee, test.txLabel,
+				test.amount, test.hasFee, test.isUtxoManagement, test.txLabel, test.note,
 			)
 
 			require.Equal(t, expected, entries)

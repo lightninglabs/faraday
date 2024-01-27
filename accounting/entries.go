@@ -231,15 +231,62 @@ func sweepEntries(tx lndclient.Transaction, u entryUtils) ([]*HarmonyEntry, erro
 	return []*HarmonyEntry{txEntry, feeEntry}, nil
 }
 
+// isUtxoManagementTx checks whether a transaction is restructuring our utxos.
+func isUtxoManagementTx(txn lndclient.Transaction) bool {
+	// Check all inputs.
+	for _, input := range txn.PreviousOutpoints {
+		if !input.IsOurOutput {
+			return false
+		}
+	}
+
+	// Check all outputs.
+	for _, output := range txn.OutputDetails {
+		if !output.IsOurAddress {
+			return false
+		}
+	}
+
+	// If all inputs and outputs belong to our wallet, it's utxo management.
+	return true
+}
+
+// createOnchainFeeEntry creates a fee entry for an on chain transaction.
+func createOnchainFeeEntry(tx lndclient.Transaction, category string,
+	note string, u entryUtils) (*HarmonyEntry, error) {
+
+	// Total fees are expressed as a positive value in sats, we convert to
+	// msat here and make the value negative so that it reflects as a
+	// debit.
+	feeAmt := invertedSatsToMsats(tx.Fee)
+
+	feeEntry, err := newHarmonyEntry(
+		tx.Timestamp, feeAmt, EntryTypeFee,
+		tx.TxHash, FeeReference(tx.TxHash), note, category, true,
+		u.getFiat,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return feeEntry, nil
+}
+
+// utxoManagementFeeNote creates a note for utxo management fee types.
+func utxoManagementFeeNote(txid string) string {
+	return fmt.Sprintf("fees for utxo management transaction: %v", txid)
+}
+
 // onChainEntries produces relevant entries for an on chain transaction.
 func onChainEntries(tx lndclient.Transaction,
 	u entryUtils) ([]*HarmonyEntry, error) {
 
 	var (
-		amtMsat   = satsToMsat(tx.Amount)
-		entryType EntryType
-		feeType   = EntryTypeFee
-		category  = getCategory(tx.Label, u.customCategories)
+		amtMsat        = satsToMsat(tx.Amount)
+		entryType      EntryType
+		category       = getCategory(tx.Label, u.customCategories)
+		utxoManagement bool
 	)
 
 	// Determine the type of entry we are creating. If this is a sweep, we
@@ -252,12 +299,26 @@ func onChainEntries(tx lndclient.Transaction,
 	case amtMsat > 0:
 		entryType = EntryTypeReceipt
 
+	case isUtxoManagementTx(tx):
+		utxoManagement = true
+
 	// If we have a zero amount on chain transaction, we do not create an
 	// entry for it. This may happen when the remote party claims a htlc on
 	// our commitment. We do not want to report 0 value transactions that
 	// are not relevant to us, so we just exit early.
 	default:
 		return nil, nil
+	}
+
+	// If this is a utxo management transaction, we return a fee entry only.
+	if utxoManagement {
+		note := utxoManagementFeeNote(tx.TxHash)
+		feeEntry, err := createOnchainFeeEntry(tx, category, note, u)
+		if err != nil {
+			return nil, err
+		}
+
+		return []*HarmonyEntry{feeEntry}, nil
 	}
 
 	txEntry, err := newHarmonyEntry(
@@ -273,15 +334,7 @@ func onChainEntries(tx lndclient.Transaction,
 		return []*HarmonyEntry{txEntry}, nil
 	}
 
-	// Total fees are expressed as a positive value in sats, we convert to
-	// msat here and make the value negative so that it reflects as a
-	// debit.
-	feeAmt := invertedSatsToMsats(tx.Fee)
-
-	feeEntry, err := newHarmonyEntry(
-		tx.Timestamp, feeAmt, feeType, tx.TxHash,
-		FeeReference(tx.TxHash), "", category, true, u.getFiat,
-	)
+	feeEntry, err := createOnchainFeeEntry(tx, category, "", u)
 	if err != nil {
 		return nil, err
 	}

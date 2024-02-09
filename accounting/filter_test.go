@@ -378,6 +378,7 @@ func decode(toSelf bool) func(_ string) (*lndclient.PaymentRequest,
 
 		return &lndclient.PaymentRequest{
 			Destination: pubkey,
+			Description: invoiceMemo,
 		}, nil
 	}
 }
@@ -437,35 +438,39 @@ func TestPaymentHtlcDestination(t *testing.T) {
 	}
 }
 
-// TestPaymentRequestDestination tests getting of payment destinations from our
+// TestPaymentRequestDestination tests getting of payment details from our
 // payment request.
-func TestPaymentRequestDestination(t *testing.T) {
+func TestPaymentRequestDetails(t *testing.T) {
 	tests := []struct {
 		name           string
 		paymentRequest string
 		decode         decodePaymentRequest
-		dest           *route.Vertex
+		destination    *route.Vertex
+		description    *string
 		err            error
 	}{
 		{
 			name:           "no payment request",
 			decode:         decode(true),
 			paymentRequest: "",
-			dest:           nil,
+			destination:    nil,
+			description:    nil,
 			err:            errNoPaymentRequest,
 		},
 		{
 			name:           "to self",
 			decode:         decode(true),
 			paymentRequest: paymentRequest,
-			dest:           &ourPubKey,
+			destination:    &ourPubKey,
+			description:    &invoiceMemo,
 			err:            nil,
 		},
 		{
 			name:           "not to self",
 			decode:         decode(false),
 			paymentRequest: paymentRequest,
-			dest:           &otherPubkey,
+			destination:    &otherPubkey,
+			description:    &invoiceMemo,
 			err:            nil,
 		},
 	}
@@ -476,11 +481,13 @@ func TestPaymentRequestDestination(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			dest, err := paymentRequestDestination(
+			destination, description, err := paymentRequestDetails(
 				test.paymentRequest, test.decode,
 			)
+
 			require.Equal(t, test.err, err)
-			require.Equal(t, test.dest, dest)
+			require.Equal(t, test.destination, destination)
+			require.Equal(t, test.description, description)
 		})
 	}
 }

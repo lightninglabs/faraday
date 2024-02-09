@@ -401,11 +401,18 @@ func paymentReference(sequenceNumber uint64, preimage lntypes.Preimage) string {
 
 // paymentNote creates a note for payments from our node.
 // nolint: interfacer
-func paymentNote(dest *route.Vertex) string {
-	if dest == nil {
-		return ""
+func paymentNote(dest *route.Vertex, memo *string) string {
+	var notes []string
+
+	if memo != nil && *memo != "" {
+		notes = append(notes, fmt.Sprintf("memo: %v", *memo))
 	}
-	return dest.String()
+
+	if dest != nil {
+		notes = append(notes, fmt.Sprintf("destination: %v", dest))
+	}
+
+	return strings.Join(notes, "/")
 }
 
 // paymentEntry creates an entry for an off chain payment, including fee entries
@@ -432,7 +439,7 @@ func paymentEntry(payment paymentInfo, paidToSelf bool,
 
 	// Create a note for our payment. Since we have already checked that our
 	// payment is settled, we will not have a nil preimage.
-	note := paymentNote(payment.destination)
+	note := paymentNote(payment.destination, payment.description)
 	ref := paymentReference(payment.SequenceNumber, *payment.Preimage)
 
 	// Payment values are expressed as positive values over rpc, but they

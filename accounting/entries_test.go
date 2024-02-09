@@ -83,10 +83,6 @@ var (
 		Tx:        &wire.MsgTx{},
 	}
 
-	paymentRequest = "lnbcrt10n1p0t6nmypp547evsfyrakg0nmyw59ud9cegkt99yccn5nnp4suq3ac4qyzzgevsdqqcqzpgsp54hvffpajcyddm20k3ptu53930425hpnv8m06nh5jrd6qhq53anrq9qy9qsqphhzyenspf7kfwvm3wyu04fa8cjkmvndyexlnrmh52huwa4tntppjmak703gfln76rvswmsx2cz3utsypzfx40dltesy8nj64ttgemgqtwfnj9"
-
-	invoiceMemo = "memo"
-
 	invoiceAmt = lnwire.MilliSatoshi(300)
 
 	invoiceOverpaidAmt = lnwire.MilliSatoshi(400)
@@ -112,7 +108,7 @@ var (
 
 	paymentTime = time.Unix(1590399649, 0)
 
-	paymentHash = "11f414479f0a0c2762492c71c58dded5dce99d56d65c3fa523f73513605bebb3"
+	paymentHash = "0001020304050607080900010203040506070809000102030405060708090102"
 	pmtHash, _  = lntypes.MakeHashFromStr(paymentHash)
 
 	paymentPreimage = "adfef20b24152accd4ed9a05257fb77203d90a8bbbe6d4069a75c5320f0538d9"
@@ -134,11 +130,13 @@ var (
 		Fee:            lnwire.MilliSatoshi(paymentFeeMsat),
 		Htlcs:          []*lnrpc.HTLCAttempt{{}},
 		SequenceNumber: uint64(paymentIndex),
+		PaymentRequest: paymentRequest,
 	}
 
 	payInfo = paymentInfo{
 		Payment:     payment,
 		destination: &otherPubkey,
+		description: &invoiceMemo,
 		settleTime:  paymentTime,
 	}
 
@@ -758,7 +756,7 @@ func TestPaymentEntry(t *testing.T) {
 			FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, amtMsat),
 			TxID:      paymentHash,
 			Reference: paymentRef,
-			Note:      paymentNote(&otherPubkey),
+			Note:      paymentNote(&otherPubkey, &invoiceMemo),
 			Type:      EntryTypePayment,
 			OnChain:   false,
 			Credit:    false,
@@ -773,7 +771,7 @@ func TestPaymentEntry(t *testing.T) {
 			FiatValue: fiat.MsatToFiat(mockBTCPrice.Price, feeMsat),
 			TxID:      paymentHash,
 			Reference: FeeReference(paymentRef),
-			Note:      paymentNote(&otherPubkey),
+			Note:      paymentNote(&otherPubkey, &invoiceMemo),
 			Type:      EntryTypeFee,
 			OnChain:   false,
 			Credit:    false,

@@ -187,7 +187,7 @@ func TestNodeAudit(t *testing.T) {
 	// Because we force closed our channels, we also expect to have sweep
 	// transactions for our commitment. Bob should have claimed our htlc on
 	// chain, so we do not expect it to be swept.
-	sweeps, err := c.aliceClient.WalletKit.ListSweeps(ctx)
+	sweeps, err := c.aliceClient.WalletKit.ListSweeps(ctx, 0)
 	require.NoError(c.t, err, "could not get sweeps")
 	require.Len(c.t, sweeps, 1)
 

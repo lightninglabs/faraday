@@ -123,7 +123,7 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 			return lnd.Client.ListTransactions(ctx, 0, 0)
 		},
 		ListSweeps: func() ([]string, error) {
-			return lnd.WalletKit.ListSweeps(ctx)
+			return lnd.WalletKit.ListSweeps(ctx, 0)
 		},
 		CommonConfig: CommonConfig{
 			StartTime:      startTime,

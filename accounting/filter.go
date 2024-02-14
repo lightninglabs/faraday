@@ -109,15 +109,16 @@ func filterInvoices(startTime, endTime time.Time,
 	return filtered
 }
 
-// paymentInfo wraps a lndclient payment struct with a destination, if it is
-// available from the information we have available, and its settle time.
-// Since we now allow multi-path payments, a single payment may have multiple
-// htlcs resolved over a period of time. We use the most recent settle time for
-// payment because payments are not considered settled until all the htlcs are
-// resolved.
+// paymentInfo wraps a lndclient payment struct with a destination, and
+// description if available from the information we have available, and its
+// settle time. Since we now allow multi-path payments, a single payment may
+// have multiple htlcs resolved over a period of time. We use the most recent
+// settle time for payment because payments are not considered settled until
+// all the htlcs are resolved.
 type paymentInfo struct {
 	lndclient.Payment
 	destination *route.Vertex
+	description *string
 	settleTime  time.Time
 }
 
@@ -135,24 +136,31 @@ func preProcessPayments(payments []lndclient.Payment,
 	paymentList := make([]paymentInfo, len(payments))
 
 	for i, payment := range payments {
-		// Try to get our payment destination from our set of htlcs.
-		// If we cannot get it from our htlcs (which is the case for
-		// legacy payments that did not store htlcs), we try to get it
-		// from our payment request. This value may not be present for
-		// all payments, so we do not error if it is not.
+		// Attempt to obtain the payment destination and description
+		// from our payment request. If this is not possible (which
+		// can be the case for legacy payments that did not store
+		// payment requests, or payments that pay directly to a
+		// payment hash), then try to get it from our HTLCs. Note
+		// that HTLCs may also not be available for legacy payments
+		// that did not store HTLCs. In the event that we get a
+		// destination from both sources, we prefer the destination
+		// from the HTLCs.
+		payReqDestination, description, err := paymentRequestDetails(
+			payment.PaymentRequest, decode,
+		)
+		if err != nil && err != errNoPaymentRequest {
+			return nil, err
+		}
+
 		destination, err := paymentHtlcDestination(payment)
 		if err != nil {
-			destination, err = paymentRequestDestination(
-				payment.PaymentRequest, decode,
-			)
-			if err != nil && err != errNoPaymentRequest {
-				return nil, err
-			}
+			destination = payReqDestination
 		}
 
 		pmt := paymentInfo{
 			Payment:     payment,
 			destination: destination,
+			description: description,
 		}
 
 		// If the payment did not succeed, we can add it to our list
@@ -212,21 +220,23 @@ func paymentHtlcDestination(payment lndclient.Payment) (*route.Vertex, error) {
 	return &lastHopPubkey, nil
 }
 
-// paymentRequestDestination attempts to decode a payment address, and returns
-// the destination.
-func paymentRequestDestination(paymentRequest string,
-	decode decodePaymentRequest) (*route.Vertex, error) {
+// paymentRequestDetails attempts to decode a payment address, and returns
+// the destination and the description.
+func paymentRequestDetails(paymentRequest string,
+	decode decodePaymentRequest) (*route.Vertex, *string, error) {
 
 	if paymentRequest == "" {
-		return nil, errNoPaymentRequest
+		return nil, nil, errNoPaymentRequest
 	}
 
 	payReq, err := decode(paymentRequest)
 	if err != nil {
-		return nil, fmt.Errorf("decode payment request failed: %w", err)
+		return nil, nil, fmt.Errorf(
+			"decode payment request failed: %w", err,
+		)
 	}
 
-	return &payReq.Destination, nil
+	return &payReq.Destination, &payReq.Description, nil
 }
 
 // filterPayments filters out unsuccessful payments and those which did not

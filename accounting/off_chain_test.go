@@ -24,6 +24,9 @@ var (
 	paymentHash2 = "a5530c5930b9eb7ea4284bcff39da52c6bca3103fc790749eb632911edc7143b"
 	hash2, _     = lntypes.MakeHashFromStr(paymentHash2)
 
+	paymentRequest = "lnbc2500u1pvjluezpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5xysxxatsyp3k7enxv4jsxqzpuaztrnwngzn3kdzw5hydlzf03qdgm2hdq27cqv3agm2awhz5se903vruatfhq77w3ls4evs3ch9zw97j25emudupq63nyw24cg27h2rspfj9srp"
+	invoiceMemo    = "1 cup coffee"
+
 	hopToUs = &lnrpc.Hop{
 		PubKey: ourPK,
 	}

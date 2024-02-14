@@ -30,10 +30,10 @@ const (
 	// we can serve basic functionality by default.
 	defaultChainConn = false
 
-	// DefaultAutogenValidity is the default validity of a self-signed
+	// defaultTLSCertDuration is the default validity of a self-signed
 	// certificate. The value corresponds to 14 months
 	// (14 months * 30 days * 24 hours).
-	DefaultAutogenValidity = 14 * 30 * 24 * time.Hour
+	defaultTLSCertDuration = 14 * 30 * 24 * time.Hour
 )
 
 var (
@@ -133,12 +133,13 @@ type Config struct { //nolint:maligned
 	// for all subsystems the same or individual level by subsystem.
 	DebugLevel string `long:"debuglevel" description:"Debug level for faraday and its subsystems."`
 
-	TLSCertPath        string   `long:"tlscertpath" description:"Path to write the TLS certificate for faraday's RPC and REST services."`
-	TLSKeyPath         string   `long:"tlskeypath" description:"Path to write the TLS private key for faraday's RPC and REST services."`
-	TLSExtraIPs        []string `long:"tlsextraip" description:"Adds an extra IP to the generated certificate."`
-	TLSExtraDomains    []string `long:"tlsextradomain" description:"Adds an extra domain to the generated certificate."`
-	TLSAutoRefresh     bool     `long:"tlsautorefresh" description:"Re-generate TLS certificate and key if the IPs or domains are changed."`
-	TLSDisableAutofill bool     `long:"tlsdisableautofill" description:"Do not include the interface IPs or the system hostname in TLS certificate, use first --tlsextradomain as Common Name instead, if set."`
+	TLSCertPath        string        `long:"tlscertpath" description:"Path to write the TLS certificate for faraday's RPC and REST services."`
+	TLSKeyPath         string        `long:"tlskeypath" description:"Path to write the TLS private key for faraday's RPC and REST services."`
+	TLSExtraIPs        []string      `long:"tlsextraip" description:"Adds an extra IP to the generated certificate."`
+	TLSExtraDomains    []string      `long:"tlsextradomain" description:"Adds an extra domain to the generated certificate."`
+	TLSAutoRefresh     bool          `long:"tlsautorefresh" description:"Re-generate TLS certificate and key if the IPs or domains are changed."`
+	TLSDisableAutofill bool          `long:"tlsdisableautofill" description:"Do not include the interface IPs or the system hostname in TLS certificate, use first --tlsextradomain as Common Name instead, if set."`
+	TLSCertDuration    time.Duration `long:"tlscertduration" description:"The duration for which the auto-generated TLS certificate will be valid for."`
 
 	MacaroonPath string `long:"macaroonpath" description:"Path to write the macaroon for faraday's RPC and REST services if it doesn't exist."`
 
@@ -168,6 +169,7 @@ func DefaultConfig() Config {
 		DebugLevel:       defaultDebugLevel,
 		TLSCertPath:      DefaultTLSCertPath,
 		TLSKeyPath:       DefaultTLSKeyPath,
+		TLSCertDuration:  defaultTLSCertDuration,
 		MacaroonPath:     DefaultMacaroonPath,
 		RPCListen:        defaultRPCListen,
 		ChainConn:        defaultChainConn,
@@ -366,7 +368,7 @@ func loadCertWithCreate(cfg *Config) (tls.Certificate, *x509.Certificate,
 		certBytes, keyBytes, err := cert.GenCertPair(
 			defaultSelfSignedOrganization, cfg.TLSExtraIPs,
 			cfg.TLSExtraDomains, cfg.TLSDisableAutofill,
-			DefaultAutogenValidity,
+			cfg.TLSCertDuration,
 		)
 		if err != nil {
 			return tls.Certificate{}, nil, err

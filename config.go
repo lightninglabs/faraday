@@ -127,7 +127,7 @@ type Config struct { //nolint:maligned
 	MinimumMonitored time.Duration `long:"min_monitored" description:"The minimum amount of time that a channel must be monitored for before recommending termination. Valid time units are {s, m, h}."`
 
 	// Network is a string containing the network we're running on.
-	Network string `long:"network" description:"The network to run on." choice:"regtest" choice:"testnet" choice:"mainnet" choice:"simnet"`
+	Network string `long:"network" description:"The network to run on." choice:"regtest" choice:"testnet" choice:"mainnet" choice:"simnet" choice:"signet" `
 
 	// DebugLevel is a string defining the log level for the service either
 	// for all subsystems the same or individual level by subsystem.

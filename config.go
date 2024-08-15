@@ -192,6 +192,10 @@ func ValidateConfig(config *Config) error {
 	config.TLSKeyPath = lncfg.CleanAndExpandPath(config.TLSKeyPath)
 	config.MacaroonPath = lncfg.CleanAndExpandPath(config.MacaroonPath)
 
+	// Before adding the network namespace below, check if the user has
+	// overwritten the default faraday directory.
+	faradayDirSet := config.FaradayDir != FaradayDirBase
+
 	// Append the network type to faraday directory so they are "namespaced"
 	// per network.
 	config.FaradayDir = filepath.Join(config.FaradayDir, config.Network)
@@ -205,7 +209,6 @@ func ValidateConfig(config *Config) error {
 	// values, make sure that they are not set when faraday dir is set. We
 	// fail hard here rather than overwriting and potentially confusing the
 	// user.
-	faradayDirSet := config.FaradayDir != FaradayDirBase
 	if faradayDirSet {
 		tlsCertPathSet := config.TLSCertPath != DefaultTLSCertPath
 		tlsKeyPathSet := config.TLSKeyPath != DefaultTLSKeyPath

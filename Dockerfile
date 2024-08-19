@@ -1,4 +1,4 @@
-FROM golang:1.19-alpine as builder
+FROM golang:1.22.3-alpine as builder
 
 # Force Go to use the cgo based DNS resolver. This is required to ensure DNS
 # queries required to connect to linked containers succeed.
@@ -11,9 +11,9 @@ RUN apk add --no-cache --update alpine-sdk \
     git \
     make \
     gcc \
-&&  cd /go/src/github.com/lightninglabs/faraday \
-&&  make \
-&&  make install
+    &&  cd /go/src/github.com/lightninglabs/faraday \
+    &&  make \
+    &&  make install
 
 # Start a new, final image.
 FROM alpine as final

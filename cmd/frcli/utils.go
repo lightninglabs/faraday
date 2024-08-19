@@ -159,12 +159,23 @@ func extractPathArgs(ctx *cli.Context) (string, string, error) {
 	if faradayDir != faraday.FaradayDirBase ||
 		networkStr != faraday.DefaultNetwork {
 
-		tlsCertPath = filepath.Join(
-			faradayDir, networkStr, faraday.DefaultTLSCertFilename,
-		)
-		macPath = filepath.Join(
-			faradayDir, networkStr, faraday.DefaultMacaroonFilename,
-		)
+		// Only overwrite the tls cert path if the user has not
+		// explicitly defined it.
+		if !ctx.GlobalIsSet(tlsCertFlag.Name) {
+			tlsCertPath = filepath.Join(
+				faradayDir, networkStr,
+				faraday.DefaultTLSCertFilename,
+			)
+		}
+
+		// Only overwrite the macaroon path if the user has not
+		// explicitly defined it.
+		if !ctx.GlobalIsSet(macaroonPathFlag.Name) {
+			macPath = filepath.Join(
+				faradayDir, networkStr,
+				faraday.DefaultMacaroonFilename,
+			)
+		}
 	}
 
 	return tlsCertPath, macPath, nil

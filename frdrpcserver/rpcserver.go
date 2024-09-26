@@ -19,6 +19,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	proxy "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/lightninglabs/faraday/accounting"
@@ -298,7 +299,10 @@ func (s *RPCServer) Start() error {
 		if err != nil {
 			return err
 		}
-		s.restServer = &http.Server{Handler: restHandler}
+		s.restServer = &http.Server{
+			Handler:           restHandler,
+			ReadHeaderTimeout: 3 * time.Second,
+		}
 
 		s.wg.Add(1)
 		go func() {

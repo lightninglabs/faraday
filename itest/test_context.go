@@ -153,15 +153,6 @@ func (c *testContext) mine() int {
 	return len(block.Transactions) - 1
 }
 
-// mine mines a block and verifies that the expected number of transactions is
-// present (excluding the coinbase tx).
-func (c *testContext) mineExactly(expectedTxCount int) {
-	c.t.Helper()
-
-	txCount := c.mine()
-	require.Equal(c.t, expectedTxCount, txCount)
-}
-
 // mempoolTxCount returns the number of txes currently in the mempool.
 func (c *testContext) mempoolTxCount() int {
 	txes, err := c.bitcoindClient.GetRawMempool()
@@ -483,22 +474,6 @@ func (c *testContext) waitForMempoolTxCount(txCount int, msg string) {
 		},
 		msg,
 	)
-}
-
-// waitForTxesAndMine waits for a specified number of txes to arrive in the
-// mempool and then mines a block.
-func (c *testContext) waitForTxesAndMine(txCount int, msg string) {
-	c.t.Helper()
-
-	c.waitForMempoolTxCount(txCount, msg)
-	c.mineExactly(txCount)
-}
-
-// mempoolEmpty asserts that the mempool is empty.
-func (c *testContext) mempoolEmpty() {
-	c.t.Helper()
-
-	require.Equal(c.t, 0, c.mempoolTxCount(), "mempool not empty")
 }
 
 // startFaraday starts faraday, connecting to our test context's alice lnd node.

@@ -7,7 +7,7 @@ require (
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0
 	github.com/jessevdk/go-flags v1.4.0
-	github.com/lightninglabs/faraday/frdrpc v0.0.0-00010101000000-000000000000
+	github.com/lightninglabs/faraday/frdrpc v1.0.0
 	github.com/lightninglabs/lndclient v0.17.4-6
 	github.com/lightningnetwork/lnd v0.17.4-beta
 	github.com/lightningnetwork/lnd/cert v1.2.2
@@ -171,7 +171,5 @@ require (
 // We want to format raw bytes as hex instead of base64. The forked version
 // allows us to specify that as an option.
 replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-display v1.30.0-hex-display
-
-replace github.com/lightninglabs/faraday/frdrpc => ./frdrpc
 
 go 1.22.3

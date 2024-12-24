@@ -57,8 +57,8 @@ var (
 	)
 
 	// maxMsgRecvSize is the largest message our REST proxy will receive. We
-	// set this to 600MiB atm.
-	maxMsgRecvSize = grpc.MaxCallRecvMsgSize(600 * 1024 * 1024)
+	// set this to 850MiB atm.
+	maxMsgRecvSize = grpc.MaxCallRecvMsgSize(850 * 1024 * 1024)
 
 	// maxInvoiceQueries is the maximum number of invoices we request from
 	// lnd at a time.

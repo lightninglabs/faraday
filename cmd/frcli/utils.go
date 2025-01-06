@@ -34,8 +34,8 @@ import (
 
 var (
 	// maxMsgRecvSize is the largest message our client will receive. We
-	// set this to 200MiB atm.
-	maxMsgRecvSize = grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 200)
+	// set this to 800MiB atm.
+	maxMsgRecvSize = grpc.MaxCallRecvMsgSize(800 * 1024 * 1024)
 
 	// defaultMacaroonTimeout is the default macaroon timeout in seconds
 	// that we set when sending it over the line.

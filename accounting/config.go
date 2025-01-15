@@ -97,8 +97,10 @@ type CommonConfig struct {
 // The txLookup function may be nil if a connection to a bitcoin backend is not
 // available. If this is the case, the fee report will log warnings indicating
 // that fee lookups are not possible in certain cases.
-func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
-	endTime time.Time, disableFiat bool, txLookup fees.GetDetailsFunc,
+func NewOnChainConfig(ctx context.Context,
+	lnd lndclient.LndServices, startTime, endTime time.Time,
+	blockRangeLookup func(start, end time.Time) (uint32, uint32, error),
+	disableFiat bool, txLookup fees.GetDetailsFunc,
 	priceCfg *fiat.PriceSourceConfig,
 	categories []CustomCategory) *OnChainConfig {
 
@@ -108,6 +110,29 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 			return fees.CalculateFee(txLookup, &txid)
 		}
 	}
+
+	// Set both start and end height to 0, meaning we will query for all
+	// onchain history.
+	startHeight := uint32(0)
+	endHeight := uint32(0)
+
+	if blockRangeLookup != nil {
+		var err error
+
+		startHeight, endHeight, err = blockRangeLookup(startTime, endTime)
+		if err != nil {
+			log.Errorf("Error finding block height range for start time: %v "+
+				"end time: %v error: %v", startTime, endTime, err)
+
+			// If we cannot find the block height range, set both start and end
+			// height to 0, meaning we will query for all onchain history.
+			startHeight = 0
+			endHeight = 0
+		}
+	}
+
+	log.Debugf("Using startheight: %v endheight: %v while querying onchain "+
+		"activity", startHeight, endHeight)
 
 	return &OnChainConfig{
 		OpenChannels: lndwrap.ListChannels(
@@ -120,10 +145,12 @@ func NewOnChainConfig(ctx context.Context, lnd lndclient.LndServices, startTime,
 			return lnd.Client.PendingChannels(ctx)
 		},
 		OnChainTransactions: func() ([]lndclient.Transaction, error) {
-			return lnd.Client.ListTransactions(ctx, 0, 0)
+			return lnd.Client.ListTransactions(
+				ctx, int32(startHeight), int32(endHeight),
+			)
 		},
 		ListSweeps: func() ([]string, error) {
-			return lnd.WalletKit.ListSweeps(ctx, 0)
+			return lnd.WalletKit.ListSweeps(ctx, int32(startHeight))
 		},
 		CommonConfig: CommonConfig{
 			StartTime:      startTime,

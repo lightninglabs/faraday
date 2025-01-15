@@ -7,13 +7,22 @@ import (
 	"sort"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/fees"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/frdrpc"
+	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/shopspring/decimal"
 )
+
+// Since Bitcoin blocks are not guaranteed to be completely ordered
+// by timestamp, and the timestamps can be manipulated by miners within a
+// certain range, we will apply a buffer on the time range which we use to
+// find start and end block heights. This should ensure we widen the block
+// height range enough to fetch all relevant transactions within a time range.
+const blockTimeRangeBuffer = time.Hour * 24
 
 var (
 	// ErrNoCategoryName is returned if a category does not have a name.
@@ -84,8 +93,21 @@ func parseNodeAuditRequest(ctx context.Context, cfg *Config,
 			"backend, some fee entries will be missing (see logs)")
 	}
 
+	var blockRangeLookup func(start, end time.Time) (uint32, uint32, error)
+
+	// If a time range is set, we will use a block height lookup function
+	// to find the block heights for the start and end time.
+	timeRangeSet := req.StartTime > 0 || req.EndTime > 0
+	if timeRangeSet {
+		blockRangeLookup = func(start, end time.Time) (uint32, uint32, error) {
+			return resolveBlockHeightRange(
+				ctx, cfg.Lnd, info.BlockHeight, start, end,
+			)
+		}
+	}
+
 	onChain := accounting.NewOnChainConfig(
-		ctx, cfg.Lnd, start, end, req.DisableFiat,
+		ctx, cfg.Lnd, start, end, blockRangeLookup, req.DisableFiat,
 		feeLookup, priceSourceCfg, onChainCategories,
 	)
 
@@ -277,4 +299,130 @@ func rpcEntryType(t accounting.EntryType) (frdrpc.EntryType, error) {
 	default:
 		return 0, fmt.Errorf("unknown entrytype: %v", t)
 	}
+}
+
+// resolveBlockHeightRange determines the block height range that should be
+// used for in queries based on the start and end time of the report.
+// The function will apply a buffer to ensure the block height range is
+// too large rather than too small, so that all relevant transactions are
+// fetched from the backend.
+func resolveBlockHeightRange(ctx context.Context,
+	lndClient lndclient.LndServices, latestHeight uint32,
+	startTime, endTime time.Time) (uint32, uint32, error) {
+
+	// Apply a buffer on the start time which we use to find the block height.
+	// This should ensure we use a low enough height to fetch all relevant
+	// transactions following the start time.
+	bufferedStartTime := startTime.Add(-blockTimeRangeBuffer)
+
+	if bufferedStartTime.Before(time.Unix(0, 0)) {
+		bufferedStartTime = time.Unix(0, 0)
+	}
+
+	startHeight, err := findFirstBlockBeforeTimestamp(
+		ctx, lndClient, latestHeight, bufferedStartTime,
+	)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	// Apply a buffer on the end time which we use to find the block height.
+	// This should ensure we use a high enough height to fetch all relevant
+	// transactions up to the end time.
+	bufferedEndTime := endTime.Add(blockTimeRangeBuffer)
+
+	endHeight, err := findFirstBlockBeforeTimestamp(
+		ctx, lndClient, latestHeight, bufferedEndTime,
+	)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if startHeight > endHeight {
+		log.Errorf("Start height: %v is greater than end height: %v, "+
+			"setting both to 0", startHeight, endHeight)
+
+		// If startHeight somehow ended up being greater than endHeight,
+		// set both start and end height to 0, meaning we will query for
+		// all onchain history.
+		startHeight = 0
+		endHeight = 0
+	}
+
+	return startHeight, endHeight, nil
+}
+
+// findFirstBlockBeforeTimestamp finds the block height from just before the
+// given timestamp.
+func findFirstBlockBeforeTimestamp(ctx context.Context,
+	lndClient lndclient.LndServices, latestHeight uint32,
+	targetTime time.Time) (uint32, error) {
+
+	targetTimestamp := targetTime.Unix()
+
+	// Set the search range to the genesis block and the latest block.
+	low := uint32(0)
+	high := latestHeight
+
+	// Perform binary search to find the block height that is just before the
+	// target timestamp.
+	for low <= high {
+		mid := (low + high) / 2
+
+		// Lookup the block in the middle of the search range.
+		blockHash, err := getBlockHash(ctx, lndClient, mid)
+		if err != nil {
+			return 0, err
+		}
+
+		blockTime, err := getBlockTimestamp(ctx, lndClient, blockHash)
+		if err != nil {
+			return 0, err
+		}
+
+		blockTimestamp := blockTime.Unix()
+		if blockTimestamp < targetTimestamp {
+			// If the block we looked up is before the target timestamp,
+			// we set the new low height to the next block after that.
+			low = mid + 1
+		} else if blockTimestamp > targetTimestamp {
+			// If the block we looked up is after the target timestamp,
+			// we set the new high height to the block before that.
+			high = mid - 1
+		} else {
+			// If we find an exact match of block timestamp and target
+			// timestamp, ruturn the height of this block.
+			return mid, nil
+		}
+	}
+
+	log.Debugf("Binary search done for targetTimestamp: %v. "+
+		"Returning height: %v", targetTimestamp, high)
+
+	// Closest block before the timestamp.
+	return high, nil
+}
+
+// getBlockHash retrieves the block hash for a given height.
+func getBlockHash(ctx context.Context, lndClient lndclient.LndServices,
+	height uint32) (chainhash.Hash, error) {
+
+	blockHash, err := lndClient.ChainKit.GetBlockHash(ctx, int64(height))
+	if err != nil {
+		return chainhash.Hash{}, err
+	}
+
+	return blockHash, nil
+}
+
+// getBlockTimestamp retrieves the block timestamp for a given block hash.
+func getBlockTimestamp(ctx context.Context,
+	lndClient lndclient.LndServices, hash chainhash.Hash) (time.Time, error) {
+
+	blockHeader, err := lndClient.ChainKit.GetBlockHeader(ctx, hash)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return blockHeader.Timestamp, nil
 }

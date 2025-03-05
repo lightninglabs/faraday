@@ -53,8 +53,11 @@ func Main() error {
 
 	// Setup logging before parsing the config.
 	logWriter := build.NewRotatingLogWriter()
-	SetupLoggers(logWriter, shutdownInterceptor)
-	err = build.ParseAndSetDebugLevels(config.DebugLevel, logWriter)
+	subLogMgr := build.NewSubLoggerManager(
+		build.NewDefaultLogHandlers(config.Logging, logWriter)...,
+	)
+	SetupLoggers(subLogMgr, shutdownInterceptor)
+	err = build.ParseAndSetDebugLevels(config.DebugLevel, subLogMgr)
 	if err != nil {
 		return err
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/lightninglabs/faraday/chain"
 	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/build"
 	"github.com/lightningnetwork/lnd/cert"
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -154,6 +155,9 @@ type Config struct { //nolint:maligned
 
 	// Bitcoin is the configuration required to connect to a bitcoin node.
 	Bitcoin *chain.BitcoinConfig `group:"bitcoin" namespace:"bitcoin"`
+
+	// Logging controls various aspects of pool logging.
+	Logging *build.LogConfig `group:"logging" namespace:"logging"`
 }
 
 // DefaultConfig returns all default values for the Config struct.
@@ -174,6 +178,7 @@ func DefaultConfig() Config {
 		RPCListen:        defaultRPCListen,
 		ChainConn:        defaultChainConn,
 		Bitcoin:          chain.DefaultConfig,
+		Logging:          build.DefaultLogConfig(),
 	}
 }
 

@@ -1,10 +1,8 @@
 package itest
 
-import (
-	"github.com/btcsuite/btclog"
-)
+import "github.com/btcsuite/btclog/v2"
 
 var (
-	backend = btclog.NewBackend(newPrefixStdout("itest"))
-	log     = backend.Logger("")
+	handler = btclog.NewDefaultHandler(newPrefixStdout("itest"))
+	log     = btclog.NewSLogger(handler)
 )

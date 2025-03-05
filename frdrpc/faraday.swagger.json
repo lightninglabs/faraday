@@ -387,7 +387,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/frdrpcOutlierRecommendationsRequest"
+              "$ref": "#/definitions/FaradayServerOutlierRecommendationsBody"
             }
           }
         ],
@@ -576,7 +576,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/frdrpcThresholdRecommendationsRequest"
+              "$ref": "#/definitions/FaradayServerThresholdRecommendationsBody"
             }
           }
         ],
@@ -598,6 +598,50 @@
         "TOTAL_VOLUME"
       ],
       "default": "UNKNOWN"
+    },
+    "FaradayServerOutlierRecommendationsBody": {
+      "type": "object",
+      "properties": {
+        "rec_request": {
+          "type": "object",
+          "properties": {
+            "minimum_monitored": {
+              "type": "string",
+              "format": "int64",
+              "description": "The minimum amount of time in seconds that a channel should have been\nmonitored by lnd to be eligible for close. This value is in place to\nprotect against closing of newer channels."
+            }
+          },
+          "description": "The parameters that are common to all close recommendations.",
+          "title": "The parameters that are common to all close recommendations."
+        },
+        "outlier_multiplier": {
+          "type": "number",
+          "format": "float",
+          "description": "The number of inter-quartile ranges a value needs to be beneath the lower\nquartile/ above the upper quartile to be considered a lower/upper outlier.\nLower values will be more aggressive in recommending channel closes, and\nupper values will be more conservative. Recommended values are 1.5 for\naggressive recommendations and 3 for conservative recommendations."
+        }
+      }
+    },
+    "FaradayServerThresholdRecommendationsBody": {
+      "type": "object",
+      "properties": {
+        "rec_request": {
+          "type": "object",
+          "properties": {
+            "minimum_monitored": {
+              "type": "string",
+              "format": "int64",
+              "description": "The minimum amount of time in seconds that a channel should have been\nmonitored by lnd to be eligible for close. This value is in place to\nprotect against closing of newer channels."
+            }
+          },
+          "description": "The parameters that are common to all close recommendations.",
+          "title": "The parameters that are common to all close recommendations."
+        },
+        "threshold_value": {
+          "type": "number",
+          "format": "float",
+          "description": "The threshold that recommendations will be calculated based on.\nFor uptime: ratio of uptime to observed lifetime beneath which channels\nwill be recommended for closure.\n\nFor revenue: revenue per block that capital has been committed to the\nchannel beneath which channels will be recommended for closure. This\nvalue is provided per block so that channels that have been open for\ndifferent periods of time can be compared.\n\nFor incoming volume: The incoming volume per block that capital has\nbeen committed to the channel beneath which channels will be recommended\nfor closure. This value is provided per block so that channels that have\nbeen open for different periods of time can be compared.\n\nFor outgoing volume: The outgoing volume per block that capital has been\ncommitted to the channel beneath which channels will be recommended for\nclosure. This value is provided per block so that channels that have been\nopen for different periods of time can be compared.\n\nFor total volume: The total volume per block that capital has been\ncommitted to the channel beneath which channels will be recommended for\nclosure. This value is provided per block so that channels that have been\nopen for different periods of time can be compared."
+        }
+      }
     },
     "frdrpcBitcoinPrice": {
       "type": "object",
@@ -666,6 +710,7 @@
         "channel_insights": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/frdrpcChannelInsight"
           },
           "description": "Insights for the set of currently open channels."
@@ -702,6 +747,7 @@
         "recommendations": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/frdrpcRecommendation"
           },
           "description": "A set of channel close recommendations. The absence of a channel in this\nset implies that it was not considered for close because it did not meet\nthe criteria for close recommendations (it is private, or has not been\nmonitored for long enough)."
@@ -820,6 +866,7 @@
         "custom_prices": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/frdrpcBitcoinPrice"
           },
           "description": "Custom price points to use if the CUSTOM FiatBackend option is set."
@@ -832,6 +879,7 @@
         "rates": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/frdrpcExchangeRate"
           },
           "title": "Rates contains a set of exchange rates for the set of timestamps"
@@ -890,6 +938,7 @@
         "custom_categories": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/frdrpcCustomCategory"
           },
           "description": "An optional set of custom categories which can be used to identify bespoke\ncategories in the report. Each category must have a unique name, and may not\nhave common identifier regexes. Transactions that are matched to these\ncategories report the category name in the CustomCategory field."
@@ -901,6 +950,7 @@
         "custom_prices": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/frdrpcBitcoinPrice"
           },
           "description": "Custom price points to use if the CUSTOM FiatBackend option is set."
@@ -913,23 +963,10 @@
         "reports": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/frdrpcReportEntry"
           },
           "description": "On chain reports for the period queried."
-        }
-      }
-    },
-    "frdrpcOutlierRecommendationsRequest": {
-      "type": "object",
-      "properties": {
-        "rec_request": {
-          "$ref": "#/definitions/frdrpcCloseRecommendationRequest",
-          "description": "The parameters that are common to all close recommendations."
-        },
-        "outlier_multiplier": {
-          "type": "number",
-          "format": "float",
-          "description": "The number of inter-quartile ranges a value needs to be beneath the lower\nquartile/ above the upper quartile to be considered a lower/upper outlier.\nLower values will be more aggressive in recommending channel closes, and\nupper values will be more conservative. Recommended values are 1.5 for\naggressive recommendations and 3 for conservative recommendations."
         }
       }
     },
@@ -1075,37 +1112,21 @@
         "reports": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/frdrpcRevenueReport"
           },
           "description": "Reports is a set of pairwise revenue report generated for the channel(s)\nover the period specified."
         }
       }
     },
-    "frdrpcThresholdRecommendationsRequest": {
-      "type": "object",
-      "properties": {
-        "rec_request": {
-          "$ref": "#/definitions/frdrpcCloseRecommendationRequest",
-          "description": "The parameters that are common to all close recommendations."
-        },
-        "threshold_value": {
-          "type": "number",
-          "format": "float",
-          "description": "The threshold that recommendations will be calculated based on.\nFor uptime: ratio of uptime to observed lifetime beneath which channels\nwill be recommended for closure.\n\nFor revenue: revenue per block that capital has been committed to the\nchannel beneath which channels will be recommended for closure. This\nvalue is provided per block so that channels that have been open for\ndifferent periods of time can be compared.\n\nFor incoming volume: The incoming volume per block that capital has\nbeen committed to the channel beneath which channels will be recommended\nfor closure. This value is provided per block so that channels that have\nbeen open for different periods of time can be compared.\n\nFor outgoing volume: The outgoing volume per block that capital has been\ncommitted to the channel beneath which channels will be recommended for\nclosure. This value is provided per block so that channels that have been\nopen for different periods of time can be compared.\n\nFor total volume: The total volume per block that capital has been\ncommitted to the channel beneath which channels will be recommended for\nclosure. This value is provided per block so that channels that have been\nopen for different periods of time can be compared."
-        }
-      }
-    },
     "protobufAny": {
       "type": "object",
       "properties": {
-        "type_url": {
+        "@type": {
           "type": "string"
-        },
-        "value": {
-          "type": "string",
-          "format": "byte"
         }
-      }
+      },
+      "additionalProperties": {}
     },
     "rpcStatus": {
       "type": "object",
@@ -1120,6 +1141,7 @@
         "details": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
         }

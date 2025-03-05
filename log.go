@@ -1,7 +1,7 @@
 package faraday
 
 import (
-	"github.com/btcsuite/btclog"
+	"github.com/btcsuite/btclog/v2"
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/dataset"
 	"github.com/lightninglabs/faraday/fiat"
@@ -23,7 +23,7 @@ var (
 )
 
 // SetupLoggers initializes all package-global logger variables.
-func SetupLoggers(root *build.RotatingLogWriter, intercept signal.Interceptor) {
+func SetupLoggers(root *build.SubLoggerManager, intercept signal.Interceptor) {
 	genLogger := genSubLogger(root, intercept)
 
 	log = build.NewSubLogger(Subsystem, genLogger)
@@ -48,7 +48,7 @@ func UseLogger(logger btclog.Logger) {
 
 // genSubLogger creates a logger for a subsystem. We provide an instance of
 // a signal.Interceptor to be able to shutdown in the case of a critical error.
-func genSubLogger(root *build.RotatingLogWriter,
+func genSubLogger(root *build.SubLoggerManager,
 	interceptor signal.Interceptor) func(string) btclog.Logger {
 
 	// Create a shutdown function which will request shutdown from our
@@ -70,7 +70,7 @@ func genSubLogger(root *build.RotatingLogWriter,
 
 // addSubLogger is a helper method to conveniently create and register the
 // logger of a sub system.
-func addSubLogger(root *build.RotatingLogWriter, subsystem string,
+func addSubLogger(root *build.SubLoggerManager, subsystem string,
 	interceptor signal.Interceptor, useLogger func(btclog.Logger)) {
 
 	logger := build.NewSubLogger(subsystem, genSubLogger(root, interceptor))
@@ -79,7 +79,7 @@ func addSubLogger(root *build.RotatingLogWriter, subsystem string,
 
 // setSubLogger is a helper method to conveniently register the logger of a sub
 // system.
-func setSubLogger(root *build.RotatingLogWriter, subsystem string,
+func setSubLogger(root *build.SubLoggerManager, subsystem string,
 	logger btclog.Logger, useLogger func(btclog.Logger)) {
 
 	root.RegisterSubLogger(subsystem, logger)

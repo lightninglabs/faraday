@@ -1,10 +1,13 @@
 package fiat
 
 import (
+	"context"
 	"errors"
+	"net/http"
 	"testing"
 	"time"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
@@ -244,4 +247,58 @@ func TestValidatePriceSourceConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCoinbaseRawPriceData tests the rawPriceData method of the Coinbase API
+// implementation.
+func TestCoinbaseRawPriceData(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Hour)
+	start := now.Add(-time.Hour * 4)
+
+	// Stub HTTP client with httpmock (same pattern as CoinCap tests).
+	mock := httpmock.NewMockTransport()
+	client := &http.Client{Transport: mock}
+
+	// JSON response for the Coinbase API.
+	const numCandles = 4
+	candles := make([][]float64, numCandles)
+
+	for i := range candles {
+		timestamp := start.Add(time.Duration(i) * time.Hour).Unix()
+
+		// Example values; tweak as needed.
+		low := 45_000 + float64(i)
+		high := 55_000 + float64(i)
+		open := 0.0
+		close := 50_000 + float64(i)
+		vol := 0.0
+
+		candles[i] = []float64{
+			float64(timestamp), low, high, open, close, vol,
+		}
+	}
+
+	expected := make([]*Price, numCandles)
+	for i := range expected {
+		expected[i] = &Price{
+			Timestamp: start.Add(time.Hour * time.Duration(i)),
+			Price:     decimal.NewFromFloat(float64(50_000 + i)),
+			Currency:  "USD",
+		}
+	}
+
+	// Four hourly candles (close = 50000) returned.
+	mock.RegisterResponder(
+		"GET", `=~https://api.exchange.coinbase.com/.*`,
+		httpmock.NewJsonResponderOrPanic(200, candles),
+	)
+
+	api := newCoinbaseAPI(GranularityHour)
+	api.client = client
+
+	ctx := context.Background()
+	out, err := api.rawPriceData(ctx, start, now)
+	require.NoError(t, err)
+
+	require.EqualValues(t, expected, out)
 }

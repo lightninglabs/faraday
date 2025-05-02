@@ -105,6 +105,16 @@ func (cfg *PriceSourceConfig) validatePriceSourceConfig() error {
 		if len(cfg.PricePoints) == 0 {
 			return errPricePointsRequired
 		}
+
+	case CoinbasePriceBackend:
+		if cfg.Granularity == nil ||
+			(*cfg.Granularity != GranularityHour &&
+				*cfg.Granularity != GranularityDay) {
+
+			return fmt.Errorf("%w: coinbase supports hourly or "+
+				"daily granularity only",
+				errGranularityUnsupported)
+		}
 	}
 
 	return nil
@@ -162,6 +172,9 @@ const (
 
 	// CoinGeckoPriceBackend uses CoinGecko's API for fiat price data.
 	CoinGeckoPriceBackend
+
+	// CoinbasePriceBackend uses Coinbase's API for fiat price data.
+	CoinbasePriceBackend
 )
 
 var priceBackendNames = map[PriceBackend]string{
@@ -170,6 +183,7 @@ var priceBackendNames = map[PriceBackend]string{
 	CoinDeskPriceBackend:  "coindesk",
 	CustomPriceBackend:    "custom",
 	CoinGeckoPriceBackend: "coingecko",
+	CoinbasePriceBackend:  "coinbase",
 }
 
 // String returns the string representation of a price backend.
@@ -211,6 +225,11 @@ func NewPriceSource(cfg *PriceSourceConfig) (*PriceSource, error) {
 	case CoinGeckoPriceBackend:
 		return &PriceSource{
 			impl: &coinGeckoAPI{},
+		}, nil
+
+	case CoinbasePriceBackend:
+		return &PriceSource{
+			impl: newCoinbaseAPI(*cfg.Granularity),
 		}, nil
 	}
 

@@ -6,6 +6,7 @@ require (
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
 	github.com/btcsuite/btclog/v2 v2.0.1-0.20250110154127-3ae4bf1cb318
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0
+	github.com/jarcoal/httpmock v1.4.0
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/lightninglabs/faraday/frdrpc v1.0.0
 	github.com/lightninglabs/lndclient v0.19.0-2

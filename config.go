@@ -11,11 +11,16 @@ import (
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/lightninglabs/faraday/chain"
+	"github.com/lightninglabs/faraday/chanevents"
+	"github.com/lightninglabs/faraday/db"
+	"github.com/lightninglabs/faraday/db/sqlc"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/build"
 	"github.com/lightningnetwork/lnd/cert"
+	"github.com/lightningnetwork/lnd/clock"
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/sqldb/v2"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -35,6 +40,16 @@ const (
 	// certificate. The value corresponds to 14 months
 	// (14 months * 30 days * 24 hours).
 	defaultTLSCertDuration = 14 * 30 * 24 * time.Hour
+
+	// DatabaseBackendSqlite is the name of the SQLite database backend.
+	DatabaseBackendSqlite = "sqlite"
+
+	// DatabaseBackendPostgres is the name of the Postgres database backend.
+	DatabaseBackendPostgres = "postgres"
+
+	// defaultSqliteDatabaseFileName is the default name of the SQLite
+	// database file.
+	defaultSqliteDatabaseFileName = "faraday.db"
 )
 
 var (
@@ -158,6 +173,17 @@ type Config struct { //nolint:maligned
 
 	// Logging controls various aspects of pool logging.
 	Logging *build.LogConfig `group:"logging" namespace:"logging"`
+
+	// DatabaseBackend is the database backend we will use for storing all
+	// liveness data.
+	DatabaseBackend string `long:"databasebackend" description:"The database backend to use for storing all liveness data." choice:"sqlite" choice:"postgres"`
+
+	// Sqlite holds the configuration options for a SQLite database
+	// backend.
+	Sqlite *db.SqliteConfig `group:"sqlite" namespace:"sqlite"`
+
+	// Postgres holds the configuration options for a Postgres database
+	Postgres *sqldb.PostgresConfig `group:"postgres" namespace:"postgres"`
 }
 
 // DefaultConfig returns all default values for the Config struct.
@@ -179,6 +205,10 @@ func DefaultConfig() Config {
 		ChainConn:        defaultChainConn,
 		Bitcoin:          chain.DefaultConfig,
 		Logging:          build.DefaultLogConfig(),
+		DatabaseBackend:  DatabaseBackendSqlite,
+		Sqlite: &db.SqliteConfig{
+			DatabaseFileName: defaultSqliteDatabaseFileName,
+		},
 	}
 }
 
@@ -395,4 +425,100 @@ func loadCertWithCreate(cfg *Config) (tls.Certificate, *x509.Certificate,
 	}
 
 	return cert.LoadCert(cfg.TLSCertPath, cfg.TLSKeyPath)
+}
+
+// stores holds a collection of the DB stores that are used by faraday.
+type stores struct {
+	// ChanEventsStore is used to watch for channel events.
+	ChanEventsStore *chanevents.Store
+
+	// closeFns holds various callbacks that can be used to close any open
+	// stores in the stores struct.
+	closeFns map[string]func() error
+}
+
+// NewStores creates a new stores instance based on the chosen database backend.
+func NewStores(cfg Config, clock clock.Clock) (*stores, error) {
+	var (
+		stores = &stores{
+			closeFns: make(map[string]func() error),
+		}
+	)
+
+	switch cfg.DatabaseBackend {
+	case DatabaseBackendSqlite:
+		dbPath := filepath.Join(
+			cfg.FaradayDir, cfg.Sqlite.DatabaseFileName,
+		)
+
+		sqlStore, err := sqldb.NewSqliteStore(&sqldb.SqliteConfig{
+			SkipMigrations:        cfg.Sqlite.SkipMigrations,
+			SkipMigrationDbBackup: cfg.Sqlite.SkipMigrationDbBackup,
+		}, dbPath)
+		if err != nil {
+			return stores, err
+		}
+
+		if !cfg.Sqlite.SkipMigrations {
+			err = sqldb.ApplyAllMigrations(
+				sqlStore, db.FaradayMigrationSets,
+			)
+			if err != nil {
+				return stores, fmt.Errorf("error applying "+
+					"migrations to SQLite store: %w", err,
+				)
+			}
+		}
+
+		queries := sqlc.NewForType(sqlStore, sqlStore.BackendType)
+
+		stores.ChanEventsStore = chanevents.NewStore(
+			sqlStore.BaseDB, queries, clock,
+		)
+
+		stores.closeFns["sqlite"] = sqlStore.Close
+
+	case DatabaseBackendPostgres:
+		sqlStore, err := sqldb.NewPostgresStore(cfg.Postgres)
+		if err != nil {
+			return stores, err
+		}
+
+		if !cfg.Postgres.SkipMigrations {
+			err = sqldb.ApplyAllMigrations(
+				sqlStore, db.FaradayMigrationSets,
+			)
+			if err != nil {
+				return stores, fmt.Errorf("error applying "+
+					"migrations to Postgres store: %w", err,
+				)
+			}
+		}
+
+		queries := sqlc.NewForType(sqlStore, sqlStore.BackendType)
+
+		stores.ChanEventsStore = chanevents.NewStore(
+			sqlStore.BaseDB, queries, clock,
+		)
+
+		stores.closeFns["postgres"] = sqlStore.Close
+
+	default:
+		return nil, fmt.Errorf("unsupported database backend: "+
+			"%s", cfg.DatabaseBackend)
+	}
+
+	return stores, nil
+}
+
+// Close closes all the stores.
+func (s *stores) Close() error {
+	for name, closeFn := range s.closeFns {
+		err := closeFn()
+		if err != nil {
+			return fmt.Errorf("error closing %s store: %v", name, err)
+		}
+	}
+
+	return nil
 }

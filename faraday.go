@@ -23,6 +23,7 @@ import (
 	"github.com/lightninglabs/faraday/frdrpcserver/perms"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/build"
+	"github.com/lightningnetwork/lnd/clock"
 	"github.com/lightningnetwork/lnd/kvdb"
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/lightningnetwork/lnd/lnrpc/verrpc"
@@ -88,6 +89,9 @@ type Faraday struct {
 	// stopped is set once Stop completes or Start fails. It prevents
 	// reuse of the struct, since internal fields are not reset.
 	stopped atomic.Bool
+
+	// stores contains all the stores used by faraday.
+	stores *stores
 
 	lnd *lndclient.GrpcLndServices
 
@@ -442,6 +446,12 @@ func (f *Faraday) Stop() error {
 	// can complete cleanly.
 	f.wg.Wait()
 
+	if f.stores != nil {
+		if err := f.stores.Close(); err != nil {
+			log.Errorf("Error closing stores: %v", err)
+		}
+	}
+
 	var stopErr error
 	if f.macaroonService != nil {
 		err := f.macaroonService.Stop()
@@ -534,6 +544,12 @@ func (f *Faraday) initialize(withMacaroonService bool) error {
 
 			return err
 		}
+	}
+
+	// Create any relevant stores.
+	f.stores, err = NewStores(*f.cfg, clock.NewDefaultClock())
+	if err != nil {
+		return fmt.Errorf("could not create stores: %v", err)
 	}
 
 	return nil

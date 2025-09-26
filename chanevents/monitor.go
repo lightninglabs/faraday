@@ -94,15 +94,21 @@ func (m *Monitor) monitorLoop(ctx context.Context) {
 
 	log.Info("Channel events monitor starting")
 
+	var synced bool
+
 	for {
 		// Wait for lnd to be synced to chain, retrying on RPC errors.
 		if !m.waitForReady(ctx) {
 			return
 		}
 
-		// Initial state sync.
-		if err := m.initialSync(ctx); err != nil {
-			log.Errorf("Error during initial sync: %v", err)
+		// Initial state sync, only performed once.
+		if !synced {
+			if err := m.initialSync(ctx); err != nil {
+				log.Errorf("Error during initial sync: %v", err)
+			} else {
+				synced = true
+			}
 		}
 
 		// Subscribe and consume events until the stream breaks or an

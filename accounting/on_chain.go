@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/wire"
@@ -23,12 +24,15 @@ func OnChainReport(ctx context.Context, cfg *OnChainConfig) (Report, error) {
 		cfg.PriceSourceCfg,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("on-chain report: init conversion "+
+			"lookup for range [%v,%v) failed: %w", cfg.StartTime,
+			cfg.EndTime, err)
 	}
 
 	info, err := getOnChainInfo(cfg, getPrice)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("on-chain report: gathering on-chain "+
+			"data failed: %w", err)
 	}
 
 	return onChainReport(info)
@@ -93,7 +97,8 @@ func getOnChainInfo(cfg *OnChainConfig, getPrice fiatPrice) (*onChainInformation
 
 	onChainTxns, err := cfg.OnChainTransactions()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("on-chain report: listing on-chain "+
+			"transactions failed: %w", err)
 	}
 
 	// Filter our on chain transactions by start and end time. If we have
@@ -101,7 +106,9 @@ func getOnChainInfo(cfg *OnChainConfig, getPrice fiatPrice) (*onChainInformation
 	// early.
 	info.txns, err = filterOnChain(cfg.StartTime, cfg.EndTime, onChainTxns)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("on-chain report: filtering "+
+			"transactions for range [%v,%v) failed: %w",
+			cfg.StartTime, cfg.EndTime, err)
 	}
 
 	if len(info.txns) == 0 {
@@ -115,7 +122,8 @@ func getOnChainInfo(cfg *OnChainConfig, getPrice fiatPrice) (*onChainInformation
 	// closing channels that are awaiting resolution).
 	pending, err := cfg.PendingChannels()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("on-chain report: listing pending "+
+			"channels failed: %w", err)
 	}
 
 	// We add our pending force close channels to opened and closed channels
@@ -171,7 +179,8 @@ func getOnChainInfo(cfg *OnChainConfig, getPrice fiatPrice) (*onChainInformation
 	// other on chain transactions.
 	openRPCChannels, err := cfg.OpenChannels()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("on-chain report: listing open "+
+			"channels failed: %w", err)
 	}
 
 	for _, channel := range openRPCChannels {
@@ -179,7 +188,9 @@ func getOnChainInfo(cfg *OnChainConfig, getPrice fiatPrice) (*onChainInformation
 			channel.ChannelPoint,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("on-chain report: parsing open "+
+				"channel point %v failed: %w",
+				channel.ChannelPoint, err)
 		}
 
 		init := lndclient.InitiatorLocal
@@ -201,7 +212,8 @@ func getOnChainInfo(cfg *OnChainConfig, getPrice fiatPrice) (*onChainInformation
 	// on chain transactions.
 	closedRPCChannels, err := cfg.ClosedChannels()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("on-chain report: listing closed "+
+			"channels failed: %w", err)
 	}
 
 	// Add our already closed channels open and closed transactions to our
@@ -212,7 +224,9 @@ func getOnChainInfo(cfg *OnChainConfig, getPrice fiatPrice) (*onChainInformation
 			closed.ChannelPoint,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("on-chain report: parsing "+
+				"closed channel point %v failed: %w",
+				closed.ChannelPoint, err)
 		}
 
 		inf := newChannelInfo(
@@ -234,7 +248,8 @@ func getOnChainInfo(cfg *OnChainConfig, getPrice fiatPrice) (*onChainInformation
 	// identify them separately to other on chain transactions.
 	sweeps, err := cfg.ListSweeps()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("on-chain report: listing sweep "+
+			"transactions failed: %w", err)
 	}
 
 	for _, sweep := range sweeps {
@@ -260,7 +275,9 @@ func onChainReport(info *onChainInformation) (
 				openChannel, txn, info.entryUtils,
 			)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("tx %v: creating "+
+					"channel open entries failed: %w",
+					txn.TxHash, err)
 			}
 
 			report = append(report, entries...)
@@ -274,7 +291,9 @@ func onChainReport(info *onChainInformation) (
 				channelClose, txn, info.entryUtils,
 			)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("tx %v: creating "+
+					"channel close entries failed: %w",
+					txn.TxHash, err)
 			}
 
 			report = append(report, entries...)
@@ -289,7 +308,8 @@ func onChainReport(info *onChainInformation) (
 				txn, info.entryUtils,
 			)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("tx %v: creating sweep "+
+					"entries failed: %w", txn.TxHash, err)
 			}
 
 			report = append(report, entries...)
@@ -300,7 +320,8 @@ func onChainReport(info *onChainInformation) (
 		// closes, we create a generic on chain entry for it.
 		entries, err := onChainEntries(txn, info.entryUtils)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("tx %v: creating generic "+
+				"on-chain entries failed: %w", txn.TxHash, err)
 		}
 		report = append(report, entries...)
 	}

@@ -1,6 +1,9 @@
 package accounting
 
-import "regexp"
+import (
+	"fmt"
+	"regexp"
+)
 
 // CustomCategory describes a custom category which can be used to identify
 // special case groups of transactions.
@@ -24,7 +27,8 @@ func NewCustomCategory(name string, regexes []string) (*CustomCategory, error) {
 	for _, regex := range regexes {
 		exp, err := regexp.Compile(regex)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("category %v: compiling regex "+
+				"%v failed: %w", name, regex, err)
 		}
 
 		category.Regexes = append(category.Regexes, exp)

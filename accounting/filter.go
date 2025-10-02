@@ -149,7 +149,9 @@ func preProcessPayments(payments []lndclient.Payment,
 			payment.PaymentRequest, decode,
 		)
 		if err != nil && err != errNoPaymentRequest {
-			return nil, err
+			return nil, fmt.Errorf("payment %v: retrieving "+
+				"payment request details failed: %w",
+				payment.Hash, err)
 		}
 
 		destination, err := paymentHtlcDestination(payment)
@@ -214,7 +216,9 @@ func paymentHtlcDestination(payment lndclient.Payment) (*route.Vertex, error) {
 	lastHop := hops[len(hops)-1]
 	lastHopPubkey, err := route.NewVertexFromStr(lastHop.PubKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("payment %v: parsing last hop "+
+			"pubkey %v failed: %w", payment.Hash, lastHop.PubKey,
+			err)
 	}
 
 	return &lastHopPubkey, nil

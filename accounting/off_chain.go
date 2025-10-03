@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lntypes"
@@ -48,7 +49,9 @@ func OffChainReport(ctx context.Context, cfg *OffChainConfig) (Report, error) {
 		cfg.PriceSourceCfg,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("off-chain report: init conversion "+
+			"lookup for range [%v,%v) failed: %w", cfg.StartTime,
+			cfg.EndTime, err)
 	}
 
 	return offChainReportWithPrices(cfg, getPrice)
@@ -62,7 +65,8 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice fiatPrice) (Report,
 
 	invoices, err := cfg.ListInvoices()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("off-chain report: listing invoices "+
+			"failed: %w", err)
 	}
 	filteredInvoices := filterInvoices(cfg.StartTime, cfg.EndTime, invoices)
 
@@ -71,25 +75,31 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice fiatPrice) (Report,
 
 	payments, err := cfg.ListPayments()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("off-chain report: listing payments "+
+			"failed: %w", err)
 	}
 
 	preProcessed, err := preProcessPayments(payments, cfg.DecodePayReq)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("off-chain report: preprocessing %d "+
+			"payments failed: %w", len(payments), err)
 	}
 
 	// Get a list of all the payments we made to ourselves.
 	paymentsToSelf, err := getCircularPayments(cfg.OwnPubKey, preProcessed)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("off-chain report: identifying "+
+			"circular payments for node %v failed: %w",
+			cfg.OwnPubKey, err)
 	}
 
 	filteredPayments := filterPayments(
 		cfg.StartTime, cfg.EndTime, preProcessed,
 	)
 	if err := sanityCheckDuplicates(filteredPayments); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("off-chain report: duplicate payment "+
+			"hashes detected in range [%v,%v): %w", cfg.StartTime,
+			cfg.EndTime, err)
 	}
 
 	log.Infof("Retrieved: %v payments, %v filtered, %v circular",
@@ -99,7 +109,8 @@ func offChainReportWithPrices(cfg *OffChainConfig, getPrice fiatPrice) (Report,
 	// are already supplied over the relevant range for our query.
 	forwards, err := cfg.ListForwards()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("off-chain report: listing forwards "+
+			"failed: %w", err)
 	}
 
 	log.Infof("Retrieved: %v forwards", len(forwards))
@@ -133,7 +144,8 @@ func offChainReport(invoices []lndclient.Invoice, payments []paymentInfo,
 
 		entry, err := invoiceEntry(invoice, toSelf, utils)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invoice %v: creating entry "+
+				"failed: %w", invoice.Hash, err)
 		}
 
 		reports = append(reports, entry)
@@ -146,7 +158,8 @@ func offChainReport(invoices []lndclient.Invoice, payments []paymentInfo,
 
 		entries, err := paymentEntry(payment, toSelf, utils)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("payment %v: creating entries "+
+				"failed: %w", payment.Hash, err)
 		}
 
 		reports = append(reports, entries...)
@@ -155,7 +168,8 @@ func offChainReport(invoices []lndclient.Invoice, payments []paymentInfo,
 	for _, forward := range forwards {
 		entries, err := forwardingEntry(forward, utils)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("forward at %v: creating "+
+				"entries failed: %w", forward.Timestamp, err)
 		}
 
 		reports = append(reports, entries...)

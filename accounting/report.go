@@ -78,7 +78,8 @@ func newHarmonyEntry(ts time.Time, amountMsat int64, e EntryType, txid,
 
 	btcPrice, err := convert(ts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fiat conversion at %v failed: %w", ts,
+			err)
 	}
 	amtMsat := lnwire.MilliSatoshi(absAmt)
 

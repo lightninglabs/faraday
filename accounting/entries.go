@@ -80,7 +80,8 @@ func channelOpenEntries(channel channelInfo, tx lndclient.Transaction,
 		true, u.getFiat,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx %v channel %v: creating open entry "+
+			"failed: %w", tx.TxHash, channel.channelID, err)
 	}
 
 	// If we did not initiate opening the channel, we can just return the
@@ -101,7 +102,9 @@ func channelOpenEntries(channel channelInfo, tx lndclient.Transaction,
 		FeeReference(tx.TxHash), note, category, true, u.getFiat,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx %v channel %v: creating channel "+
+			"open fee entry failed: %w", tx.TxHash,
+			channel.channelID, err)
 	}
 
 	return []*HarmonyEntry{openEntry, feeEntry}, nil
@@ -135,7 +138,9 @@ func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
 		tx.TxHash, note, category, true, u.getFiat,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx %v channel %v: creating channel "+
+			"close entry failed: %w", tx.TxHash, channel.channelID,
+			err)
 	}
 
 	switch channel.initiator {
@@ -172,7 +177,9 @@ func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
 
 	fees, err := u.getFee(tx.Tx.TxHash())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx %v channel %v: fetching on-chain "+
+			"close fees failed: %w", tx.TxHash, channel.channelID,
+			err)
 	}
 
 	// Our fees are provided as a positive amount in sats. Convert this to
@@ -185,7 +192,9 @@ func closedChannelEntries(channel closedChannelInfo, tx lndclient.Transaction,
 		true, u.getFiat,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx %v channel %v: creating channel "+
+			"close fee entry failed: %w", tx.TxHash,
+			channel.channelID, err)
 	}
 
 	return []*HarmonyEntry{closeEntry, feeEntry}, nil
@@ -201,7 +210,8 @@ func sweepEntries(tx lndclient.Transaction, u entryUtils) ([]*HarmonyEntry, erro
 		tx.TxHash, tx.Label, category, true, u.getFiat,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx %v: creating sweep entry failed: %w",
+			tx.TxHash, err)
 	}
 
 	// If we do not have a fee lookup function set, we log a warning that
@@ -216,7 +226,8 @@ func sweepEntries(tx lndclient.Transaction, u entryUtils) ([]*HarmonyEntry, erro
 
 	fee, err := u.getFee(tx.Tx.TxHash())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx %v: fetching sweep fee failed: %w",
+			tx.TxHash, err)
 	}
 
 	feeEntry, err := newHarmonyEntry(
@@ -225,7 +236,8 @@ func sweepEntries(tx lndclient.Transaction, u entryUtils) ([]*HarmonyEntry, erro
 		u.getFiat,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx %v: creating sweep fee entry "+
+			"failed: %w", tx.TxHash, err)
 	}
 
 	return []*HarmonyEntry{txEntry, feeEntry}, nil
@@ -267,7 +279,8 @@ func createOnchainFeeEntry(tx lndclient.Transaction, category string,
 	)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx %v: creating on-chain fee entry "+
+			"failed: %w", tx.TxHash, err)
 	}
 
 	return feeEntry, nil
@@ -315,7 +328,9 @@ func onChainEntries(tx lndclient.Transaction,
 		note := utxoManagementFeeNote(tx.TxHash)
 		feeEntry, err := createOnchainFeeEntry(tx, category, note, u)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("tx %v: creating utxo "+
+				"management fee entry failed: %w", tx.TxHash,
+				err)
 		}
 
 		return []*HarmonyEntry{feeEntry}, nil
@@ -326,7 +341,8 @@ func onChainEntries(tx lndclient.Transaction,
 		tx.Label, category, true, u.getFiat,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx %v: creating on-chain transaction "+
+			"entry failed: %w", tx.TxHash, err)
 	}
 
 	// If we did not pay any fees, we can just return a single entry.
@@ -336,7 +352,8 @@ func onChainEntries(tx lndclient.Transaction,
 
 	feeEntry, err := createOnchainFeeEntry(tx, category, "", u)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx %v: creating on-chain fee entry "+
+			"failed: %w", tx.TxHash, err)
 	}
 
 	return []*HarmonyEntry{txEntry, feeEntry}, nil
@@ -451,7 +468,8 @@ func paymentEntry(payment paymentInfo, paidToSelf bool,
 		ref, note, "", false, u.getFiat,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("payment %v: creating payment entry "+
+			"failed: %w", payment.Hash, err)
 	}
 
 	// If we paid no fees (possible for payments to our direct peer), then
@@ -468,7 +486,8 @@ func paymentEntry(payment paymentInfo, paidToSelf bool,
 		feeRef, note, "", false, u.getFiat,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("payment %v: creating payment fee "+
+			"entry failed: %w", payment.Hash, err)
 	}
 	return []*HarmonyEntry{paymentEntry, feeEntry}, nil
 }
@@ -502,7 +521,8 @@ func forwardingEntry(forward lndclient.ForwardingEvent,
 		false, u.getFiat,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("forward %v: creating forwarding "+
+			"entry failed: %w", txid, err)
 	}
 
 	// If we did not earn any fees, return the forwarding entry.
@@ -515,7 +535,8 @@ func forwardingEntry(forward lndclient.ForwardingEvent,
 		EntryTypeForwardFee, txid, "", "", "", false, u.getFiat,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("forward %v: creating forwarding fee "+
+			"entry failed: %w", txid, err)
 	}
 
 	return []*HarmonyEntry{fwdEntry, feeEntry}, nil

@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
@@ -44,12 +45,18 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 
 	err := utils.ValidateTimeRange(startTime, endTime)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("conversion: invalid time range [%v,%v): %w",
+			startTime, endTime, err)
 	}
 
 	fiatClient, err := fiat.NewPriceSource(priceCfg)
 	if err != nil {
-		return nil, err
+		backend := "<nil>"
+		if priceCfg != nil {
+			backend = priceCfg.Backend.String()
+		}
+		return nil, fmt.Errorf("conversion: initialising price "+
+			"source backend %v failed: %w", backend, err)
 	}
 
 	// Get price data for our relevant period. We get pricing for the whole
@@ -57,12 +64,19 @@ func getConversion(ctx context.Context, startTime, endTime time.Time,
 	// calls we need to make to our external data source.
 	prices, err := fiatClient.GetPrices(ctx, startTime, endTime)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("conversion: fetching prices for "+
+			"range [%v,%v) failed: %w", startTime, endTime, err)
 	}
 
 	// Create a wrapper function which can be used to get individual price
 	// points from our set of price data as we create our report.
 	return func(ts time.Time) (*fiat.Price, error) {
-		return fiat.GetPrice(prices, ts)
+		price, err := fiat.GetPrice(prices, ts)
+		if err != nil {
+			return nil, fmt.Errorf("conversion: fetching price "+
+				"at %v failed: %w", ts, err)
+		}
+
+		return price, nil
 	}, nil
 }

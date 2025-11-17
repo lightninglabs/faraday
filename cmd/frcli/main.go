@@ -57,6 +57,7 @@ func main() {
 		fiatEstimateCommand,
 		onChainReportCommand,
 		closeReportCommand,
+		chanEventsCommand,
 	}
 
 	if err := app.Run(os.Args); err != nil {

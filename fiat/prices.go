@@ -115,6 +115,16 @@ func (cfg *PriceSourceConfig) validatePriceSourceConfig() error {
 				"daily granularity only",
 				errGranularityUnsupported)
 		}
+
+	case BitfinexPriceBackend:
+		if cfg.Granularity == nil ||
+			(*cfg.Granularity != GranularityHour &&
+				*cfg.Granularity != GranularityDay) {
+
+			return fmt.Errorf("%w: bitfinex supports hourly or "+
+				"daily granularity only",
+				errGranularityUnsupported)
+		}
 	}
 
 	return nil
@@ -175,6 +185,9 @@ const (
 
 	// CoinbasePriceBackend uses Coinbase's API for fiat price data.
 	CoinbasePriceBackend
+
+	// BitfinexPriceBackend uses Bitfinex's API for fiat price data.
+	BitfinexPriceBackend
 )
 
 var priceBackendNames = map[PriceBackend]string{
@@ -184,6 +197,7 @@ var priceBackendNames = map[PriceBackend]string{
 	CustomPriceBackend:    "custom",
 	CoinGeckoPriceBackend: "coingecko",
 	CoinbasePriceBackend:  "coinbase",
+	BitfinexPriceBackend:  "bitfinex",
 }
 
 // String returns the string representation of a price backend.
@@ -230,6 +244,11 @@ func NewPriceSource(cfg *PriceSourceConfig) (*PriceSource, error) {
 	case CoinbasePriceBackend:
 		return &PriceSource{
 			impl: newCoinbaseAPI(*cfg.Granularity),
+		}, nil
+
+	case BitfinexPriceBackend:
+		return &PriceSource{
+			impl: newBitfinexAPI(*cfg.Granularity),
 		}, nil
 	}
 

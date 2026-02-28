@@ -288,6 +288,11 @@ func parseChannelPoint(ctx *cli.Context) (*wire.OutPoint, error) {
 	return channelPoint, nil
 }
 
+// fiatBackendBitfinex is the rpc enum value for BITFINEX.
+// TODO: Replace with frdrpc.FiatBackend_BITFINEX once the frdrpc module is
+// tagged and the dependency is bumped.
+const fiatBackendBitfinex = frdrpc.FiatBackend(5)
+
 // parseFiatBackend parses the user chosen fiat backend into a FiatBackend type.
 func parseFiatBackend(fiatBackend string) (frdrpc.FiatBackend, error) {
 	switch fiatBackend {
@@ -305,6 +310,9 @@ func parseFiatBackend(fiatBackend string) (frdrpc.FiatBackend, error) {
 
 	case fiat.CoinGeckoPriceBackend.String():
 		return frdrpc.FiatBackend_COINGECKO, nil
+
+	case fiat.BitfinexPriceBackend.String():
+		return fiatBackendBitfinex, nil
 
 	default:
 		return frdrpc.FiatBackend_UNKNOWN_FIATBACKEND, fmt.Errorf(

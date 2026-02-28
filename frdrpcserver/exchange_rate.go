@@ -10,6 +10,11 @@ import (
 	"github.com/lightninglabs/faraday/frdrpc"
 )
 
+// fiatBackendBitfinex is the rpc enum value for BITFINEX.
+// TODO: Replace with frdrpc.FiatBackend_BITFINEX once the frdrpc module is
+// tagged and the dependency is bumped.
+const fiatBackendBitfinex = frdrpc.FiatBackend(5)
+
 func priceCfgFromRPC(rpcBackend frdrpc.FiatBackend,
 	rpcGranularity frdrpc.Granularity, disable bool, start, end time.Time,
 	prices []*frdrpc.BitcoinPrice) (*fiat.PriceSourceConfig, error) {
@@ -124,6 +129,9 @@ func fiatBackendFromRPC(backend frdrpc.FiatBackend) (fiat.PriceBackend, error) {
 
 	case frdrpc.FiatBackend_COINGECKO:
 		return fiat.CoinGeckoPriceBackend, nil
+
+	case fiatBackendBitfinex:
+		return fiat.BitfinexPriceBackend, nil
 
 	default:
 		return fiat.UnknownPriceBackend,

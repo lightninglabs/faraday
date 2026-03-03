@@ -343,6 +343,11 @@ enum FiatBackend {
     // This API is reached through the following URL:
     // https://api.coingecko.com/api/v3/coins/bitcoin/market_chart
     COINGECKO = 4;
+
+    // Use the Bitfinex API for fiat price information.
+    // This API is reached through the following URL:
+    // https://api-pub.bitfinex.com/v2/candles/trade:1h:tBTCUSD/hist
+    BITFINEX = 5;
 }
 
 message ExchangeRateRequest {

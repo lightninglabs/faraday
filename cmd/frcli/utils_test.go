@@ -3,7 +3,9 @@ package main
 import (
 	"testing"
 
+	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/frdrpc"
+	"github.com/stretchr/testify/require"
 )
 
 // TestFilterPrices checks that the filterPrices function correctly filters
@@ -114,6 +116,67 @@ func TestFilterPrices(t *testing.T) {
 						test.expectedPrices[i].PriceTimestamp,
 						i, p.PriceTimestamp)
 				}
+			}
+		})
+	}
+}
+
+// TestParseFiatBackend checks that known backend strings map to expected
+// rpc enum values.
+func TestParseFiatBackend(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		backendStr string
+		expected   frdrpc.FiatBackend
+		expectErr  bool
+	}{
+		{
+			name:       "empty uses unknown",
+			backendStr: "",
+			expected:   frdrpc.FiatBackend_UNKNOWN_FIATBACKEND,
+		},
+		{
+			name:       "coincap",
+			backendStr: fiat.CoinCapPriceBackend.String(),
+			expected:   frdrpc.FiatBackend_COINCAP,
+		},
+		{
+			name:       "coindesk",
+			backendStr: fiat.CoinDeskPriceBackend.String(),
+			expected:   frdrpc.FiatBackend_COINDESK,
+		},
+		{
+			name:       "custom",
+			backendStr: fiat.CustomPriceBackend.String(),
+			expected:   frdrpc.FiatBackend_CUSTOM,
+		},
+		{
+			name:       "coingecko",
+			backendStr: fiat.CoinGeckoPriceBackend.String(),
+			expected:   frdrpc.FiatBackend_COINGECKO,
+		},
+		{
+			name:       "bitfinex",
+			backendStr: fiat.BitfinexPriceBackend.String(),
+			expected:   fiatBackendBitfinex,
+		},
+		{
+			name:       "unknown backend",
+			backendStr: "not-a-backend",
+			expectErr:  true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			backend, err := parseFiatBackend(test.backendStr)
+			if test.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, test.expected, backend)
 			}
 		})
 	}

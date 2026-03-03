@@ -15,11 +15,11 @@ import (
 var fiatBackendFlag = cli.StringFlag{
 	Name: "fiat_backend",
 	Usage: fmt.Sprintf("fiat backend to be used. Options include: '%v' "+
-		"(default), '%v', `%v` or `%v`, which allows custom price "+
-		"data to be used. The `%v` option requires the "+
+		"(default), '%v', `%v`, `%v` or `%v`, which allows custom "+
+		"price data to be used. The `%v` option requires the "+
 		"`prices_csv_path` and `custom_price_currency` options to be "+
 		"set", fiat.CoinDeskPriceBackend, fiat.CoinCapPriceBackend,
-		fiat.CoinGeckoPriceBackend,
+		fiat.CoinGeckoPriceBackend, fiat.BitfinexPriceBackend,
 		fiat.CustomPriceBackend, fiat.CustomPriceBackend),
 }
 

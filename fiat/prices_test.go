@@ -232,6 +232,35 @@ func TestValidatePriceSourceConfig(t *testing.T) {
 			},
 			expectedErr: errGranularityUnsupported,
 		},
+		{
+			name: "bitfinex hourly granularity",
+			cfg: &PriceSourceConfig{
+				Backend:     BitfinexPriceBackend,
+				Granularity: &GranularityHour,
+			},
+		},
+		{
+			name: "bitfinex daily granularity",
+			cfg: &PriceSourceConfig{
+				Backend:     BitfinexPriceBackend,
+				Granularity: &GranularityDay,
+			},
+		},
+		{
+			name: "bitfinex no granularity disallowed",
+			cfg: &PriceSourceConfig{
+				Backend: BitfinexPriceBackend,
+			},
+			expectedErr: errGranularityUnsupported,
+		},
+		{
+			name: "bitfinex minute granularity disallowed",
+			cfg: &PriceSourceConfig{
+				Backend:     BitfinexPriceBackend,
+				Granularity: &GranularityMinute,
+			},
+			expectedErr: errGranularityUnsupported,
+		},
 	}
 
 	for _, test := range tests {

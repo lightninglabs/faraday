@@ -2,6 +2,7 @@ package frdrpcserver
 
 import (
 	"testing"
+	"time"
 
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/frdrpc"
@@ -67,4 +68,27 @@ func TestFiatBackendFromRPC(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestPriceCfgFromRPCBitfinexGranularity verifies that priceCfgFromRPC sets
+// a granularity for bitfinex so that the resulting config passes validation.
+func TestPriceCfgFromRPCBitfinexGranularity(t *testing.T) {
+	t.Parallel()
+
+	start := time.Unix(1711929600, 0).UTC()
+	end := start.Add(2 * time.Hour)
+
+	cfg, err := priceCfgFromRPC(
+		fiatBackendBitfinex, frdrpc.Granularity_HOUR, false,
+		start, end, nil,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	require.Equal(t, fiat.BitfinexPriceBackend, cfg.Backend)
+	require.NotNil(t, cfg.Granularity)
+	require.Equal(t, fiat.GranularityHour, *cfg.Granularity)
+
+	// Validate that this config can be used to construct a price source.
+	_, err = fiat.NewPriceSource(cfg)
+	require.NoError(t, err)
 }

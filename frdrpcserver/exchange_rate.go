@@ -39,7 +39,8 @@ func priceCfgFromRPC(rpcBackend frdrpc.FiatBackend,
 	// Get additional values for backends that require additional
 	// information.
 	switch backend {
-	case fiat.CoinCapPriceBackend:
+	case fiat.CoinCapPriceBackend, fiat.CoinbasePriceBackend,
+		fiat.BitfinexPriceBackend:
 		granularity, err = granularityFromRPC(
 			rpcGranularity, disable, end.Sub(start),
 		)

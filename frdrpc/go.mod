@@ -14,4 +14,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240814211410-ddb44dafa142 // indirect
 )
 
-go 1.23.6
+go 1.24.11

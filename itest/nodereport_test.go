@@ -85,7 +85,7 @@ func TestNodeAudit(t *testing.T) {
 	feeRef := accounting.FeeReference(aliceChannel.Hash.String())
 	expected[feeRef] = expectedReport{
 		eventType: frdrpc.EntryType_CHANNEL_OPEN_FEE,
-		amount:    lnwire.MilliSatoshi(8237 * 1000),
+		amount:    lnwire.MilliSatoshi(4118 * 1000),
 		onChain:   true,
 	}
 
@@ -100,6 +100,10 @@ func TestNodeAudit(t *testing.T) {
 		invoiceAmount lnwire.MilliSatoshi = 1000
 	)
 
+	// TODO: there are some timing issues. We should upgrade the test
+	// framework to lntest.
+	time.Sleep(time.Second * 3)
+
 	// Make a payment from alice to bob, we need to make this payment first
 	// because we do not have any incoming liquidity.
 	hash, payreq := c.addInvoice(c.bobClient.Client, paymentAmount)
@@ -111,6 +115,10 @@ func TestNodeAudit(t *testing.T) {
 			Timeout:     paymentTimeout,
 		}, lnrpc.Payment_SUCCEEDED,
 	)
+
+	// TODO: there are some timing issues. We should upgrade the test
+	// framework to lntest.
+	time.Sleep(time.Second * 3)
 
 	// Add an entry for our payment to our set of expected entries. We do
 	// not expect a fee entry because we made a single hop payment. Since
@@ -180,7 +188,7 @@ func TestNodeAudit(t *testing.T) {
 
 	expected[accounting.FeeReference(closeTx.String())] = expectedReport{
 		eventType: frdrpc.EntryType_CHANNEL_CLOSE_FEE,
-		amount:    lnwire.MilliSatoshi(9060 * 1000),
+		amount:    lnwire.MilliSatoshi(4535 * 1000),
 		onChain:   true,
 	}
 

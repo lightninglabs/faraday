@@ -9,8 +9,8 @@ require (
 	github.com/jarcoal/httpmock v1.4.0
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/lightninglabs/faraday/frdrpc v1.0.1
-	github.com/lightninglabs/lndclient v0.20.0-7
-	github.com/lightningnetwork/lnd v0.20.1-beta
+	github.com/lightninglabs/lndclient v1.0.1-0.20260224134629-de7b65bb4c60
+	github.com/lightningnetwork/lnd v0.20.0-beta.rc4.0.20260223110936-dd65ba2b0106
 	github.com/lightningnetwork/lnd/cert v1.2.2
 	github.com/lightningnetwork/lnd/kvdb v1.4.16
 	github.com/shopspring/decimal v1.2.0
@@ -30,7 +30,7 @@ require (
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
 	github.com/aead/siphash v1.0.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
+	github.com/btcsuite/btcd/btcec/v2 v2.3.6 // indirect
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.8 // indirect
 	github.com/btcsuite/btclog v0.0.0-20241003133417-09c4e92e319c // indirect
 	github.com/btcsuite/btcwallet v0.16.17 // indirect
@@ -103,7 +103,7 @@ require (
 	github.com/lightningnetwork/lnd/fn/v2 v2.0.9 // indirect
 	github.com/lightningnetwork/lnd/healthcheck v1.2.6 // indirect
 	github.com/lightningnetwork/lnd/queue v1.1.1 // indirect
-	github.com/lightningnetwork/lnd/sqldb v1.0.12-0.20260113193010-8565d12e40b1 // indirect
+	github.com/lightningnetwork/lnd/sqldb v1.0.13-0.20260223110936-dd65ba2b0106 // indirect
 	github.com/lightningnetwork/lnd/ticker v1.1.1 // indirect
 	github.com/lightningnetwork/lnd/tlv v1.3.2 // indirect
 	github.com/lightningnetwork/lnd/tor v1.1.6 // indirect

@@ -2,9 +2,9 @@
 # base images. The first stage builds lnd with the golang base image.
 # The second stage runs directly on the bitcoind base image and adds all
 # binaries required to run the tests with.
-FROM golang:1.24.11-alpine as builder
+FROM golang:1.25.5-alpine as builder
 
-ARG LND_VERSION=v0.20.1-beta
+ARG LND_VERSION=dd65ba2b01063c4b6e3022835168b19a204f9408
 
 RUN apk add --no-cache git make
 

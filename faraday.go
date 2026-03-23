@@ -4,6 +4,7 @@ package faraday
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -56,6 +57,12 @@ var (
 	// errServerAlreadyStarted is the error that is returned if the server
 	// is requested to start while it's already been started.
 	errServerAlreadyStarted = fmt.Errorf("server can only be started once")
+
+	// errServerStopped is the error that is returned if the server is
+	// requested to start after it has been stopped. The Faraday struct is
+	// not reusable after Stop.
+	errServerStopped = fmt.Errorf("server has been stopped and cannot " +
+		"be restarted")
 )
 
 // MinLndVersion is the minimum lnd version required. Note that apis that are
@@ -75,13 +82,20 @@ type Faraday struct {
 	// cfg is the faraday config.
 	cfg *Config
 
-	// To be used atomically.
-	started int32
+	// started is used to ensure we only start/stop the faraday once.
+	started atomic.Bool
 
-	// To be used atomically.
-	stopped int32
+	// stopped is set once Stop completes or Start fails. It prevents
+	// reuse of the struct, since internal fields are not reset.
+	stopped atomic.Bool
 
 	lnd *lndclient.GrpcLndServices
+
+	// lndOwned indicates whether Faraday created the lnd connection
+	// itself (standalone mode via Start). When true, Stop will close
+	// the connection. When false (subserver mode via StartAsSubserver),
+	// the parent process manages the lnd lifecycle.
+	lndOwned bool
 
 	// bitcoinClient is set if the client opted to connect to a bitcoin
 	// backend, if not, it will be nil.
@@ -109,10 +123,47 @@ func New(cfg *Config) *Faraday {
 	return &Faraday{cfg: cfg}
 }
 
-// Start starts the listener and server.
+// Start starts faraday and its dependencies with an RPC server included.
 func (f *Faraday) Start() error {
-	if atomic.AddInt32(&f.started, 1) != 1 {
+	if f.stopped.Load() {
+		return errServerStopped
+	}
+
+	if !f.started.CompareAndSwap(false, true) {
 		return errServerAlreadyStarted
+	}
+
+	log.Infof("Starting Faraday version %s", Version())
+
+	// Connect to the full suite of lightning services offered by lnd's
+	// subservers.
+	var err error
+	f.lnd, err = lndclient.NewLndServices(&lndclient.LndServicesConfig{
+		LndAddress:         f.cfg.Lnd.RPCServer,
+		Network:            lndclient.Network(f.cfg.Network),
+		CustomMacaroonPath: f.cfg.Lnd.MacaroonPath,
+		TLSPath:            f.cfg.Lnd.TLSCertPath,
+		CheckVersion:       MinLndVersion,
+		RPCTimeout:         f.cfg.Lnd.RequestTimeout,
+	})
+	if err != nil {
+		f.stopped.Store(true)
+		f.started.Store(false)
+
+		return fmt.Errorf("cannot connect to lightning services: %v",
+			err)
+	}
+	f.lndOwned = true
+
+	// Initialize faraday with its dependencies. If anything from here
+	// on fails, we need to clean up the lnd connection.
+	err = f.initialize(true)
+	if err != nil {
+		f.lnd.Close()
+		f.stopped.Store(true)
+		f.started.Store(false)
+
+		return fmt.Errorf("error initializing faraday: %v", err)
 	}
 
 	cfg := &frdrpcserver.Config{
@@ -123,6 +174,30 @@ func (f *Faraday) Start() error {
 	// Create the RPC server.
 	f.RPCServer = frdrpcserver.NewRPCServer(cfg)
 
+	err = f.startRPCServer()
+	if err != nil {
+		if f.macaroonService != nil {
+			if e := f.macaroonService.Stop(); e != nil {
+				log.Errorf("Error stopping macaroon "+
+					"service: %v", e)
+			}
+			if e := f.macaroonDB.Close(); e != nil {
+				log.Errorf("Error closing macaroon "+
+					"DB: %v", e)
+			}
+		}
+		f.lnd.Close()
+		f.stopped.Store(true)
+		f.started.Store(false)
+
+		return fmt.Errorf("error starting RPC server: %v", err)
+	}
+
+	return nil
+}
+
+// startRPCServer starts the gRPC and REST RPC servers.
+func (f *Faraday) startRPCServer() error {
 	// Prepare the RPC server.
 	serverTLSCfg, restClientCreds, err := getTLSConfig(f.cfg)
 	if err != nil {
@@ -142,44 +217,13 @@ func (f *Faraday) Start() error {
 		}
 	}()
 
-	// Set up the macaroon service.
-	rks, db, err := lndclient.NewBoltMacaroonStore(
-		f.cfg.FaradayDir, lncfg.MacaroonDBName, macDatabaseOpenTimeout,
-	)
-	if err != nil {
-		return err
-	}
-	shutdownFuncs["macaroondb"] = db.Close
-
-	f.macaroonDB = db
-	f.macaroonService, err = lndclient.NewMacaroonService(
-		&lndclient.MacaroonServiceConfig{
-			RootKeyStore:     rks,
-			MacaroonLocation: faradayMacaroonLocation,
-			MacaroonPath:     f.cfg.MacaroonPath,
-			Checkers: []macaroons.Checker{
-				macaroons.IPLockChecker,
-			},
-			RequiredPerms: perms.RequiredPermissions,
-			DBPassword:    macDbDefaultPw,
-			LndClient:     &f.lnd.LndServices,
-			EphemeralKey:  lndclient.SharedKeyNUMS,
-			KeyLocator:    lndclient.SharedKeyLocator,
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("error creating macaroon service: %v", err)
-	}
-
-	// Start the macaroon service and let it create its default macaroon in
-	// case it doesn't exist yet.
-	if err := f.macaroonService.Start(); err != nil {
-		return fmt.Errorf("error starting macaroon service: %v", err)
-	}
-	shutdownFuncs["macaroon"] = f.macaroonService.Stop
-
 	// First we add the security interceptor to our gRPC server options that
 	// checks the macaroons for validity.
+	if f.macaroonService == nil {
+		return fmt.Errorf("macaroon service must be initialized " +
+			"before starting the RPC server")
+	}
+
 	unaryInterceptor, streamInterceptor, err :=
 		f.macaroonService.Interceptors()
 
@@ -294,6 +338,21 @@ func (f *Faraday) Start() error {
 	return nil
 }
 
+// stopRPCServer stops the gRPC and REST RPC servers.
+func (f *Faraday) stopRPCServer() {
+	if f.restServer != nil {
+		f.restCancel()
+		err := f.restServer.Close()
+		if err != nil {
+			log.Errorf("unable to close REST listener: %v", err)
+		}
+	}
+
+	if f.grpcServer != nil {
+		f.grpcServer.Stop()
+	}
+}
+
 // StartAsSubserver is an alternative to Start where the RPC server does not
 // create its own gRPC server but registers to an existing one. The same goes
 // for REST (if enabled), instead of creating an own mux and HTTP server, we
@@ -306,7 +365,11 @@ func (f *Faraday) StartAsSubserver(lndGrpc *lndclient.GrpcLndServices,
 	// There should be no reason to start the daemon twice. Therefore,
 	// return an error if that's tried. This is mostly to guard against
 	// Start and StartAsSubserver both being called.
-	if atomic.AddInt32(&f.started, 1) != 1 {
+	if f.stopped.Load() {
+		return errServerStopped
+	}
+
+	if !f.started.CompareAndSwap(false, true) {
 		return errServerAlreadyStarted
 	}
 
@@ -314,43 +377,15 @@ func (f *Faraday) StartAsSubserver(lndGrpc *lndclient.GrpcLndServices,
 	// connection to lnd that might be shared among other subservers.
 	f.lnd = lndGrpc
 
-	if withMacaroonService {
-		// Set up the macaroon service.
-		rks, db, err := lndclient.NewBoltMacaroonStore(
-			f.cfg.FaradayDir, lncfg.MacaroonDBName,
-			macDatabaseOpenTimeout,
-		)
-		if err != nil {
-			return err
-		}
+	// With lnd already pre-connected, initialize everything else, such as
+	// the RPC server instance. If this fails, then nothing has been
+	// started yet, and we can just return the error.
+	err := f.initialize(withMacaroonService)
+	if err != nil {
+		f.stopped.Store(true)
+		f.started.Store(false)
 
-		f.macaroonDB = db
-		f.macaroonService, err = lndclient.NewMacaroonService(
-			&lndclient.MacaroonServiceConfig{
-				RootKeyStore:     rks,
-				MacaroonLocation: faradayMacaroonLocation,
-				MacaroonPath:     f.cfg.MacaroonPath,
-				Checkers: []macaroons.Checker{
-					macaroons.IPLockChecker,
-				},
-				RequiredPerms: perms.RequiredPermissions,
-				DBPassword:    macDbDefaultPw,
-				LndClient:     &lndGrpc.LndServices,
-				EphemeralKey:  lndclient.SharedKeyNUMS,
-				KeyLocator:    lndclient.SharedKeyLocator,
-			},
-		)
-		if err != nil {
-			return fmt.Errorf("error creating macaroon service: %v",
-				err)
-		}
-
-		// Start the macaroon service and let it create its default
-		// macaroon in case it doesn't exist yet.
-		if err := f.macaroonService.Start(); err != nil {
-			return fmt.Errorf("error starting macaroon service: %v",
-				err)
-		}
+		return fmt.Errorf("error initializing faraday: %v", err)
 	}
 
 	cfg := &frdrpcserver.Config{
@@ -358,7 +393,7 @@ func (f *Faraday) StartAsSubserver(lndGrpc *lndclient.GrpcLndServices,
 		BitcoinClient: f.bitcoinClient,
 	}
 
-	// Create the RPC server.
+	// Create the RPC server, but don't start it.
 	f.RPCServer = frdrpcserver.NewRPCServer(cfg)
 
 	return nil
@@ -383,38 +418,123 @@ func (f *Faraday) ValidateMacaroon(ctx context.Context,
 	)
 }
 
-// Stop stops the grpc listener and server.
+// Stop shuts down Faraday: the RPC servers, macaroon service, and, if Faraday
+// owns the lnd connection (standalone mode via Start), the lnd connection as
+// well. In subserver mode (started via StartAsSubserver) the lnd connection is
+// left open for the parent process to manage.
+//
+// Calling Stop on an already stopped or never-started instance is a no-op
+// and returns nil.
 func (f *Faraday) Stop() error {
-	if atomic.AddInt32(&f.stopped, 1) != 1 {
+	if !f.started.CompareAndSwap(true, false) {
 		return nil
 	}
 
-	if f.restServer != nil {
-		f.restCancel()
-		err := f.restServer.Close()
-		if err != nil {
-			log.Errorf("unable to close REST listener: %v", err)
-		}
-	}
+	// Mark as permanently stopped so the struct cannot be reused.
+	f.stopped.Store(true)
 
-	if f.macaroonService != nil {
-		if err := f.macaroonService.Stop(); err != nil {
-			log.Errorf("Error stopping macaroon service: %v", err)
-		}
-	}
-	if f.macaroonDB != nil {
-		if err := f.macaroonDB.Close(); err != nil {
-			log.Errorf("Error closing macaroon DB: %v", err)
-		}
-	}
+	log.Infof("Stopping Faraday")
 
-	// Stop the grpc server and wait for all go routines to terminate.
-	if f.grpcServer != nil {
-		f.grpcServer.Stop()
-	}
+	f.stopRPCServer()
+
+	// Wait for the gRPC and REST serve goroutines to exit before
+	// tearing down the macaroon service, so that in-flight RPCs
+	// can complete cleanly.
 	f.wg.Wait()
 
-	f.lnd.Close()
+	var stopErr error
+	if f.macaroonService != nil {
+		err := f.macaroonService.Stop()
+		if err != nil {
+			log.Errorf("Error stopping macaroon service: %v", err)
+			stopErr = errors.Join(stopErr, err)
+		}
+
+		if err := f.macaroonDB.Close(); err != nil {
+			log.Errorf("Error closing macaroon DB: %v", err)
+			stopErr = errors.Join(stopErr, err)
+		}
+	}
+
+	// Only close the lnd connection if we created it ourselves
+	// (standalone mode). In subserver mode, the parent process
+	// manages the shared lnd connection.
+	if f.lndOwned && f.lnd != nil {
+		f.lnd.Close()
+	}
+
+	return stopErr
+}
+
+// initialize sets up faraday with its dependencies.
+func (f *Faraday) initialize(withMacaroonService bool) error {
+	var err error
+
+	if withMacaroonService {
+		// Set up the macaroon service.
+		var rks bakery.RootKeyStore
+		rks, f.macaroonDB, err = lndclient.NewBoltMacaroonStore(
+			f.cfg.FaradayDir, lncfg.MacaroonDBName,
+			macDatabaseOpenTimeout,
+		)
+		if err != nil {
+			return err
+		}
+
+		f.macaroonService, err = lndclient.NewMacaroonService(
+			&lndclient.MacaroonServiceConfig{
+				RootKeyStore:     rks,
+				MacaroonLocation: faradayMacaroonLocation,
+				MacaroonPath:     f.cfg.MacaroonPath,
+				Checkers: []macaroons.Checker{
+					macaroons.IPLockChecker,
+				},
+				RequiredPerms: perms.RequiredPermissions,
+				DBPassword:    macDbDefaultPw,
+				LndClient:     &f.lnd.LndServices,
+				EphemeralKey:  lndclient.SharedKeyNUMS,
+				KeyLocator:    lndclient.SharedKeyLocator,
+			},
+		)
+		if err != nil {
+			if e := f.macaroonDB.Close(); e != nil {
+				log.Errorf("Error closing macaroon DB: %v", e)
+			}
+
+			return fmt.Errorf("error creating macaroon "+
+				"service: %v", err)
+		}
+
+		// Start the macaroon service and let it create its default
+		// macaroon in case it doesn't exist yet.
+		if err := f.macaroonService.Start(); err != nil {
+			if e := f.macaroonDB.Close(); e != nil {
+				log.Errorf("Error closing macaroon DB: %v", e)
+			}
+
+			return fmt.Errorf("error starting macaroon "+
+				"service: %v", err)
+		}
+	}
+
+	// If the client chose to connect to a bitcoin client, get one now.
+	if f.cfg.ChainConn {
+		f.bitcoinClient, err = chain.NewBitcoinClient(f.cfg.Bitcoin)
+		if err != nil {
+			if f.macaroonService != nil {
+				if e := f.macaroonService.Stop(); e != nil {
+					log.Errorf("Error stopping macaroon "+
+						"service: %v", e)
+				}
+				if e := f.macaroonDB.Close(); e != nil {
+					log.Errorf("Error closing macaroon "+
+						"DB: %v", e)
+				}
+			}
+
+			return err
+		}
+	}
 
 	return nil
 }
@@ -469,35 +589,9 @@ func Main() error {
 	}
 
 	server := New(&config)
-
-	// Connect to the full suite of lightning services offered by lnd's
-	// subservers.
-	server.lnd, err = lndclient.NewLndServices(&lndclient.LndServicesConfig{
-		LndAddress:         config.Lnd.RPCServer,
-		Network:            lndclient.Network(config.Network),
-		CustomMacaroonPath: config.Lnd.MacaroonPath,
-		TLSPath:            config.Lnd.TLSCertPath,
-		CheckVersion:       MinLndVersion,
-		RPCTimeout:         config.Lnd.RequestTimeout,
-	})
+	err = server.Start()
 	if err != nil {
-		return fmt.Errorf("cannot connect to lightning services: %v",
-			err)
-	}
-
-	// If the client chose to connect to a bitcoin client, get one now.
-	if config.ChainConn {
-		server.bitcoinClient, err = chain.NewBitcoinClient(
-			config.Bitcoin,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Start the server.
-	if err := server.Start(); err != nil {
-		return err
+		return fmt.Errorf("error starting faraday: %w", err)
 	}
 
 	// Run until the user terminates.
@@ -505,7 +599,7 @@ func Main() error {
 	log.Infof("Received shutdown signal.")
 
 	if err := server.Stop(); err != nil {
-		return err
+		return fmt.Errorf("error stopping faraday: %w", err)
 	}
 
 	return nil

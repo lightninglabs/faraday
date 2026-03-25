@@ -1,4 +1,4 @@
-package frdrpcserver
+package faraday
 
 import (
 	"time"

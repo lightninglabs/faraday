@@ -50,9 +50,27 @@ jobs:
 
       - name: run imports check
         run: make fmt
-      
+
       - name: run JS stubs check
         run: make rpc-js-compile
+
+  #######################
+  # sql model generation
+  #######################
+  sqlc-check:
+    name: Sqlc check
+    runs-on: ubuntu-latest
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v2
+
+      - name: setup go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v2
+        with:
+          go-version: '${{ env.GO_VERSION }}'
+
+      - name: Generate sql models
+        run: make sqlc-check
 
   ########################
   # lint code
@@ -86,8 +104,10 @@ jobs:
       fail-fast: false
       matrix:
         unit_type:
-          - unit
           - unit-race
+          - unit
+          - unit dbbackend=postgres
+          - unit dbbackend=sqlite
           - itest
     steps:
       - name: git checkout

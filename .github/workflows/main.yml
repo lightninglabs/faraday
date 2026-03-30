@@ -86,8 +86,10 @@ jobs:
       fail-fast: false
       matrix:
         unit_type:
-          - unit
           - unit-race
+          - unit
+          - unit dbbackend=postgres
+          - unit dbbackend=sqlite
           - itest
     steps:
       - name: git checkout

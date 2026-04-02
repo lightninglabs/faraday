@@ -44,7 +44,7 @@ func (q *Queries) GetChannelByShortChanID(ctx context.Context, shortChannelID in
 }
 
 const getChannelEvents = `-- name: GetChannelEvents :many
-SELECT id, channel_id, event_type, timestamp, local_balance_sat, remote_balance_sat FROM channel_events
+SELECT id, channel_id, event_type, timestamp, local_balance_sat, remote_balance_sat, is_sync FROM channel_events
 WHERE channel_id = $1 AND timestamp >= $2 AND timestamp < $3
 ORDER BY timestamp ASC, id ASC
 `
@@ -71,6 +71,7 @@ func (q *Queries) GetChannelEvents(ctx context.Context, arg GetChannelEventsPara
 			&i.Timestamp,
 			&i.LocalBalanceSat,
 			&i.RemoteBalanceSat,
+			&i.IsSync,
 		); err != nil {
 			return nil, err
 		}
@@ -115,8 +116,9 @@ func (q *Queries) InsertChannel(ctx context.Context, arg InsertChannelParams) (i
 
 const insertChannelEvent = `-- name: InsertChannelEvent :exec
 INSERT INTO channel_events (
-    channel_id, event_type, timestamp, local_balance_sat, remote_balance_sat
-) VALUES ($1, $2, $3, $4, $5)
+    channel_id, event_type, timestamp, local_balance_sat, remote_balance_sat,
+    is_sync
+) VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type InsertChannelEventParams struct {
@@ -125,6 +127,7 @@ type InsertChannelEventParams struct {
 	Timestamp        time.Time
 	LocalBalanceSat  sql.NullInt64
 	RemoteBalanceSat sql.NullInt64
+	IsSync           bool
 }
 
 func (q *Queries) InsertChannelEvent(ctx context.Context, arg InsertChannelEventParams) error {
@@ -134,6 +137,7 @@ func (q *Queries) InsertChannelEvent(ctx context.Context, arg InsertChannelEvent
 		arg.Timestamp,
 		arg.LocalBalanceSat,
 		arg.RemoteBalanceSat,
+		arg.IsSync,
 	)
 	return err
 }

@@ -35,7 +35,10 @@ CREATE TABLE IF NOT EXISTS channel_events (
     local_balance_sat BIGINT CHECK (local_balance_sat >= 0),
     -- The remote balance of the channel at the time of the event.
     -- This is only populated for balance update events.
-    remote_balance_sat BIGINT CHECK (remote_balance_sat >= 0)
+    remote_balance_sat BIGINT CHECK (remote_balance_sat >= 0),
+    -- Whether this event was recorded during an initial sync rather than
+    -- from a live subscription.
+    is_sync BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- This composite index is crucial for efficiently querying the event history

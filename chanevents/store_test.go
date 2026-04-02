@@ -22,6 +22,22 @@ var (
 	testTime = time.Unix(1, 0)
 )
 
+// requireEqualEvent asserts that a retrieved event matches the expected values,
+// comparing only the fields that are set before insertion (ignoring the
+// auto-assigned ID).
+func requireEqualEvent(t *testing.T, expected *ChannelEvent,
+	expectedTime time.Time, actual *ChannelEvent) {
+
+	t.Helper()
+
+	require.Equal(t, expected.ChannelID, actual.ChannelID)
+	require.Equal(t, expected.EventType, actual.EventType)
+	require.Equal(t, expectedTime.Unix(), actual.Timestamp.Unix())
+	require.Equal(t, expected.LocalBalance, actual.LocalBalance)
+	require.Equal(t, expected.RemoteBalance, actual.RemoteBalance)
+	require.Equal(t, expected.IsSync, actual.IsSync)
+}
+
 // TestStore tests the chanevents store.
 func TestStore(t *testing.T) {
 	t.Parallel()
@@ -114,15 +130,8 @@ func TestStore(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, events, 2)
 
-	require.Equal(t, onlineEvent.EventType, events[0].EventType)
-	require.Equal(t, testTime.Unix(), events[0].Timestamp.Unix())
-	require.True(t, events[0].LocalBalance.IsNone())
-	require.True(t, events[0].RemoteBalance.IsNone())
-
-	require.Equal(t, updateEvent.EventType, events[1].EventType)
-	require.Equal(
-		t, testTime.Add(time.Second).Unix(), events[1].Timestamp.Unix(),
+	requireEqualEvent(t, onlineEvent, testTime, events[0])
+	requireEqualEvent(
+		t, updateEvent, testTime.Add(time.Second), events[1],
 	)
-	require.Equal(t, updateEvent.LocalBalance, events[1].LocalBalance)
-	require.Equal(t, updateEvent.RemoteBalance, events[1].RemoteBalance)
 }

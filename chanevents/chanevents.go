@@ -106,4 +106,8 @@ type ChannelEvent struct {
 	// RemoteBalance is the remote balance of the channel at the time of the
 	// event. This is only populated for balance update events.
 	RemoteBalance fn.Option[btcutil.Amount]
+
+	// IsSync indicates whether this event was recorded during an initial
+	// sync rather than from a live subscription.
+	IsSync bool
 }

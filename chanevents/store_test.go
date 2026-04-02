@@ -134,4 +134,26 @@ func TestStore(t *testing.T) {
 	requireEqualEvent(
 		t, updateEvent, testTime.Add(time.Second), events[1],
 	)
+
+	// Advance the clock and add a sync event to verify the IsSync flag
+	// round-trips correctly.
+	clock.SetTime(testTime.Add(2 * time.Second))
+
+	syncEvent := &ChannelEvent{
+		ChannelID: channelID,
+		EventType: EventTypeOnline,
+		IsSync:    true,
+	}
+	err = store.AddChannelEvent(ctx, syncEvent)
+	require.NoError(t, err)
+
+	events, err = store.GetChannelEvents(
+		ctx, channelID, time.Unix(0, 0), time.Unix(4, 0),
+	)
+	require.NoError(t, err)
+	require.Len(t, events, 3)
+
+	requireEqualEvent(
+		t, syncEvent, testTime.Add(2*time.Second), events[2],
+	)
 }

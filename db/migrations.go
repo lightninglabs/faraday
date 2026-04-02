@@ -6,5 +6,5 @@ const (
 	// daemon.
 	//
 	// NOTE: This MUST be updated when a new migration is added.
-	LatestMigrationVersion = 0
+	LatestMigrationVersion = 1
 )

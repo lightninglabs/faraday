@@ -14,16 +14,16 @@ type EventType int16
 
 const (
 	// EventTypeUnknown is the unknown event type.
-	EventTypeUnknown = 0
+	EventTypeUnknown EventType = 0
 
 	// EventTypeOnline is the online event type.
-	EventTypeOnline = 1
+	EventTypeOnline EventType = 1
 
 	// EventTypeOffline is the offline event type.
-	EventTypeOffline = 2
+	EventTypeOffline EventType = 2
 
 	// EventTypeUpdate is the balance update event type.
-	EventTypeUpdate = 3
+	EventTypeUpdate EventType = 3
 )
 
 // String returns the string representation of the event type.

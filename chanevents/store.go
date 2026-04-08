@@ -213,6 +213,7 @@ func (s *Store) AddChannelEvent(ctx context.Context,
 			Timestamp:        timestamp,
 			LocalBalanceSat:  localBalance,
 			RemoteBalanceSat: remoteBalance,
+			IsSync:           event.IsSync,
 		},
 	)
 	if err != nil {
@@ -269,5 +270,6 @@ func marshalChannelEvent(dbEvent sqlc.ChannelEvent) *ChannelEvent {
 		Timestamp:     dbEvent.Timestamp.UTC(),
 		LocalBalance:  localBalance,
 		RemoteBalance: remoteBalance,
+		IsSync:        dbEvent.IsSync,
 	}
 }

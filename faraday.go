@@ -18,11 +18,13 @@ import (
 	proxy "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/jessevdk/go-flags"
 	"github.com/lightninglabs/faraday/chain"
+	"github.com/lightninglabs/faraday/chanevents"
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/faraday/frdrpcserver"
 	"github.com/lightninglabs/faraday/frdrpcserver/perms"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/build"
+	"github.com/lightningnetwork/lnd/clock"
 	"github.com/lightningnetwork/lnd/kvdb"
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/lightningnetwork/lnd/lnrpc/verrpc"
@@ -88,6 +90,15 @@ type Faraday struct {
 	// stopped is set once Stop completes or Start fails. It prevents
 	// reuse of the struct, since internal fields are not reset.
 	stopped atomic.Bool
+
+	// monitor is the channel events monitor.
+	monitor *chanevents.Monitor
+
+	// stores contains all the stores used by faraday.
+	stores *stores
+
+	// ctxCancel is a function that can be used to cancel the main context.
+	ctxCancel context.CancelFunc
 
 	lnd *lndclient.GrpcLndServices
 
@@ -442,6 +453,23 @@ func (f *Faraday) Stop() error {
 	// can complete cleanly.
 	f.wg.Wait()
 
+	if f.ctxCancel != nil {
+		f.ctxCancel()
+	}
+
+	if f.monitor != nil {
+		if err := f.monitor.Stop(); err != nil {
+			log.Errorf("Error stopping channel event monitor: %v",
+				err)
+		}
+	}
+
+	if f.stores != nil {
+		if err := f.stores.Close(); err != nil {
+			log.Errorf("Error closing stores: %v", err)
+		}
+	}
+
 	var stopErr error
 	if f.macaroonService != nil {
 		err := f.macaroonService.Stop()
@@ -534,6 +562,27 @@ func (f *Faraday) initialize(withMacaroonService bool) error {
 
 			return err
 		}
+	}
+
+	// Create any relevant stores.
+	f.stores, err = NewStores(*f.cfg, clock.NewDefaultClock())
+	if err != nil {
+		return fmt.Errorf("could not create stores: %v", err)
+	}
+
+	// Create the channel event monitor.
+	f.monitor = chanevents.NewMonitor(
+		f.lnd.Client, f.stores.ChanEventsStore,
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	f.ctxCancel = cancel
+
+	if err := f.monitor.Start(ctx); err != nil {
+		cancel()
+
+		return fmt.Errorf("could not start channel event "+
+			"monitor: %v", err)
 	}
 
 	return nil

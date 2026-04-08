@@ -23,6 +23,7 @@ type ChannelEvent struct {
 	Timestamp        time.Time
 	LocalBalanceSat  sql.NullInt64
 	RemoteBalanceSat sql.NullInt64
+	IsSync           bool
 }
 
 type Peer struct {

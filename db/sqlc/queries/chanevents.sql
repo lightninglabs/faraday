@@ -15,8 +15,9 @@ SELECT * FROM channels WHERE short_channel_id = $1;
 
 -- name: InsertChannelEvent :exec
 INSERT INTO channel_events (
-    channel_id, event_type, timestamp, local_balance_sat, remote_balance_sat
-) VALUES ($1, $2, $3, $4, $5);
+    channel_id, event_type, timestamp, local_balance_sat, remote_balance_sat,
+    is_sync
+) VALUES ($1, $2, $3, $4, $5, $6);
 
 -- name: GetChannelEvents :many
 SELECT * FROM channel_events

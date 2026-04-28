@@ -195,4 +195,29 @@ func RegisterFaradayServerJSONCallbacks(registry map[string]func(ctx context.Con
 		}
 		callback(string(respBytes), nil)
 	}
+
+	registry["frdrpc.FaradayServer.GetChannelEvents"] = func(ctx context.Context,
+		conn *grpc.ClientConn, reqJSON string, callback func(string, error)) {
+
+		req := &ChannelEventsRequest{}
+		err := marshaler.Unmarshal([]byte(reqJSON), req)
+		if err != nil {
+			callback("", err)
+			return
+		}
+
+		client := NewFaradayServerClient(conn)
+		resp, err := client.GetChannelEvents(ctx, req)
+		if err != nil {
+			callback("", err)
+			return
+		}
+
+		respBytes, err := marshaler.Marshal(resp)
+		if err != nil {
+			callback("", err)
+			return
+		}
+		callback(string(respBytes), nil)
+	}
 }

@@ -15,8 +15,11 @@ import (
 )
 
 var (
-	errUnknownPeer    = errors.New("unknown peer")
-	errUnknownChannel = errors.New("unknown channel")
+	errUnknownPeer = errors.New("unknown peer")
+
+	// ErrUnknownChannel is returned by GetChannel when the requested
+	// channel point is not present in the store.
+	ErrUnknownChannel = errors.New("unknown channel")
 )
 
 // Queries is a subset of the sqlc.Queries interface that can be used to
@@ -167,7 +170,7 @@ func (s *Store) GetChannel(ctx context.Context, channelPoint string) (*Channel,
 	dbChannel, err := s.db.GetChannelByChanPoint(ctx, channelPoint)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errUnknownChannel
+			return nil, ErrUnknownChannel
 		}
 
 		return nil, fmt.Errorf("failed to get channel: %w", err)

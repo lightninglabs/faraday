@@ -333,7 +333,7 @@ func (m *Monitor) addChannel(ctx context.Context, pubKeyBytes route.Vertex,
 
 	// Check if the channel already exists.
 	channel, err := m.store.GetChannel(ctx, channelPoint)
-	if err != nil && !errors.Is(err, errUnknownChannel) {
+	if err != nil && !errors.Is(err, ErrUnknownChannel) {
 		return fmt.Errorf("error getting channel %s: %w",
 			channelPoint, err)
 	}

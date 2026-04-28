@@ -154,6 +154,39 @@
         ]
       }
     },
+    "/v1/faraday/getchannelevents": {
+      "post": {
+        "summary": "*\nGet a list of channel events that occurred for a given channel.",
+        "operationId": "FaradayServer_GetChannelEvents",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcChannelEventsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/frdrpcChannelEventsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
+      }
+    },
     "/v1/faraday/insights": {
       "get": {
         "summary": "* frcli: `insights`\nList currently open channel with routing and uptime information.",
@@ -660,6 +693,78 @@
         "currency": {
           "type": "string",
           "description": "The currency that the price is denoted in."
+        }
+      }
+    },
+    "frdrpcChannelEvent": {
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The timestamp of the event."
+        },
+        "event_type": {
+          "$ref": "#/definitions/frdrpcChannelEventType",
+          "description": "The type of the event."
+        },
+        "local_balance": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The channel's local balance at the time of the event in sat."
+        },
+        "remote_balance": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The channel's remote balance at the time of the event in sat."
+        }
+      }
+    },
+    "frdrpcChannelEventType": {
+      "type": "string",
+      "enum": [
+        "CHAN_EVENT_UNKNOWN",
+        "CHAN_EVENT_ONLINE",
+        "CHAN_EVENT_OFFLINE",
+        "CHAN_EVENT_UPDATE"
+      ],
+      "default": "CHAN_EVENT_UNKNOWN",
+      "description": " - CHAN_EVENT_UNKNOWN: An unknown event type.\n - CHAN_EVENT_ONLINE: An online event.\n - CHAN_EVENT_OFFLINE: An offline event.\n - CHAN_EVENT_UPDATE: A channel balance update event."
+    },
+    "frdrpcChannelEventsRequest": {
+      "type": "object",
+      "properties": {
+        "chan_point": {
+          "type": "string",
+          "description": "The channel point of the channel to get events for, formatted txid:outpoint."
+        },
+        "start_time": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The start time of the query range, expressed as unix epoch offset in\nseconds. Inclusive. Also serves as the pagination cursor: callers retrieving\nmore than max_events should re-query with start_time set to the timestamp\nof the last event returned by the previous call."
+        },
+        "end_time": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The end time of the query range, expressed as unix epoch offset in seconds.\nExclusive. Required and must be greater than start_time."
+        },
+        "max_events": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The maximum number of events to return. If zero, the server default is\nused. The server enforces a hard cap; values above the cap are clamped."
+        }
+      }
+    },
+    "frdrpcChannelEventsResponse": {
+      "type": "object",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/frdrpcChannelEvent"
+          },
+          "description": "The list of channel events."
         }
       }
     },

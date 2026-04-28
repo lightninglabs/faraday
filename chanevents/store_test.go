@@ -83,7 +83,7 @@ func TestStore(t *testing.T) {
 
 	// Get a non-existent channel and assert an error is returned.
 	dbChannel, err := store.GetChannel(ctx, "non-existent-chan-point")
-	require.ErrorIs(t, err, errUnknownChannel)
+	require.ErrorIs(t, err, ErrUnknownChannel)
 	require.Nil(t, dbChannel)
 
 	// Get the channel and assert it is the same.
@@ -125,7 +125,7 @@ func TestStore(t *testing.T) {
 
 	// Get the channel events and assert they are correct.
 	events, err := store.GetChannelEvents(
-		ctx, channelID, time.Unix(0, 0), time.Unix(3, 0),
+		ctx, channelID, time.Unix(0, 0), time.Unix(3, 0), 100,
 	)
 	require.NoError(t, err)
 	require.Len(t, events, 2)
@@ -148,7 +148,7 @@ func TestStore(t *testing.T) {
 	require.NoError(t, err)
 
 	events, err = store.GetChannelEvents(
-		ctx, channelID, time.Unix(0, 0), time.Unix(4, 0),
+		ctx, channelID, time.Unix(0, 0), time.Unix(4, 0), 100,
 	)
 	require.NoError(t, err)
 	require.Len(t, events, 3)

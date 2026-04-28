@@ -65,6 +65,11 @@ service FaradayServer {
     http://localhost:8466/v1/faraday/closereport
     */
     rpc CloseReport (CloseReportRequest) returns (CloseReportResponse);
+
+    /**
+    Get a list of channel events that occurred for a given channel.
+    */
+    rpc GetChannelEvents (ChannelEventsRequest) returns (ChannelEventsResponse);
 }
 
 message CloseRecommendationRequest {
@@ -595,4 +600,61 @@ message CloseReportResponse {
     this field will be zero if the remote party paid.
     */
     string close_fee = 6;
+}
+
+message ChannelEventsRequest {
+    /*
+    The channel point of the channel to get events for, formatted txid:outpoint.
+    */
+    string chan_point = 1;
+
+    /*
+    The start time of the query range, expressed as unix epoch offset in
+    seconds. Inclusive. Also serves as the pagination cursor: callers retrieving
+    more than max_events should re-query with start_time set to the timestamp
+    of the last event returned by the previous call.
+    */
+    uint64 start_time = 2;
+
+    /*
+    The end time of the query range, expressed as unix epoch offset in seconds.
+    Exclusive. Required and must be greater than start_time.
+    */
+    uint64 end_time = 3;
+
+    /*
+    The maximum number of events to return. If zero, the server default is
+    used. The server enforces a hard cap; values above the cap are clamped.
+    */
+    uint32 max_events = 4;
+}
+
+enum ChannelEventType {
+    // An unknown event type.
+    CHAN_EVENT_UNKNOWN = 0;
+    // An online event.
+    CHAN_EVENT_ONLINE = 1;
+    // An offline event.
+    CHAN_EVENT_OFFLINE = 2;
+    // A channel balance update event.
+    CHAN_EVENT_UPDATE = 3;
+}
+
+message ChannelEventsResponse {
+    // The list of channel events.
+    repeated ChannelEvent events = 1;
+}
+
+message ChannelEvent {
+    // The timestamp of the event.
+    uint64 timestamp = 1;
+
+    // The type of the event.
+    ChannelEventType event_type = 2;
+
+    // The channel's local balance at the time of the event in sat.
+    uint64 local_balance = 3;
+
+    // The channel's remote balance at the time of the event in sat.
+    uint64 remote_balance = 4;
 }

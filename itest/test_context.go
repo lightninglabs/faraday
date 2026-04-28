@@ -125,6 +125,10 @@ func newTestContext(t *testing.T) *testContext {
 	// Start faraday.
 	ctx.startFaraday()
 
+	// Wait for faraday's channel events monitor to finish its initial
+	// chain-sync.
+	time.Sleep(5 * time.Second)
+
 	return ctx
 }
 
@@ -443,6 +447,25 @@ func (c *testContext) waitForChannelOpen(targetChannel *wire.OutPoint) {
 		},
 		"channel not open",
 	)
+}
+
+// channelRoutable reports whether alice can find a route to dest for the
+// given amount. ListChannels reporting Active=true is necessary but not
+// sufficient: lnd marks a channel active as soon as the channel_ready
+// exchange completes, but the local channel_update message that the router
+// needs to actually build a route is processed slightly later. QueryRoutes
+// succeeds only once that local update has landed.
+func (c *testContext) channelRoutable(dest route.Vertex,
+	amount lnwire.MilliSatoshi) bool {
+
+	_, err := c.aliceClient.Client.QueryRoutes(
+		context.Background(), lndclient.QueryRoutesRequest{
+			PubKey:  dest,
+			AmtMsat: amount,
+		},
+	)
+
+	return err == nil
 }
 
 // findChannel finds a channel in a set of open channels, returning nil if it

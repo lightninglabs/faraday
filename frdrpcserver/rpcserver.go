@@ -15,6 +15,7 @@ import (
 
 	"github.com/lightninglabs/faraday/accounting"
 	"github.com/lightninglabs/faraday/chain"
+	"github.com/lightninglabs/faraday/chanevents"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/faraday/recommend"
@@ -56,6 +57,9 @@ type RPCServer struct {
 type Config struct {
 	// Lnd is a client which can be used to query lnd.
 	Lnd lndclient.LndServices
+
+	// ChanEvents is a database of channel events.
+	ChanEvents *chanevents.Store
 
 	// BitcoinClient is an optional client which can be used to query
 	// on-chain data from a connected bitcoin node. If nil, faraday will

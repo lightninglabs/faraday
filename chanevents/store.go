@@ -15,8 +15,11 @@ import (
 )
 
 var (
-	errUnknownPeer    = errors.New("unknown peer")
-	errUnknownChannel = errors.New("unknown channel")
+	errUnknownPeer = errors.New("unknown peer")
+
+	// ErrUnknownChannel is returned by GetChannel when the requested
+	// channel point is not present in the store.
+	ErrUnknownChannel = errors.New("unknown channel")
 )
 
 // Queries is a subset of the sqlc.Queries interface that can be used to
@@ -167,7 +170,7 @@ func (s *Store) GetChannel(ctx context.Context, channelPoint string) (*Channel,
 	dbChannel, err := s.db.GetChannelByChanPoint(ctx, channelPoint)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errUnknownChannel
+			return nil, ErrUnknownChannel
 		}
 
 		return nil, fmt.Errorf("failed to get channel: %w", err)
@@ -223,18 +226,19 @@ func (s *Store) AddChannelEvent(ctx context.Context,
 	return nil
 }
 
-// GetChannelEvents retrieves all events for a channel within a given time
-// range.
-// TODO: Add pagination support (LIMIT/OFFSET) to prevent OOM on high-traffic
-// channels.
+// GetChannelEvents retrieves up to limit events for a channel within the
+// half-open time range [startTime, endTime). Callers paginate by re-querying
+// with startTime set to the timestamp of the last event returned, and must
+// supply a positive limit; the RPC layer is responsible for bounding it.
 func (s *Store) GetChannelEvents(ctx context.Context, channelID int64,
-	startTime, endTime time.Time) ([]*ChannelEvent, error) {
+	startTime, endTime time.Time, limit int32) ([]*ChannelEvent, error) {
 
 	dbEvents, err := s.db.GetChannelEvents(
 		ctx, sqlc.GetChannelEventsParams{
 			ChannelID:   channelID,
 			Timestamp:   startTime.UTC(),
 			Timestamp_2: endTime.UTC(),
+			Limit:       limit,
 		},
 	)
 	if err != nil {

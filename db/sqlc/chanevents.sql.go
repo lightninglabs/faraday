@@ -98,6 +98,41 @@ func (q *Queries) GetChannelEvents(ctx context.Context, arg GetChannelEventsPara
 	return items, nil
 }
 
+const getChannels = `-- name: GetChannels :many
+SELECT c.id, c.short_channel_id, p.pubkey
+FROM channels c
+JOIN peers p ON c.peer_id = p.id
+`
+
+type GetChannelsRow struct {
+	ID             int64
+	ShortChannelID int64
+	Pubkey         string
+}
+
+func (q *Queries) GetChannels(ctx context.Context) ([]GetChannelsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getChannels)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetChannelsRow
+	for rows.Next() {
+		var i GetChannelsRow
+		if err := rows.Scan(&i.ID, &i.ShortChannelID, &i.Pubkey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getLatestChannelEventBefore = `-- name: GetLatestChannelEventBefore :one
 SELECT id, channel_id, event_type, timestamp, local_balance_sat, remote_balance_sat, is_sync FROM channel_events
 WHERE channel_id = $1 AND event_type = $2 AND timestamp < $3

@@ -49,6 +49,8 @@ type Queries interface {
 		sqlc.ChannelEvent,
 		error,
 	)
+
+	GetChannels(ctx context.Context) ([]sqlc.GetChannelsRow, error)
 }
 
 // Store provides access to the db for channel events.
@@ -261,6 +263,29 @@ func (s *Store) GetChannelEvents(ctx context.Context, channelID, afterID int64,
 	}
 
 	return events, nil
+}
+
+// ScidToPeerMap returns the historic scid→peer index, including channels that
+// have since closed. Unconfirmed channels (scid still zero) are not part of
+// the contract.
+func (s *Store) ScidToPeerMap(ctx context.Context) (map[uint64]string, error) {
+	dbChannels, err := s.db.GetChannels(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	scidToPeer := make(map[uint64]string, len(dbChannels))
+	for _, dbChannel := range dbChannels {
+		// The short channel ID can be zero if it's not known yet. We
+		// should just ignore those.
+		if dbChannel.ShortChannelID == 0 {
+			continue
+		}
+
+		scidToPeer[uint64(dbChannel.ShortChannelID)] = dbChannel.Pubkey
+	}
+
+	return scidToPeer, nil
 }
 
 // GetLatestChannelUpdateBefore returns the latest channel event before a given

@@ -100,6 +100,13 @@ func TestStore(t *testing.T) {
 	require.NoError(t, err)
 	require.NotZero(t, channel2ID)
 
+	// Get the historic channel to peer map.
+	chanToPeer, err := store.ScidToPeerMap(ctx)
+	require.NoError(t, err)
+	require.Len(t, chanToPeer, 2)
+	require.Equal(t, testPubKey, chanToPeer[testShortChanID1])
+	require.Equal(t, testPubKey, chanToPeer[testShortChanID2])
+
 	// Add an online event for the channel.
 	onlineEvent := &ChannelEvent{
 		ChannelID: channelID,

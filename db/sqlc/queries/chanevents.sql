@@ -33,3 +33,8 @@ SELECT * FROM channel_events
 WHERE channel_id = $1 AND event_type = $2 AND timestamp < $3
 ORDER BY timestamp DESC, id DESC
 LIMIT 1;
+
+-- name: GetChannels :many
+SELECT c.id, c.short_channel_id, p.pubkey
+FROM channels c
+JOIN peers p ON c.peer_id = p.id;

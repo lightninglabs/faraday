@@ -27,3 +27,9 @@ WHERE channel_id = $1
   AND timestamp < $4
 ORDER BY id ASC
 LIMIT $5;
+
+-- name: GetLatestChannelEventBefore :one
+SELECT * FROM channel_events
+WHERE channel_id = $1 AND event_type = $2 AND timestamp < $3
+ORDER BY timestamp DESC, id DESC
+LIMIT 1;

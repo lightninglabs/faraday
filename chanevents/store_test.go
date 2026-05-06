@@ -134,6 +134,23 @@ func TestStore(t *testing.T) {
 	requireEqualEvent(
 		t, updateEvent, testTime.Add(time.Second), events[1],
 	)
+	updateEvent = events[1]
+
+	// If we query a time after the update event, we'll obtain the update
+	// event as the latest event.
+	initEvent, err := store.GetLatestChannelUpdateBefore(
+		ctx, channelID, updateEvent.Timestamp.Add(500*time.Millisecond),
+	)
+	require.NoError(t, err)
+	requireEqualEvent(t, updateEvent, testTime.Add(time.Second), initEvent)
+
+	// If we query at the update event's timestamp, the only event before
+	// that is left is the online event, which is not an update.
+	initEvent, err = store.GetLatestChannelUpdateBefore(
+		ctx, channelID, updateEvent.Timestamp,
+	)
+	require.NoError(t, err)
+	require.Nil(t, initEvent)
 
 	// Advance the clock and add a sync event to verify the IsSync flag
 	// round-trips correctly.

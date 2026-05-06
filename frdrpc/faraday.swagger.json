@@ -154,6 +154,39 @@
         ]
       }
     },
+    "/v1/faraday/getchannelevents": {
+      "post": {
+        "summary": "*\nGet a list of channel events that occurred for a given channel.",
+        "operationId": "FaradayServer_GetChannelEvents",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcChannelEventsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/frdrpcChannelEventsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
+      }
+    },
     "/v1/faraday/insights": {
       "get": {
         "summary": "* frcli: `insights`\nList currently open channel with routing and uptime information.",
@@ -660,6 +693,97 @@
         "currency": {
           "type": "string",
           "description": "The currency that the price is denoted in."
+        }
+      }
+    },
+    "frdrpcChannelEvent": {
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "int64",
+          "description": "The timestamp of the event, as Unix seconds."
+        },
+        "event_type": {
+          "$ref": "#/definitions/frdrpcChannelEventType",
+          "description": "The type of the event."
+        },
+        "local_balance": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The channel's local balance at the time of the event in sat."
+        },
+        "remote_balance": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The channel's remote balance at the time of the event in sat."
+        },
+        "id": {
+          "type": "string",
+          "format": "int64",
+          "description": "Server-assigned monotonic identity. Echo this back as the next\nrequest's last_id when paginating."
+        }
+      }
+    },
+    "frdrpcChannelEventType": {
+      "type": "string",
+      "enum": [
+        "CHAN_EVENT_UNKNOWN",
+        "CHAN_EVENT_ONLINE",
+        "CHAN_EVENT_OFFLINE",
+        "CHAN_EVENT_UPDATE"
+      ],
+      "default": "CHAN_EVENT_UNKNOWN",
+      "description": " - CHAN_EVENT_UNKNOWN: An unknown event type.\n - CHAN_EVENT_ONLINE: An online event.\n - CHAN_EVENT_OFFLINE: An offline event.\n - CHAN_EVENT_UPDATE: A channel balance update event."
+    },
+    "frdrpcChannelEventsRequest": {
+      "type": "object",
+      "properties": {
+        "chan_point": {
+          "type": "string",
+          "description": "The channel point of the channel to get events for, formatted txid:outpoint."
+        },
+        "start_time": {
+          "type": "string",
+          "format": "int64",
+          "description": "Lower time bound, inclusive, as Unix seconds. Independent filter — does\nnot need to advance between paginated calls. Zero means no lower bound."
+        },
+        "end_time": {
+          "type": "string",
+          "format": "int64",
+          "description": "Upper time bound, exclusive, as Unix seconds. Must be greater than or\nequal to start_time. Zero means \"use the server's current time\"."
+        },
+        "max_events": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The maximum number of events to return. If zero, the server default is\nused. The server enforces a hard cap; values above the cap are clamped."
+        },
+        "last_id": {
+          "type": "string",
+          "format": "int64",
+          "description": "Pagination cursor: id of the last event from the previous response.\nPass zero on the first call; for subsequent calls pass the response's\nlast_id to resume past already-returned events."
+        }
+      }
+    },
+    "frdrpcChannelEventsResponse": {
+      "type": "object",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/frdrpcChannelEvent"
+          },
+          "description": "The list of channel events."
+        },
+        "last_id": {
+          "type": "string",
+          "format": "int64",
+          "description": "Id of the last event returned, suitable as the next request's last_id.\nZero when events is empty."
+        },
+        "has_more": {
+          "type": "boolean",
+          "description": "True when the page filled to the requested limit and more events may be\navailable; callers should keep paginating until this is false."
         }
       }
     },

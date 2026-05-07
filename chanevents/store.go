@@ -188,6 +188,8 @@ func (s *Store) GetChannel(ctx context.Context, channelPoint string) (*Channel,
 func (s *Store) AddChannelEvent(ctx context.Context,
 	event *ChannelEvent) error {
 
+	log.Tracef("Adding channel event: %+v", event)
+
 	var localBalance sql.NullInt64
 	event.LocalBalance.WhenSome(
 		func(b btcutil.Amount) {

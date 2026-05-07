@@ -125,7 +125,7 @@ func TestStore(t *testing.T) {
 
 	// Get the channel events and assert they are correct.
 	events, err := store.GetChannelEvents(
-		ctx, channelID, time.Unix(0, 0), time.Unix(3, 0),
+		ctx, channelID, 0, time.Unix(0, 0), time.Unix(3, 0), 100,
 	)
 	require.NoError(t, err)
 	require.Len(t, events, 2)
@@ -148,7 +148,7 @@ func TestStore(t *testing.T) {
 	require.NoError(t, err)
 
 	events, err = store.GetChannelEvents(
-		ctx, channelID, time.Unix(0, 0), time.Unix(4, 0),
+		ctx, channelID, 0, time.Unix(0, 0), time.Unix(4, 0), 100,
 	)
 	require.NoError(t, err)
 	require.Len(t, events, 3)
@@ -156,4 +156,51 @@ func TestStore(t *testing.T) {
 	requireEqualEvent(
 		t, syncEvent, testTime.Add(2*time.Second), events[2],
 	)
+}
+
+// TestPagination verifies that the keyset cursor advances correctly across
+// events sharing one second-resolution timestamp.
+func TestPagination(t *testing.T) {
+	t.Parallel()
+
+	clock := clock.NewTestClock(testTime)
+	store := NewTestDB(t, clock)
+	ctx := context.Background()
+
+	peerID, err := store.AddPeer(ctx, testPubKey)
+	require.NoError(t, err)
+
+	channelID, err := store.AddChannel(
+		ctx, testChanPoint1, testShortChanID1, peerID,
+	)
+	require.NoError(t, err)
+
+	sameTime := testTime.Add(10 * time.Second)
+	for i := 0; i < 5; i++ {
+		err = store.AddChannelEvent(ctx, &ChannelEvent{
+			ChannelID:    channelID,
+			EventType:    EventTypeUpdate,
+			Timestamp:    sameTime,
+			LocalBalance: fn.Some(btcutil.Amount(i)),
+		})
+		require.NoError(t, err)
+	}
+
+	endTime := sameTime.Add(time.Hour)
+
+	page1, err := store.GetChannelEvents(
+		ctx, channelID, 0, time.Unix(0, 0), endTime, 3,
+	)
+	require.NoError(t, err)
+	require.Len(t, page1, 3)
+
+	page2, err := store.GetChannelEvents(
+		ctx, channelID, page1[len(page1)-1].ID,
+		time.Unix(0, 0), endTime, 3,
+	)
+	require.NoError(t, err)
+	require.Len(t, page2, 2)
+
+	require.Equal(t, btcutil.Amount(3), page2[0].LocalBalance.UnwrapOr(0))
+	require.Equal(t, btcutil.Amount(4), page2[1].LocalBalance.UnwrapOr(0))
 }

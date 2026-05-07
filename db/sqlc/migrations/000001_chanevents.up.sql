@@ -41,8 +41,13 @@ CREATE TABLE IF NOT EXISTS channel_events (
     is_sync BOOLEAN NOT NULL DEFAULT FALSE
 );
 
--- This composite index is crucial for efficiently querying the event history
--- of a specific channel. It allows the database to quickly locate relevant rows
--- for a given channel, sorted by time. This is useful for fetching events
--- within a time range, and for finding the latest event before a certain time.
+-- This composite index supports the chronological access patterns
+-- (GetChannelEventsIter, GetLatestChannelEventBefore): events for a given
+-- channel sorted by time, with a per-channel time-range scan.
 CREATE INDEX IF NOT EXISTS channel_events_chan_id_ts_idx ON channel_events (channel_id, timestamp);
+
+-- This composite index supports the public GetChannelEvents query, which
+-- walks events for a given channel by id-keyset cursor (ORDER BY id ASC,
+-- WHERE id > $cursor). Without it, the planner would scan every event with
+-- id > $cursor across all channels and filter by channel_id afterwards.
+CREATE INDEX IF NOT EXISTS channel_events_chan_id_id_idx ON channel_events (channel_id, id);

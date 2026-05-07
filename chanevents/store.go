@@ -228,18 +228,21 @@ func (s *Store) AddChannelEvent(ctx context.Context,
 	return nil
 }
 
-// GetChannelEvents retrieves all events for a channel within a given time
-// range.
-// TODO: Add pagination support (LIMIT/OFFSET) to prevent OOM on high-traffic
-// channels.
-func (s *Store) GetChannelEvents(ctx context.Context, channelID int64,
-	startTime, endTime time.Time) ([]*ChannelEvent, error) {
+// GetChannelEvents returns up to limit events for a channel where
+// id > afterID AND startTime <= timestamp < endTime, ordered by id ASC.
+// Pass afterID = 0 on the first call; for subsequent calls pass the
+// previous page's last event id. The (startTime, endTime) bounds are
+// independent filters and do not need to advance between pages.
+func (s *Store) GetChannelEvents(ctx context.Context, channelID, afterID int64,
+	startTime, endTime time.Time, limit int32) ([]*ChannelEvent, error) {
 
 	dbEvents, err := s.db.GetChannelEvents(
 		ctx, sqlc.GetChannelEventsParams{
 			ChannelID:   channelID,
+			ID:          afterID,
 			Timestamp:   startTime.UTC(),
 			Timestamp_2: endTime.UTC(),
+			Limit:       limit,
 		},
 	)
 	if err != nil {

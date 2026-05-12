@@ -15,8 +15,11 @@ import (
 )
 
 var (
-	errUnknownPeer    = errors.New("unknown peer")
-	errUnknownChannel = errors.New("unknown channel")
+	errUnknownPeer = errors.New("unknown peer")
+
+	// ErrUnknownChannel signals that the requested channel is not
+	// present in the store.
+	ErrUnknownChannel = errors.New("unknown channel")
 )
 
 // Queries is a subset of the sqlc.Queries interface that can be used to
@@ -167,7 +170,7 @@ func (s *Store) GetChannel(ctx context.Context, channelPoint string) (*Channel,
 	dbChannel, err := s.db.GetChannelByChanPoint(ctx, channelPoint)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errUnknownChannel
+			return nil, ErrUnknownChannel
 		}
 
 		return nil, fmt.Errorf("failed to get channel: %w", err)
@@ -184,6 +187,8 @@ func (s *Store) GetChannel(ctx context.Context, channelPoint string) (*Channel,
 // AddChannelEvent adds a new channel event.
 func (s *Store) AddChannelEvent(ctx context.Context,
 	event *ChannelEvent) error {
+
+	log.Tracef("Adding channel event: %+v", event)
 
 	var localBalance sql.NullInt64
 	event.LocalBalance.WhenSome(
@@ -223,18 +228,21 @@ func (s *Store) AddChannelEvent(ctx context.Context,
 	return nil
 }
 
-// GetChannelEvents retrieves all events for a channel within a given time
-// range.
-// TODO: Add pagination support (LIMIT/OFFSET) to prevent OOM on high-traffic
-// channels.
-func (s *Store) GetChannelEvents(ctx context.Context, channelID int64,
-	startTime, endTime time.Time) ([]*ChannelEvent, error) {
+// GetChannelEvents returns up to limit events for a channel where
+// id > afterID AND startTime <= timestamp < endTime, ordered by id ASC.
+// Pass afterID = 0 on the first call; for subsequent calls pass the
+// previous page's last event id. The (startTime, endTime) bounds are
+// independent filters and do not need to advance between pages.
+func (s *Store) GetChannelEvents(ctx context.Context, channelID, afterID int64,
+	startTime, endTime time.Time, limit int32) ([]*ChannelEvent, error) {
 
 	dbEvents, err := s.db.GetChannelEvents(
 		ctx, sqlc.GetChannelEventsParams{
 			ChannelID:   channelID,
+			ID:          afterID,
 			Timestamp:   startTime.UTC(),
 			Timestamp_2: endTime.UTC(),
+			Limit:       limit,
 		},
 	)
 	if err != nil {

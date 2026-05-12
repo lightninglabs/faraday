@@ -21,5 +21,9 @@ INSERT INTO channel_events (
 
 -- name: GetChannelEvents :many
 SELECT * FROM channel_events
-WHERE channel_id = $1 AND timestamp >= $2 AND timestamp < $3
-ORDER BY timestamp ASC, id ASC;
+WHERE channel_id = $1
+  AND id > $2
+  AND timestamp >= $3
+  AND timestamp < $4
+ORDER BY id ASC
+LIMIT $5;

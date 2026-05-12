@@ -45,18 +45,30 @@ func (q *Queries) GetChannelByShortChanID(ctx context.Context, shortChannelID in
 
 const getChannelEvents = `-- name: GetChannelEvents :many
 SELECT id, channel_id, event_type, timestamp, local_balance_sat, remote_balance_sat, is_sync FROM channel_events
-WHERE channel_id = $1 AND timestamp >= $2 AND timestamp < $3
-ORDER BY timestamp ASC, id ASC
+WHERE channel_id = $1
+  AND id > $2
+  AND timestamp >= $3
+  AND timestamp < $4
+ORDER BY id ASC
+LIMIT $5
 `
 
 type GetChannelEventsParams struct {
 	ChannelID   int64
+	ID          int64
 	Timestamp   time.Time
 	Timestamp_2 time.Time
+	Limit       int32
 }
 
 func (q *Queries) GetChannelEvents(ctx context.Context, arg GetChannelEventsParams) ([]ChannelEvent, error) {
-	rows, err := q.db.QueryContext(ctx, getChannelEvents, arg.ChannelID, arg.Timestamp, arg.Timestamp_2)
+	rows, err := q.db.QueryContext(ctx, getChannelEvents,
+		arg.ChannelID,
+		arg.ID,
+		arg.Timestamp,
+		arg.Timestamp_2,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}

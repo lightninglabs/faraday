@@ -93,6 +93,20 @@ func TestStore(t *testing.T) {
 	require.Equal(t, testShortChanID1, dbChannel.ShortChannelID)
 	require.Equal(t, peerID, dbChannel.PeerID)
 
+	// Look up the same channel by its scid; the analyzer relies on this
+	// inverse of AddChannel.
+	dbChannel, err = store.GetChannelByShortChanID(ctx, testShortChanID1)
+	require.NoError(t, err)
+	require.Equal(t, channelID, dbChannel.ID)
+	require.Equal(t, testChanPoint1, dbChannel.ChannelPoint)
+	require.Equal(t, testShortChanID1, dbChannel.ShortChannelID)
+	require.Equal(t, peerID, dbChannel.PeerID)
+
+	// An unknown scid surfaces the typed sentinel, not raw sql.ErrNoRows.
+	dbChannel, err = store.GetChannelByShortChanID(ctx, 9999)
+	require.ErrorIs(t, err, ErrUnknownChannel)
+	require.Nil(t, dbChannel)
+
 	// Add a second channel for the same peer.
 	channel2ID, err := store.AddChannel(
 		ctx, testChanPoint2, testShortChanID2, peerID,

@@ -192,6 +192,30 @@ func (s *Store) GetChannel(ctx context.Context, channelPoint string) (*Channel,
 	}, nil
 }
 
+// GetChannelByShortChanID retrieves a channel by its short channel ID,
+// returning ErrUnknownChannel if no row matches.
+func (s *Store) GetChannelByShortChanID(ctx context.Context,
+	shortChannelID uint64) (*Channel, error) {
+
+	dbChannel, err := s.db.GetChannelByShortChanID(
+		ctx, scidToInt64(shortChannelID),
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUnknownChannel
+		}
+
+		return nil, err
+	}
+
+	return &Channel{
+		ID:             dbChannel.ID,
+		ChannelPoint:   dbChannel.ChannelPoint,
+		ShortChannelID: int64ToSCID(dbChannel.ShortChannelID),
+		PeerID:         dbChannel.PeerID,
+	}, nil
+}
+
 // AddChannelEvent adds a new channel event.
 func (s *Store) AddChannelEvent(ctx context.Context,
 	event *ChannelEvent) error {

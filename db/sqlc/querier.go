@@ -12,6 +12,8 @@ type Querier interface {
 	GetChannelByChanPoint(ctx context.Context, channelPoint string) (Channel, error)
 	GetChannelByShortChanID(ctx context.Context, shortChannelID int64) (Channel, error)
 	GetChannelEvents(ctx context.Context, arg GetChannelEventsParams) ([]ChannelEvent, error)
+	GetChannels(ctx context.Context) ([]GetChannelsRow, error)
+	GetLatestChannelEventBefore(ctx context.Context, arg GetLatestChannelEventBeforeParams) (ChannelEvent, error)
 	GetPeerByPubKey(ctx context.Context, pubkey string) (Peer, error)
 	InsertChannel(ctx context.Context, arg InsertChannelParams) (int64, error)
 	InsertChannelEvent(ctx context.Context, arg InsertChannelEventParams) error

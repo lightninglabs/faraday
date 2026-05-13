@@ -43,6 +43,14 @@ type Queries interface {
 
 	GetChannelEvents(ctx context.Context,
 		arg sqlc.GetChannelEventsParams) ([]sqlc.ChannelEvent, error)
+
+	GetLatestChannelEventBefore(ctx context.Context,
+		arg sqlc.GetLatestChannelEventBeforeParams) (
+		sqlc.ChannelEvent,
+		error,
+	)
+
+	GetChannels(ctx context.Context) ([]sqlc.GetChannelsRow, error)
 }
 
 // Store provides access to the db for channel events.
@@ -184,6 +192,30 @@ func (s *Store) GetChannel(ctx context.Context, channelPoint string) (*Channel,
 	}, nil
 }
 
+// GetChannelByShortChanID retrieves a channel by its short channel ID,
+// returning ErrUnknownChannel if no row matches.
+func (s *Store) GetChannelByShortChanID(ctx context.Context,
+	shortChannelID uint64) (*Channel, error) {
+
+	dbChannel, err := s.db.GetChannelByShortChanID(
+		ctx, scidToInt64(shortChannelID),
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUnknownChannel
+		}
+
+		return nil, err
+	}
+
+	return &Channel{
+		ID:             dbChannel.ID,
+		ChannelPoint:   dbChannel.ChannelPoint,
+		ShortChannelID: int64ToSCID(dbChannel.ShortChannelID),
+		PeerID:         dbChannel.PeerID,
+	}, nil
+}
+
 // AddChannelEvent adds a new channel event.
 func (s *Store) AddChannelEvent(ctx context.Context,
 	event *ChannelEvent) error {
@@ -255,6 +287,54 @@ func (s *Store) GetChannelEvents(ctx context.Context, channelID, afterID int64,
 	}
 
 	return events, nil
+}
+
+// ScidToPeerMap returns the historic scid→peer index, including channels that
+// have since closed. Unconfirmed channels (scid still zero) are not part of
+// the contract.
+func (s *Store) ScidToPeerMap(ctx context.Context) (map[uint64]string, error) {
+	dbChannels, err := s.db.GetChannels(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	scidToPeer := make(map[uint64]string, len(dbChannels))
+	for _, dbChannel := range dbChannels {
+		// The short channel ID can be zero if it's not known yet. We
+		// should just ignore those.
+		if dbChannel.ShortChannelID == 0 {
+			continue
+		}
+
+		scidToPeer[uint64(dbChannel.ShortChannelID)] = dbChannel.Pubkey
+	}
+
+	return scidToPeer, nil
+}
+
+// GetLatestChannelUpdateBefore returns the latest channel event before a given
+// time (exclusive). If no event is found, it returns (nil, nil).
+func (s *Store) GetLatestChannelUpdateBefore(ctx context.Context,
+	channelID int64, before time.Time) (*ChannelEvent, error) {
+
+	dbEvent, err := s.db.GetLatestChannelEventBefore(
+		ctx, sqlc.GetLatestChannelEventBeforeParams{
+			ChannelID: channelID,
+			Timestamp: before.UTC(),
+			EventType: int16(EventTypeUpdate),
+		},
+	)
+	if err != nil {
+		// If there are no events before the start time, we return (nil,
+		// nil).
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	return marshalChannelEvent(dbEvent), nil
 }
 
 // marshalChannelEvent converts a db channel event into our internal type.

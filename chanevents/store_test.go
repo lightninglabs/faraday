@@ -93,12 +93,33 @@ func TestStore(t *testing.T) {
 	require.Equal(t, testShortChanID1, dbChannel.ShortChannelID)
 	require.Equal(t, peerID, dbChannel.PeerID)
 
+	// Look up the same channel by its scid; the analyzer relies on this
+	// inverse of AddChannel.
+	dbChannel, err = store.GetChannelByShortChanID(ctx, testShortChanID1)
+	require.NoError(t, err)
+	require.Equal(t, channelID, dbChannel.ID)
+	require.Equal(t, testChanPoint1, dbChannel.ChannelPoint)
+	require.Equal(t, testShortChanID1, dbChannel.ShortChannelID)
+	require.Equal(t, peerID, dbChannel.PeerID)
+
+	// An unknown scid surfaces the typed sentinel, not raw sql.ErrNoRows.
+	dbChannel, err = store.GetChannelByShortChanID(ctx, 9999)
+	require.ErrorIs(t, err, ErrUnknownChannel)
+	require.Nil(t, dbChannel)
+
 	// Add a second channel for the same peer.
 	channel2ID, err := store.AddChannel(
 		ctx, testChanPoint2, testShortChanID2, peerID,
 	)
 	require.NoError(t, err)
 	require.NotZero(t, channel2ID)
+
+	// Get the historic channel to peer map.
+	chanToPeer, err := store.ScidToPeerMap(ctx)
+	require.NoError(t, err)
+	require.Len(t, chanToPeer, 2)
+	require.Equal(t, testPubKey, chanToPeer[testShortChanID1])
+	require.Equal(t, testPubKey, chanToPeer[testShortChanID2])
 
 	// Add an online event for the channel.
 	onlineEvent := &ChannelEvent{
@@ -134,6 +155,23 @@ func TestStore(t *testing.T) {
 	requireEqualEvent(
 		t, updateEvent, testTime.Add(time.Second), events[1],
 	)
+	updateEvent = events[1]
+
+	// If we query a time after the update event, we'll obtain the update
+	// event as the latest event.
+	initEvent, err := store.GetLatestChannelUpdateBefore(
+		ctx, channelID, updateEvent.Timestamp.Add(500*time.Millisecond),
+	)
+	require.NoError(t, err)
+	requireEqualEvent(t, updateEvent, testTime.Add(time.Second), initEvent)
+
+	// If we query at the update event's timestamp, the only event before
+	// that is left is the online event, which is not an update.
+	initEvent, err = store.GetLatestChannelUpdateBefore(
+		ctx, channelID, updateEvent.Timestamp,
+	)
+	require.NoError(t, err)
+	require.Nil(t, initEvent)
 
 	// Advance the clock and add a sync event to verify the IsSync flag
 	// round-trips correctly.

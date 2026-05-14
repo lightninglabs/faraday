@@ -146,3 +146,121 @@ func TestGetChannelEvents(t *testing.T) {
 			"event order mismatch at index %d", i)
 	}
 }
+
+// TestForwardingAbility verifies, end-to-end, that a regtest payment surfaces
+// over the ForwardingAbility RPC as the expected per-pair velocity and uptime
+// fraction.
+func TestForwardingAbility(t *testing.T) {
+	c := newTestContext(t)
+	defer c.stop()
+
+	ctx := context.Background()
+
+	var aliceChannelAmt = btcutil.Amount(500000)
+
+	err := c.aliceClient.Client.Connect(
+		ctx, c.bobPubkey, "localhost:10012", true,
+	)
+	require.NoError(c.t, err, "could not connect nodes")
+
+	// Opening the channel seeds the chanevents pipeline with the online and
+	// update events that the assertions below count on.
+	aliceChannel, _ := c.openChannel(
+		c.aliceClient.Client, c.bobPubkey, aliceChannelAmt,
+	)
+
+	// TODO: wait for the channel open to be ready with lntest.
+	time.Sleep(3 * time.Second)
+
+	// Wait for channel events to be processed. TODO: replace with sync.Wait
+	// once we have lntest.
+	assertEvents := func(expected int) {
+		var events *frdrpc.ChannelEventsResponse
+		var err error
+		for range 10 {
+			events, err = c.faradayClient.GetChannelEvents(
+				ctx, &frdrpc.ChannelEventsRequest{
+					ChanPoint: aliceChannel.String(),
+					EndTime: time.
+						Now().
+						Add(time.Second).
+						Unix(),
+				},
+			)
+			require.NoError(
+				c.t, err, "could not get channel events",
+			)
+
+			if len(events.Events) == expected {
+				t.Logf("Found events %v", events.Events)
+
+				return
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+		require.Failf(
+			c.t, "fail", "expected exactly %d events for channel "+
+				"%s, have %d", expected, aliceChannel.String(),
+			len(events.Events),
+		)
+	}
+
+	// Wait for the chanevents pipeline to record the channel-open events
+	// (online, update, online) before sampling the forwarding window.
+	assertEvents(3)
+
+	// Open the forwarding-ability window before shifting balance. The first
+	// half has no remote balance and therefore no routable liquidity.
+	// Combined with the equal-length wait after the payment below, this
+	// yields a ~50% uptime fraction.
+	startTime := time.Now()
+	time.Sleep(4 * time.Second)
+
+	// A payment from Alice to Bob shifts liquidity so that the channel has
+	// remote balance and circular forwarding becomes possible.
+	var paymentAmtMsat lnwire.MilliSatoshi = 250000 * 1000
+	hash, payreq := c.addInvoice(c.bobClient.Client, paymentAmtMsat)
+	c.makePayment(
+		c.aliceClient.LndServices, c.bobClient.LndServices,
+		lndclient.SendPaymentRequest{
+			Invoice:     payreq,
+			PaymentHash: &hash,
+			Timeout:     paymentTimeout,
+		},
+		lnrpc.Payment_SUCCEEDED,
+	)
+
+	// The payment adds two update events, one for the add and one for the
+	// settle, on top of the three open events recorded earlier.
+	assertEvents(5)
+
+	// Mirror the pre-payment wait so the unroutable and routable halves of
+	// the window are equal-length.
+	time.Sleep(4 * time.Second)
+
+	endTime := time.Now()
+
+	abilities, err := c.faradayClient.ForwardingAbility(
+		ctx, &frdrpc.ForwardingAbilityRequest{
+			StartTime:       uint64(startTime.Unix()),
+			EndTime:         uint64(endTime.Unix()),
+			ThresholdAmtSat: 1,
+		},
+	)
+	require.NoError(c.t, err, "could not get forwarding ability")
+
+	// We should only have a single pair: Bob -> Bob (circular).
+	require.Len(t, abilities.Pairs, 1)
+
+	ability := abilities.Pairs[0]
+	require.Equal(t, c.bobPubkey.String(), ability.PeerIn)
+	require.Equal(t, c.bobPubkey.String(), ability.PeerOut)
+
+	// We expect a zero velocity since no forwards occurred for this pair,
+	// but a non-zero uptime fraction since there was a period where
+	// circular forwarding was possible.
+	require.Equal(t, 0.0, ability.Ability.Velocity)
+	require.InDelta(
+		t, 0.5, ability.Ability.UptimeFraction, 0.1,
+	)
+}

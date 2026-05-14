@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/clock"
 	"github.com/lightningnetwork/lnd/fn/v2"
+	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/stretchr/testify/require"
 )
 
@@ -808,4 +810,253 @@ func TestInitialStateSameSecond(t *testing.T) {
 		"replayed offline event sets state offline")
 	require.Equal(t, btcutil.Amount(200), state.localBalance)
 	require.Equal(t, btcutil.Amount(800), state.remoteBalance)
+}
+
+// stubLndChannelClient implements the three lndclient.LightningClient methods
+// the analyzer exercises. The embedded interface is nil, so any other method
+// panics. Callers must not invoke methods outside the overridden set.
+type stubLndChannelClient struct {
+	lndclient.LightningClient
+
+	openChannels      []lndclient.ChannelInfo
+	closedChannels    []lndclient.ClosedChannel
+	forwardingHistory *lndclient.ForwardingHistoryResponse
+}
+
+func (s *stubLndChannelClient) ListChannels(_ context.Context, _, _ bool,
+	_ ...lndclient.ListChannelsOption) ([]lndclient.ChannelInfo, error) {
+
+	return s.openChannels, nil
+}
+
+func (s *stubLndChannelClient) ClosedChannels(_ context.Context) (
+	[]lndclient.ClosedChannel, error) {
+
+	return s.closedChannels, nil
+}
+
+func (s *stubLndChannelClient) ForwardingHistory(_ context.Context,
+	_ lndclient.ForwardingHistoryRequest) (
+	*lndclient.ForwardingHistoryResponse, error) {
+
+	if s.forwardingHistory == nil {
+		return &lndclient.ForwardingHistoryResponse{}, nil
+	}
+
+	return s.forwardingHistory, nil
+}
+
+// validPubKey1 is the open-channel peer. route.NewVertexFromStr requires a
+// 33-byte compressed key (66 hex chars). The pre-existing testPubKey is 65
+// chars long and is fine for the store layer, but the lnd survivorship path
+// goes through route.NewVertexFromStr so we use a valid pair here.
+const (
+	validPubKey1 = "028d4c6347426f2e3f5e2b8e4a1c3b9f1c" +
+		"4e5d6f7a8b9c0d1e2f3a4b5c6d7e8f9a"
+	validPubKey2 = "038d4c6347426f2e3f5e2b8e4a1c3b9f1c" +
+		"4e5d6f7a8b9c0d1e2f3a4b5c6d7e8f9a"
+)
+
+// TestEffectiveUptimeIncludesClosedChannels exercises the survivorship-bias
+// guarantee of EffectiveUptime: a peer whose only channel was closed before the
+// analysis window must still appear in the result map. Without merging lnd's
+// ClosedChannels into the considered set, the closed-channel peer would be
+// invisible to the walk and the fleet's reported uptime would over-state
+// reality.
+func TestEffectiveUptimeIncludesClosedChannels(t *testing.T) {
+	t.Parallel()
+
+	clk := clock.NewTestClock(testTime)
+	store := NewTestDB(t, clk)
+	ctx := context.Background()
+
+	// Two peers: the open-channel peer and the closed-channel peer.
+	openPeerID, err := store.AddPeer(ctx, validPubKey1)
+	require.NoError(t, err)
+	closedPeerID, err := store.AddPeer(ctx, validPubKey2)
+	require.NoError(t, err)
+
+	// Both channels live in the chanevents store. lnd will report the first
+	// via ListChannels and the second only via ClosedChannels.
+	openScid := testShortChanID1
+	closedScid := testShortChanID2
+	openChanID, err := store.AddChannel(
+		ctx, testChanPoint1, openScid, openPeerID,
+	)
+	require.NoError(t, err)
+	closedChanID, err := store.AddChannel(
+		ctx, testChanPoint2, closedScid, closedPeerID,
+	)
+	require.NoError(t, err)
+
+	// Seed an Update event before startTime for each channel so the
+	// initial-state walk has a non-zero baseline. Without a baseline, the
+	// closed channel's online state would be false and its presence in the
+	// result map would not prove the survivorship code path drove it.
+	seedTime := testTime
+	for _, chanID := range []int64{openChanID, closedChanID} {
+		err = store.AddChannelEvent(
+			ctx, &ChannelEvent{
+				ChannelID:     chanID,
+				EventType:     EventTypeUpdate,
+				Timestamp:     seedTime,
+				LocalBalance:  fn.Some(btcutil.Amount(1000)),
+				RemoteBalance: fn.Some(btcutil.Amount(1000)),
+			},
+		)
+		require.NoError(t, err)
+	}
+
+	openVertex, err := route.NewVertexFromStr(validPubKey1)
+	require.NoError(t, err)
+	closedVertex, err := route.NewVertexFromStr(validPubKey2)
+	require.NoError(t, err)
+
+	// lnd reports only the open channel via ListChannels. The closed
+	// channel surfaces solely through ClosedChannels.
+	stub := &stubLndChannelClient{
+		openChannels: []lndclient.ChannelInfo{
+			{
+				ChannelID:   openScid,
+				PubKeyBytes: openVertex,
+			},
+		},
+		closedChannels: []lndclient.ClosedChannel{
+			{
+				ChannelID:   closedScid,
+				PubKeyBytes: closedVertex,
+			},
+		},
+	}
+
+	a := NewForwardingAnalyzer(store, lndclient.LndServices{Client: stub})
+
+	startTime := seedTime.Add(time.Second)
+	endTime := startTime.Add(time.Minute)
+
+	abilities, err := a.EffectiveUptime(ctx, startTime, endTime, 0, 0)
+	require.NoError(t, err)
+
+	// Cross-pair entries in both directions are the cleanest assertion
+	// that the closed-channel peer participates in the walk, not just
+	// indexes into it. Their presence is the survivorship guarantee
+	// under test: without merging lnd's ClosedChannels into the
+	// considered set, neither cross would appear.
+	require.Contains(
+		t, abilities, PeerPair{PeerIn: validPubKey1, PeerOut: validPubKey2},
+		"closed-channel peer absent: survivorship handling skipped",
+	)
+	require.Contains(
+		t, abilities, PeerPair{PeerIn: validPubKey2, PeerOut: validPubKey1},
+		"closed-channel peer absent: survivorship handling skipped",
+	)
+}
+
+// TestEffectiveUptimeArgs exercises the fwdPercentile, threshold, startTime,
+// and endTime arguments of EffectiveUptime, verifying that they correctly
+// govern the calculated forwarding liquidity floor and final uptime metrics.
+func TestEffectiveUptimeArgs(t *testing.T) {
+	t.Parallel()
+
+	var (
+		clk   = clock.NewTestClock(testTime)
+		store = NewTestDB(t, clk)
+		ctx   = context.Background()
+	)
+
+	peer1ID, err := store.AddPeer(ctx, validPubKey1)
+	require.NoError(t, err)
+	peer2ID, err := store.AddPeer(ctx, validPubKey2)
+	require.NoError(t, err)
+
+	chan1ID, err := store.AddChannel(
+		ctx, testChanPoint1, testShortChanID1, peer1ID,
+	)
+	require.NoError(t, err)
+	chan2ID, err := store.AddChannel(
+		ctx, testChanPoint2, testShortChanID2, peer2ID,
+	)
+	require.NoError(t, err)
+
+	seedTime := testTime
+	for _, chanID := range []int64{chan1ID, chan2ID} {
+		err = store.AddChannelEvent(
+			ctx, &ChannelEvent{
+				ChannelID: chanID,
+				EventType: EventTypeUpdate,
+				Timestamp: seedTime,
+				LocalBalance: fn.Some(
+					btcutil.Amount(1_000_000),
+				),
+				RemoteBalance: fn.Some(
+					btcutil.Amount(1_000_000),
+				),
+			},
+		)
+		require.NoError(t, err)
+	}
+
+	vertex1, err := route.NewVertexFromStr(validPubKey1)
+	require.NoError(t, err)
+	vertex2, err := route.NewVertexFromStr(validPubKey2)
+	require.NoError(t, err)
+
+	// Stub lnd to return the two channels and successful forwards of 100k
+	// and 300k satoshis.
+	stub := &stubLndChannelClient{
+		openChannels: []lndclient.ChannelInfo{
+			{
+				ChannelID:   testShortChanID1,
+				PubKeyBytes: vertex1,
+			},
+			{
+				ChannelID:   testShortChanID2,
+				PubKeyBytes: vertex2,
+			},
+		},
+		forwardingHistory: &lndclient.ForwardingHistoryResponse{
+			Events: []lndclient.ForwardingEvent{
+				{
+					ChannelIn:     testShortChanID1,
+					ChannelOut:    testShortChanID2,
+					AmountMsatOut: 100_000_000, // 100k sat
+				},
+				{
+					ChannelIn:     testShortChanID1,
+					ChannelOut:    testShortChanID2,
+					AmountMsatOut: 300_000_000, // 300k sat
+				},
+			},
+		},
+	}
+
+	a := NewForwardingAnalyzer(store, lndclient.LndServices{Client: stub})
+
+	startTime := seedTime.Add(time.Second)
+	endTime := startTime.Add(time.Minute)
+
+	// Case 1: fwdPercentile = 50 (percentile = 200k), threshold = 50k.
+	// Since liquidity is 1M > max(200k, 50k) = 200k, uptime must be 1.0.
+	abilities, err := a.EffectiveUptime(
+		ctx, startTime, endTime, 50.0, 50_000,
+	)
+	require.NoError(t, err)
+
+	pair := PeerPair{PeerIn: validPubKey1, PeerOut: validPubKey2}
+	require.Contains(t, abilities, pair)
+	require.Equal(t, 1.0, abilities[pair].UptimeFraction)
+	require.False(t, abilities[pair].Inconsistent)
+
+	// Case 2: fwdPercentile = 50, threshold = 1_500_000.
+	// The threshold is now 1.5M, which is greater than the liquidity of 1M.
+	// Therefore, the liquidity never crosses the floor, resulting in
+	// zero uptime and the Inconsistent flag being true.
+	abilities, err = a.EffectiveUptime(
+		ctx, startTime, endTime, 50.0, 1_500_000,
+	)
+	require.NoError(t, err)
+
+	require.Contains(t, abilities, pair)
+	require.Equal(t, 0.0, abilities[pair].UptimeFraction)
+	require.True(t, abilities[pair].Inconsistent)
 }

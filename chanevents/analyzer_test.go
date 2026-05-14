@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/lightningnetwork/lnd/clock"
 	"github.com/lightningnetwork/lnd/fn/v2"
 	"github.com/stretchr/testify/require"
 )
@@ -594,4 +595,61 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 			},
 		)
 	}
+}
+
+// TestInitialStateSameSecond verifies that two update events sharing a
+// second-resolution timestamp before startTime do not abort
+// getInitialChannelState. SQL selects the latest by (timestamp DESC, id DESC)
+// and the analyzer skips older same-timestamp siblings surfaced by the
+// follow-up iterator. The retained state must reflect the highest-id duplicate.
+func TestInitialStateSameSecond(t *testing.T) {
+	t.Parallel()
+
+	clock := clock.NewTestClock(testTime)
+	store := NewTestDB(t, clock)
+	ctx := context.Background()
+
+	peerID, err := store.AddPeer(ctx, testPubKey)
+	require.NoError(t, err)
+
+	channelID, err := store.AddChannel(
+		ctx, testChanPoint1, testShortChanID1, peerID,
+	)
+	require.NoError(t, err)
+
+	// Two update events share the same second-resolution timestamp. The
+	// second insert (higher id) is the one the SQL must pick.
+	sameTime := testTime.Add(10 * time.Second)
+	err = store.AddChannelEvent(
+		ctx, &ChannelEvent{
+			ChannelID:     channelID,
+			EventType:     EventTypeUpdate,
+			Timestamp:     sameTime,
+			LocalBalance:  fn.Some(btcutil.Amount(100)),
+			RemoteBalance: fn.Some(btcutil.Amount(900)),
+		},
+	)
+	require.NoError(t, err)
+	err = store.AddChannelEvent(
+		ctx, &ChannelEvent{
+			ChannelID:     channelID,
+			EventType:     EventTypeUpdate,
+			Timestamp:     sameTime,
+			LocalBalance:  fn.Some(btcutil.Amount(200)),
+			RemoteBalance: fn.Some(btcutil.Amount(800)),
+		},
+	)
+	require.NoError(t, err)
+
+	// Construct a bare analyzer; getInitialChannelState only touches the
+	// store, so the lnd field can stay zero.
+	a := &ForwardingAnalyzer{store: store}
+
+	startTime := sameTime.Add(time.Second)
+	state, err := a.getInitialChannelState(ctx, channelID, startTime)
+	require.NoError(t, err)
+	require.NotNil(t, state)
+	require.True(t, state.online, "an update event implies online")
+	require.Equal(t, btcutil.Amount(200), state.localBalance)
+	require.Equal(t, btcutil.Amount(800), state.remoteBalance)
 }

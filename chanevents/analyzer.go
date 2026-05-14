@@ -11,14 +11,55 @@ import (
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btclog/v2"
+	"github.com/lightninglabs/lndclient"
 )
 
 var (
+	// errUnexpectedUpdateEvent fires when getInitialChannelState's
+	// residual-event walk surfaces an Update at a timestamp newer than the
+	// seed update. The SQL ordering rules out this precondition.
+	errUnexpectedUpdateEvent = errors.New("unexpected update event in " +
+		"initial-state walk")
+
 	// errUnknownEventType fires when the event-replay switch sees an
 	// EventType outside {Offline, Online, Update}. Indicates schema drift
 	// between the store and the analyzer.
 	errUnknownEventType = errors.New("unknown channel event type")
 )
+
+// EventsSource abstracts the chanevents store so ForwardingAnalyzer can derive
+// uptime metrics without coupling to a specific storage backend.
+type EventsSource interface {
+	// GetLatestChannelUpdateBefore returns the latest channel event before
+	// the given time, or (nil, nil) if no event predates it.
+	GetLatestChannelUpdateBefore(ctx context.Context, channelID int64,
+		before time.Time) (*ChannelEvent, error)
+
+	// GetChannelEvents fetches up to limit events for a channel with id >
+	// afterID and timestamp in [startTime, endTime), ordered by id ASC.
+	// Callers materialise the whole range by passing a large limit (e.g.
+	// math.MaxInt32).
+	GetChannelEvents(ctx context.Context, channelID, afterID int64,
+		startTime, endTime time.Time,
+		limit int32) ([]*ChannelEvent, error)
+
+	// GetChannelByShortChanID resolves an scid to a Channel, returning
+	// ErrUnknownChannel when no row matches.
+	GetChannelByShortChanID(ctx context.Context,
+		shortChannelID uint64) (*Channel, error)
+
+	// ScidToPeerMap returns the historic scid→peer index, including closed
+	// channels.
+	ScidToPeerMap(ctx context.Context) (map[uint64]string, error)
+}
+
+// ForwardingAnalyzer computes forwarding velocity and effective uptime for
+// every (peerIn, peerOut) pair, fusing lnd's live channel state with historical
+// chanevents to avoid survivorship bias.
+type ForwardingAnalyzer struct {
+	store EventsSource
+	lnd   lndclient.LndServices
+}
 
 // channelEventSeq names the chronological channel-event stream the pair walk
 // consumes, so callers can wrap the multi-line signature without splitting
@@ -43,6 +84,99 @@ type ForwardingAbility struct {
 type pairInputs struct {
 	threshold             btcutil.Amount
 	totalSuccessfulAmount btcutil.Amount
+}
+
+// NewForwardingAnalyzer returns a ForwardingAnalyzer backed by the given
+// chanevents store and lnd handle.
+func NewForwardingAnalyzer(store EventsSource,
+	lnd lndclient.LndServices) *ForwardingAnalyzer {
+
+	return &ForwardingAnalyzer{
+		store: store,
+		lnd:   lnd,
+	}
+}
+
+// getInitialChannelState reconstructs a channel's state at startTime by
+// seeding from the latest pre-window update and replaying any residual
+// same-second siblings the SQL keyset may have surfaced. A channel with no
+// prior update is treated as offline with zero balance — the only safe
+// default when nothing was observed.
+func (a *ForwardingAnalyzer) getInitialChannelState(ctx context.Context,
+	channelID int64, startTime time.Time) (*channelState, error) {
+
+	lastUpdate, err := a.store.GetLatestChannelUpdateBefore(
+		ctx, channelID, startTime,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if lastUpdate == nil {
+		log.TraceS(
+			ctx, "No update event for channel",
+			slog.Int64("channelID", channelID),
+			slog.Time("startTime", startTime),
+		)
+
+		return &channelState{online: false}, nil
+	}
+
+	// An update event always implies the channel is online.
+	state := &channelState{
+		online: true,
+	}
+	lastUpdate.LocalBalance.WhenSome(
+		func(amt btcutil.Amount) {
+			state.localBalance = amt
+		},
+	)
+	lastUpdate.RemoteBalance.WhenSome(
+		func(amt btcutil.Amount) {
+			state.remoteBalance = amt
+		},
+	)
+
+	// Fetch any residual events between the last update and the start time.
+	// The range is bounded (typically a handful of same-second siblings or
+	// status events) so materialising in one call is fine.
+	residual, err := a.store.GetChannelEvents(
+		ctx, channelID, 0, lastUpdate.Timestamp, startTime,
+		math.MaxInt32,
+	)
+	if err != nil {
+		return nil, err
+	}
+	for _, event := range residual {
+		// The query above is inclusive of the last update event, so we
+		// need to filter it out.
+		if event.ID == lastUpdate.ID {
+			continue
+		}
+		switch event.EventType {
+		case EventTypeOffline:
+			state.online = false
+
+		case EventTypeOnline:
+			state.online = true
+
+		case EventTypeUpdate:
+			// Same-timestamp updates are older siblings already
+			// superseded by lastUpdate; later timestamps cannot
+			// appear since the SQL would have selected them.
+			if !event.Timestamp.Equal(lastUpdate.Timestamp) {
+				return nil, fmt.Errorf("%w: chanID=%d ts=%v",
+					errUnexpectedUpdateEvent, channelID,
+					event.Timestamp)
+			}
+
+		default:
+			return nil, fmt.Errorf("%w: chanID=%d type=%v",
+				errUnknownEventType, channelID, event.EventType)
+		}
+	}
+
+	return state, nil
 }
 
 // determineThreshold establishes the required liquidity floor based on the

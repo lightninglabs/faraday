@@ -34,5 +34,12 @@ http:
     - selector: frdrpc.FaradayServer.CloseReport
       get: "/v1/faraday/closereport"
     - selector: frdrpc.FaradayServer.GetChannelEvents
-      post: "/v1/faraday/getchannelevents"
-      body: "*"
+      get: "/v1/faraday/getchannelevents"
+      additional_bindings:
+        - post: "/v1/faraday/getchannelevents"
+          body: "*"
+    - selector: frdrpc.FaradayServer.ForwardingAbility
+      get: "/v1/faraday/forwardingability"
+      additional_bindings:
+        - post: "/v1/faraday/forwardingability"
+          body: "*"

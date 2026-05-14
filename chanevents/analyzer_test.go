@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/clock"
 	"github.com/lightningnetwork/lnd/fn/v2"
+	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/stretchr/testify/require"
 )
 
@@ -652,4 +654,141 @@ func TestInitialStateSameSecond(t *testing.T) {
 	require.True(t, state.online, "an update event implies online")
 	require.Equal(t, btcutil.Amount(200), state.localBalance)
 	require.Equal(t, btcutil.Amount(800), state.remoteBalance)
+}
+
+// stubLndChannelClient implements just enough of lndclient.LightningClient to
+// drive ForwardingAnalyzer.EffectiveUptime. The embedded interface is nil, so
+// any method beyond the three overridden here panics — which is fine for tests,
+// since the analyzer never calls them.
+type stubLndChannelClient struct {
+	lndclient.LightningClient
+
+	openChannels      []lndclient.ChannelInfo
+	closedChannels    []lndclient.ClosedChannel
+	forwardingHistory *lndclient.ForwardingHistoryResponse
+}
+
+func (s *stubLndChannelClient) ListChannels(_ context.Context, _, _ bool,
+	_ ...lndclient.ListChannelsOption) ([]lndclient.ChannelInfo, error) {
+
+	return s.openChannels, nil
+}
+
+func (s *stubLndChannelClient) ClosedChannels(_ context.Context) (
+	[]lndclient.ClosedChannel, error) {
+
+	return s.closedChannels, nil
+}
+
+func (s *stubLndChannelClient) ForwardingHistory(_ context.Context,
+	_ lndclient.ForwardingHistoryRequest) (
+	*lndclient.ForwardingHistoryResponse, error) {
+
+	if s.forwardingHistory == nil {
+		return &lndclient.ForwardingHistoryResponse{}, nil
+	}
+
+	return s.forwardingHistory, nil
+}
+
+// validPubKey1 is the open-channel peer; route.NewVertexFromStr requires a
+// 33-byte compressed key (66 hex chars). The pre-existing testPubKey is 65
+// chars long and is fine for the store layer, but the lnd survivorship path
+// goes through route.NewVertexFromStr so we use a valid pair here.
+const (
+	validPubKey1 = "028d4c6347426f2e3f5e2b8e4a1c3b9f1c" +
+		"4e5d6f7a8b9c0d1e2f3a4b5c6d7e8f9a"
+	validPubKey2 = "038d4c6347426f2e3f5e2b8e4a1c3b9f1c" +
+		"4e5d6f7a8b9c0d1e2f3a4b5c6d7e8f9a"
+)
+
+// TestEffectiveUptimeIncludesClosedChannels exercises the survivorship-bias
+// guarantee of EffectiveUptime: a peer whose only channel was closed before the
+// analysis window must still appear in the result map. Without merging lnd's
+// ClosedChannels into the considered set, the closed-channel peer would be
+// invisible to the walk and the fleet's reported uptime would over-state
+// reality.
+func TestEffectiveUptimeIncludesClosedChannels(t *testing.T) {
+	t.Parallel()
+
+	clk := clock.NewTestClock(testTime)
+	store := NewTestDB(t, clk)
+	ctx := context.Background()
+
+	// Two peers: the open-channel peer and the closed-channel peer.
+	openPeerID, err := store.AddPeer(ctx, validPubKey1)
+	require.NoError(t, err)
+	closedPeerID, err := store.AddPeer(ctx, validPubKey2)
+	require.NoError(t, err)
+
+	// Both channels live in the chanevents store; lnd will report the first
+	// via ListChannels and the second only via ClosedChannels.
+	openScid := testShortChanID1
+	closedScid := testShortChanID2
+	openChanID, err := store.AddChannel(
+		ctx, testChanPoint1, openScid, openPeerID,
+	)
+	require.NoError(t, err)
+	closedChanID, err := store.AddChannel(
+		ctx, testChanPoint2, closedScid, closedPeerID,
+	)
+	require.NoError(t, err)
+
+	// Seed an Update event before startTime for each channel so the
+	// initial-state walk has a non-zero baseline. Without a baseline, the
+	// closed channel's online state would be false and its presence in the
+	// result map would not prove the survivorship code path drove it.
+	seedTime := testTime
+	for _, chanID := range []int64{openChanID, closedChanID} {
+		err = store.AddChannelEvent(
+			ctx, &ChannelEvent{
+				ChannelID:     chanID,
+				EventType:     EventTypeUpdate,
+				Timestamp:     seedTime,
+				LocalBalance:  fn.Some(btcutil.Amount(1000)),
+				RemoteBalance: fn.Some(btcutil.Amount(1000)),
+			},
+		)
+		require.NoError(t, err)
+	}
+
+	openVertex, err := route.NewVertexFromStr(validPubKey1)
+	require.NoError(t, err)
+	closedVertex, err := route.NewVertexFromStr(validPubKey2)
+	require.NoError(t, err)
+
+	// lnd reports only the open channel via ListChannels; the closed
+	// channel surfaces solely through ClosedChannels.
+	stub := &stubLndChannelClient{
+		openChannels: []lndclient.ChannelInfo{{
+			ChannelID:   openScid,
+			PubKeyBytes: openVertex,
+		}},
+		closedChannels: []lndclient.ClosedChannel{{
+			ChannelID:   closedScid,
+			PubKeyBytes: closedVertex,
+		}},
+	}
+
+	a := NewForwardingAnalyzer(store, lndclient.LndServices{Client: stub})
+
+	startTime := seedTime.Add(time.Second)
+	endTime := startTime.Add(time.Minute)
+
+	abilities, err := a.EffectiveUptime(ctx, startTime, endTime, 0, 0)
+	require.NoError(t, err)
+
+	// Both peers must appear as keys; the closed-channel peer being present
+	// is the survivorship guarantee under test.
+	require.Contains(t, abilities, validPubKey1)
+	require.Contains(
+		t, abilities, validPubKey2,
+		"closed-channel peer absent: survivorship handling skipped",
+	)
+
+	// Self-pair entries exist for each (the K² walk evaluates them); the
+	// cross-pair is the cleanest assertion that the closed peer
+	// participates in the walk, not just the keying.
+	require.Contains(t, abilities[validPubKey1], validPubKey2)
+	require.Contains(t, abilities[validPubKey2], validPubKey1)
 }

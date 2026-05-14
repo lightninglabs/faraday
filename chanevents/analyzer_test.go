@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/lightningnetwork/lnd/clock"
 	"github.com/lightningnetwork/lnd/fn/v2"
 	"github.com/stretchr/testify/require"
 )
@@ -738,4 +739,73 @@ func TestCalculateBothDirectionsUptimeAsymmetric(t *testing.T) {
 			Inconsistent: true,
 		}, abilityBA,
 	)
+}
+
+// TestInitialStateSameSecond verifies that when multiple update events share
+// the same second-resolution timestamp, getInitialChannelState seeds from the
+// most recent one (highest id) rather than aborting or choosing arbitrarily.
+func TestInitialStateSameSecond(t *testing.T) {
+	t.Parallel()
+
+	clock := clock.NewTestClock(testTime)
+	store := NewTestDB(t, clock)
+	ctx := context.Background()
+
+	peerID, err := store.AddPeer(ctx, testPubKey)
+	require.NoError(t, err)
+
+	channelID, err := store.AddChannel(
+		ctx, testChanPoint1, testShortChanID1, peerID,
+	)
+	require.NoError(t, err)
+
+	// Two update events share the same second-resolution timestamp. The
+	// second insert (higher id) is the one the SQL must pick.
+	sameTime := testTime.Add(10 * time.Second)
+	err = store.AddChannelEvent(
+		ctx, &ChannelEvent{
+			ChannelID:     channelID,
+			EventType:     EventTypeUpdate,
+			Timestamp:     sameTime,
+			LocalBalance:  fn.Some(btcutil.Amount(100)),
+			RemoteBalance: fn.Some(btcutil.Amount(900)),
+		},
+	)
+	require.NoError(t, err)
+	err = store.AddChannelEvent(
+		ctx, &ChannelEvent{
+			ChannelID:     channelID,
+			EventType:     EventTypeUpdate,
+			Timestamp:     sameTime,
+			LocalBalance:  fn.Some(btcutil.Amount(200)),
+			RemoteBalance: fn.Some(btcutil.Amount(800)),
+		},
+	)
+	require.NoError(t, err)
+
+	// An offline event shares the same second-resolution timestamp with an
+	// even higher ID. Replaying this offline event will set the channel
+	// state to offline, but the balances from the highest-ID update event
+	// must still be retained.
+	err = store.AddChannelEvent(
+		ctx, &ChannelEvent{
+			ChannelID: channelID,
+			EventType: EventTypeOffline,
+			Timestamp: sameTime,
+		},
+	)
+	require.NoError(t, err)
+
+	// Construct a bare analyzer. getInitialChannelState only touches the
+	// store, so the lnd field can stay zero.
+	a := &ForwardingAnalyzer{store: store}
+
+	startTime := sameTime.Add(time.Second)
+	state, err := a.getInitialChannelState(ctx, startTime, channelID)
+	require.NoError(t, err)
+	require.NotNil(t, state)
+	require.False(t, state.online,
+		"replayed offline event sets state offline")
+	require.Equal(t, btcutil.Amount(200), state.localBalance)
+	require.Equal(t, btcutil.Amount(800), state.remoteBalance)
 }

@@ -12,7 +12,7 @@ import (
 )
 
 // NewTestDB creates a new test chanevents.Store backed by a sqlite DB.
-func NewTestDB(t *testing.T, clock clock.Clock) *Store {
+func NewTestDB(t testing.TB, clock clock.Clock) *Store {
 	// We'll create a new test database. The call to NewTestSqliteDB will
 	// automatically create the DB and apply the migrations.
 	testDB := sqldb.NewTestSqliteDB(t, db.FaradayMigrationSets)

@@ -154,10 +154,160 @@
         ]
       }
     },
-    "/v1/faraday/getchannelevents": {
+    "/v1/faraday/forwardingability": {
+      "get": {
+        "summary": "*\nGet the forwarding ability of a peer over a given time period.",
+        "operationId": "FaradayServer_ForwardingAbility",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcForwardingAbilityResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "start_time",
+            "description": "Start of query window (unix epoch seconds).",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "end_time",
+            "description": "End of query window (unix epoch seconds).",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "forward_percentile",
+            "description": "Percentile of successful forward amounts (0-100) for the liquidity\nfloor. Combined with threshold_amt_sat as max(percentile_quantile,\nthreshold). Zero disables the percentile component.",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "float"
+          },
+          {
+            "name": "threshold_amt_sat",
+            "description": "Manual lower bound on routable liquidity (satoshis). Zero disables the\nmanual component.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
+      },
       "post": {
+        "summary": "*\nGet the forwarding ability of a peer over a given time period.",
+        "operationId": "FaradayServer_ForwardingAbility2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcForwardingAbilityResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/frdrpcForwardingAbilityRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
+      }
+    },
+    "/v1/faraday/getchannelevents": {
+      "get": {
         "summary": "*\nGet a list of channel events that occurred for a given channel.",
         "operationId": "FaradayServer_GetChannelEvents",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/frdrpcChannelEventsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "chan_point",
+            "description": "The channel point of the channel to get events for, formatted txid:outpoint.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "start_time",
+            "description": "Lower time bound, inclusive, as Unix seconds. Independent filter — does\nnot need to advance between paginated calls. Zero means no lower bound.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "end_time",
+            "description": "Upper time bound, exclusive, as Unix seconds. Must be greater than or\nequal to start_time. Zero means \"use the server's current time\".",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "max_events",
+            "description": "The maximum number of events to return. If zero, the server default is\nused. The server enforces a hard cap; values above the cap are clamped.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "last_id",
+            "description": "Pagination cursor: id of the last event from the previous response.\nPass zero on the first call; for subsequent calls pass the response's\nlast_id to resume past already-returned events.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "FaradayServer"
+        ]
+      },
+      "post": {
+        "summary": "*\nGet a list of channel events that occurred for a given channel.",
+        "operationId": "FaradayServer_GetChannelEvents2",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1024,6 +1174,76 @@
       ],
       "default": "UNKNOWN_FIATBACKEND",
       "description": "FiatBackend is the API endpoint to be used for any fiat related queries.\n\n - COINCAP: Use the CoinCap API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coincap.io/v2/assets/bitcoin/history\n - COINDESK: Use the CoinDesk API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coindesk.com/v1/bpi/historical/close.json\n - CUSTOM: Use custom price data provided in a CSV file for fiat price information.\n - COINGECKO: Use the CoinGecko API for fiat price information.\nThis API is reached through the following URL:\nhttps://api.coingecko.com/api/v3/coins/bitcoin/market_chart\n - BITFINEX: Use the Bitfinex API for fiat price information.\nThis API is reached through the following URL:\nhttps://api-pub.bitfinex.com/v2/candles/trade:1h:tBTCUSD/hist"
+    },
+    "frdrpcForwardingAbility": {
+      "type": "object",
+      "properties": {
+        "velocity": {
+          "type": "number",
+          "format": "double",
+          "description": "The forwarding velocity in sat/s during effective uptime. +Inf\n(JSON: \"Infinity\") indicates forwards were observed without the\npair ever crossing the liquidity threshold. This is a model\ninconsistency."
+        },
+        "uptime_fraction": {
+          "type": "number",
+          "format": "double",
+          "description": "The fraction of time the channel was considered effective."
+        }
+      }
+    },
+    "frdrpcForwardingAbilityPair": {
+      "type": "object",
+      "properties": {
+        "peer_in": {
+          "type": "string",
+          "description": "The public key of the incoming peer."
+        },
+        "peer_out": {
+          "type": "string",
+          "description": "The public key of the outgoing peer."
+        },
+        "ability": {
+          "$ref": "#/definitions/frdrpcForwardingAbility",
+          "description": "The forwarding ability of the peer pair."
+        }
+      }
+    },
+    "frdrpcForwardingAbilityRequest": {
+      "type": "object",
+      "properties": {
+        "start_time": {
+          "type": "string",
+          "format": "uint64",
+          "description": "Start of query window (unix epoch seconds)."
+        },
+        "end_time": {
+          "type": "string",
+          "format": "uint64",
+          "description": "End of query window (unix epoch seconds)."
+        },
+        "forward_percentile": {
+          "type": "number",
+          "format": "float",
+          "description": "Percentile of successful forward amounts (0-100) for the liquidity\nfloor. Combined with threshold_amt_sat as max(percentile_quantile,\nthreshold). Zero disables the percentile component."
+        },
+        "threshold_amt_sat": {
+          "type": "string",
+          "format": "uint64",
+          "description": "Manual lower bound on routable liquidity (satoshis). Zero disables the\nmanual component."
+        }
+      }
+    },
+    "frdrpcForwardingAbilityResponse": {
+      "type": "object",
+      "properties": {
+        "pairs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/frdrpcForwardingAbilityPair"
+          },
+          "description": "The forwarding ability for each peer pair."
+        }
+      }
     },
     "frdrpcGranularity": {
       "type": "string",

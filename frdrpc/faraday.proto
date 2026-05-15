@@ -70,6 +70,34 @@ service FaradayServer {
     Get a list of channel events that occurred for a given channel.
     */
     rpc GetChannelEvents (ChannelEventsRequest) returns (ChannelEventsResponse);
+
+    /**
+    Get the forwarding ability of a peer over a given time period.
+    */
+    rpc ForwardingAbility (ForwardingAbilityRequest)
+        returns (ForwardingAbilityResponse);
+}
+
+message ForwardingAbility {
+    // The forwarding velocity in sat/s during effective uptime. +Inf
+    // (JSON: "Infinity") indicates forwards were observed without the
+    // pair ever crossing the liquidity threshold. This is a model
+    // inconsistency.
+    double velocity = 1;
+
+    // The fraction of time the channel was considered effective.
+    double uptime_fraction = 2;
+}
+
+message ForwardingAbilityPair {
+    // The public key of the incoming peer.
+    string peer_in = 1;
+
+    // The public key of the outgoing peer.
+    string peer_out = 2;
+
+    // The forwarding ability of the peer pair.
+    ForwardingAbility ability = 3;
 }
 
 message CloseRecommendationRequest {
@@ -674,4 +702,28 @@ message ChannelEvent {
     // Server-assigned monotonic identity. Echo this back as the next
     // request's last_id when paginating.
     int64 id = 5;
+}
+
+message ForwardingAbilityRequest {
+    // Start of query window (unix epoch seconds).
+    uint64 start_time = 1;
+
+    // End of query window (unix epoch seconds).
+    uint64 end_time = 2;
+
+    // Percentile of successful forward amounts (0-100) for the liquidity
+    // floor. Combined with threshold_amt_sat as max(percentile_quantile,
+    // threshold). Zero disables the percentile component.
+    float forward_percentile = 3;
+
+    // Manual lower bound on routable liquidity (satoshis). Zero disables the
+    // manual component.
+    uint64 threshold_amt_sat = 4;
+}
+
+message ForwardingAbilityResponse {
+    /*
+    The forwarding ability for each peer pair.
+    */
+    repeated ForwardingAbilityPair pairs = 1;
 }

@@ -37,4 +37,8 @@ var RequiredPermissions = map[string][]bakery.Op{
 		Entity: "events",
 		Action: "read",
 	}},
+	"/frdrpc.FaradayServer/ForwardingAbility": {{
+		Entity: "ability",
+		Action: "read",
+	}},
 }

@@ -220,4 +220,29 @@ func RegisterFaradayServerJSONCallbacks(registry map[string]func(ctx context.Con
 		}
 		callback(string(respBytes), nil)
 	}
+
+	registry["frdrpc.FaradayServer.ForwardingAbility"] = func(ctx context.Context,
+		conn *grpc.ClientConn, reqJSON string, callback func(string, error)) {
+
+		req := &ForwardingAbilityRequest{}
+		err := marshaler.Unmarshal([]byte(reqJSON), req)
+		if err != nil {
+			callback("", err)
+			return
+		}
+
+		client := NewFaradayServerClient(conn)
+		resp, err := client.ForwardingAbility(ctx, req)
+		if err != nil {
+			callback("", err)
+			return
+		}
+
+		respBytes, err := marshaler.Marshal(resp)
+		if err != nil {
+			callback("", err)
+			return
+		}
+		callback(string(respBytes), nil)
+	}
 }

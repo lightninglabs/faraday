@@ -11,6 +11,7 @@ import (
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/lndwrap"
 	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/lightningnetwork/lnd/zpay32"
 )
@@ -212,18 +213,30 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 func decodePaymentReq(payReq string,
 	chainParams *chaincfg.Params) (*lndclient.PaymentRequest, error) {
 
-	paymentReq, err := zpay32.Decode(payReq, chainParams)
+	invoice, err := zpay32.Decode(payReq, chainParams)
 	if err != nil {
 		return nil, err
 	}
 
 	desc := ""
-	if paymentReq.Description != nil {
-		desc = *paymentReq.Description
+	if invoice.Description != nil {
+		desc = *invoice.Description
 	}
 
-	return &lndclient.PaymentRequest{
-		Destination: route.NewVertex(paymentReq.Destination),
-		Description: desc,
-	}, nil
+	var amtMsat lnwire.MilliSatoshi
+	if invoice.MilliSat != nil {
+		amtMsat = *invoice.MilliSat
+	}
+
+	req := &lndclient.PaymentRequest{
+		Destination:    route.NewVertex(invoice.Destination),
+		Hash:           *invoice.PaymentHash,
+		Value:          amtMsat,
+		Description:    desc,
+		Timestamp:      invoice.Timestamp,
+		Expiry:         invoice.Timestamp.Add(invoice.Expiry()),
+		PaymentAddress: invoice.PaymentAddr.UnwrapOr([32]byte{}),
+	}
+
+	return req, nil
 }

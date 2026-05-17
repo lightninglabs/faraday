@@ -5,12 +5,14 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/lightninglabs/faraday/fees"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/lndwrap"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/routing/route"
+	"github.com/lightningnetwork/lnd/zpay32"
 )
 
 // decodePaymentRequest is a signature for decoding payment requests.
@@ -194,7 +196,7 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 		DecodePayReq: func(payReq string) (*lndclient.PaymentRequest,
 			error) {
 
-			return lnd.Client.DecodePaymentRequest(ctx, payReq)
+			return decodePaymentReq(payReq, lnd.ChainParams)
 		},
 		OwnPubKey: ownPubkey,
 		CommonConfig: CommonConfig{
@@ -205,4 +207,23 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 			PriceSourceCfg: priceCfg,
 		},
 	}
+}
+
+func decodePaymentReq(payReq string,
+	chainParams *chaincfg.Params) (*lndclient.PaymentRequest, error) {
+
+	paymentReq, err := zpay32.Decode(payReq, chainParams)
+	if err != nil {
+		return nil, err
+	}
+
+	desc := ""
+	if paymentReq.Description != nil {
+		desc = *paymentReq.Description
+	}
+
+	return &lndclient.PaymentRequest{
+		Destination: route.NewVertex(paymentReq.Destination),
+		Description: desc,
+	}, nil
 }

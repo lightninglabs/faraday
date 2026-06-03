@@ -11,7 +11,7 @@ import (
 )
 
 // NewTestDB creates a new test chanevents.Store backed by a postgres DB.
-func NewTestDB(t *testing.T, clock clock.Clock) *Store {
+func NewTestDB(t testing.TB, clock clock.Clock) *Store {
 	// We'll create a new test database. The call to NewTestPostgresDB will
 	// automatically create the DB and apply the migrations.
 	testDB := db.NewTestPostgresDB(t)

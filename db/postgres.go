@@ -9,7 +9,7 @@ import (
 
 // NewTestPostgresDB is a helper function that creates a Postgres database for
 // testing.
-func NewTestPostgresDB(t *testing.T) *sqldb.PostgresStore {
+func NewTestPostgresDB(t testing.TB) *sqldb.PostgresStore {
 	t.Helper()
 
 	t.Logf("Creating new Postgres DB for testing")

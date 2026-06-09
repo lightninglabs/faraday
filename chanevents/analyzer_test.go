@@ -225,12 +225,10 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 		inEvents  []*ChannelEvent
 		outEvents []*ChannelEvent
 
-		successAmts       []btcutil.Amount
-		thresholdAmount   btcutil.Amount
-		forwardPercentile float64
+		successAmts    []btcutil.Amount
+		liquidityFloor btcutil.Amount
 
-		expected    *ForwardingAbility
-		expectedErr string
+		expectedUptime time.Duration
 	}{
 		{
 			name: "Basic case always online",
@@ -249,10 +247,28 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 			successAmts: []btcutil.Amount{
 				100,
 			},
-			expected: &ForwardingAbility{
-				Velocity:       1, // 100 sats / 100s
-				UptimeFraction: 1.0,
+			expectedUptime: 100 * time.Second,
+		},
+		{
+			// Liquidity sits exactly on the floor for the whole
+			// window. The "at least" contract counts equality, so
+			// the pair accrues the full window (a strict greater-
+			// than comparison would wrongly report zero).
+			name: "Liquidity exactly at floor qualifies",
+			inStates: map[int64]*channelState{
+				chanInID: {
+					online:        true,
+					remoteBalance: 500,
+				},
 			},
+			outStates: map[int64]*channelState{
+				chanOutID: {
+					online:       true,
+					localBalance: 500,
+				},
+			},
+			liquidityFloor: 500,
+			expectedUptime: 100 * time.Second,
 		},
 		{
 			// The forward in successAmts updates both channels:
@@ -297,16 +313,13 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 			successAmts: []btcutil.Amount{
 				200,
 			},
-			thresholdAmount: 900,
+			liquidityFloor: 900,
 			// t=100..150 (50s): liq = min(1500, 1000) = 1000
 			//                   > 900 → qualifies.
 			// t=150..200 (50s): liq = min(1300, 800)  = 800
 			//                   < 900 → drops out.
 			// Total uptime = 50s, total amount = 200 sats.
-			expected: &ForwardingAbility{
-				Velocity:       4, // 200 sats / 50s
-				UptimeFraction: 0.5,
-			},
+			expectedUptime: 50 * time.Second,
 		},
 		{
 			name: "Channel goes offline",
@@ -328,11 +341,8 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 			successAmts: []btcutil.Amount{
 				100,
 			},
-			thresholdAmount: 1,
-			expected: &ForwardingAbility{
-				Velocity:       2, // 100 sats / 50s
-				UptimeFraction: 0.5,
-			},
+			liquidityFloor: 1,
+			expectedUptime: 50 * time.Second,
 		},
 		{
 			name: "Balance change",
@@ -357,15 +367,12 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 			successAmts: []btcutil.Amount{
 				100,
 			},
-			thresholdAmount: 1,
+			liquidityFloor: 1,
 			// Balance changes at t=150, so for the first 50s the
 			// liquidity is 800, then it's 1000 for the next 50s.
 			// The total effective uptime is 100s, because the
 			// liquidity threshold is low.
-			expected: &ForwardingAbility{
-				Velocity:       1, // 100 sats / 100s
-				UptimeFraction: 1,
-			},
+			expectedUptime: 100 * time.Second,
 		},
 		{
 			name: "Duplicate event timestamps",
@@ -397,10 +404,7 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 			// (50s), liquidity is min(1000, 800) = 800. After
 			// t=150, chanIn is offline, so liquidity is 0 for the
 			// remaining 50s.
-			expected: &ForwardingAbility{
-				Velocity:       2, // 100 sats / 50s
-				UptimeFraction: 0.5,
-			},
+			expectedUptime: 50 * time.Second,
 		},
 		{
 			name: "No initial state",
@@ -427,17 +431,13 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 			successAmts: []btcutil.Amount{
 				100,
 			},
-			thresholdAmount: 1,
+			liquidityFloor: 1,
 			// We don't have initial balance states, so we can't
 			// determine liquidity until we see an event on both
 			// channels. At t=140 we know the liquidity is 800, and
 			// it's online for the remaining 60s of the 100s total.
 			// So uptime fraction is 0.6 for 800.
-			expected: &ForwardingAbility{
-				// 100 sats / 60s
-				Velocity:       1.6666666666666667,
-				UptimeFraction: 0.6,
-			},
+			expectedUptime: 60 * time.Second,
 		},
 		{
 			name: "Multiple channels for out peer",
@@ -466,15 +466,12 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 			successAmts: []btcutil.Amount{
 				100,
 			},
-			thresholdAmount: 900,
+			liquidityFloor: 900,
 			// We expect the liquidity to be the sum of the
 			// available balances of the out channels. t=100-150:
 			// min(1000, 800 + 500) = 1000 t=150-200: min(1000, 1200
 			// + 500) = 1000
-			expected: &ForwardingAbility{
-				Velocity:       1, // 100 sats / 100s
-				UptimeFraction: 1.0,
-			},
+			expectedUptime: 100 * time.Second,
 		},
 		{
 			name: "Circular payment ability",
@@ -505,13 +502,10 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 			successAmts: []btcutil.Amount{
 				100,
 			},
-			thresholdAmount: 1,
+			liquidityFloor: 1,
 			// For the first 50s, liquidity is min(1000, 0) = 0. For
 			// the next 50s, liquidity is min(500, 500) = 500.
-			expected: &ForwardingAbility{
-				Velocity:       2, // 100 sats / 50s
-				UptimeFraction: 0.5,
-			},
+			expectedUptime: 50 * time.Second,
 		},
 		{
 			name: "Self route multiple channels",
@@ -551,19 +545,16 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 			successAmts: []btcutil.Amount{
 				100,
 			},
-			thresholdAmount: 1500,
+			liquidityFloor: 1500,
 			// Initial fwdLiquidity = min(2000, 2000) = 2000. 2000 >
 			// 1500, so first 50s accrue. At t=150, chanOut local
 			// drops to 0. outStates total local becomes 1000 (from
 			// chanIn). fwdLiquidity = min(2000, 1000) = 1000. 1000
 			// is not > 1500, so last 50s do not accrue.
-			expected: &ForwardingAbility{
-				Velocity:       2, // 100 sats / 50s
-				UptimeFraction: 0.5,
-			},
+			expectedUptime: 50 * time.Second,
 		},
 		{
-			name: "Zero uptime no forwards yields zero velocity",
+			name: "Zero uptime no forwards",
 			inStates: map[int64]*channelState{
 				chanInID: {
 					online: false,
@@ -574,13 +565,14 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 					online: false,
 				},
 			},
-			expected: &ForwardingAbility{
-				Velocity:       0,
-				UptimeFraction: 0,
-			},
+			expectedUptime: 0,
 		},
 		{
-			name: "Zero uptime with forwards is flagged inconsistent",
+			// Forwards landed but the pair never held qualifying
+			// liquidity: zero uptime, yet the forwarded volume is
+			// still reported so the consumer keeps the demand
+			// signal.
+			name: "Zero uptime with forwards retains volume",
 			inStates: map[int64]*channelState{
 				chanInID: {
 					online: false,
@@ -594,11 +586,7 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 			successAmts: []btcutil.Amount{
 				100,
 			},
-			expected: &ForwardingAbility{
-				Velocity:       0,
-				UptimeFraction: 0,
-				Inconsistent:   true,
-			},
+			expectedUptime: 0,
 		},
 	}
 
@@ -617,16 +605,6 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 					tc.inEvents, tc.outEvents,
 				)
 
-				inputsAB := pairInputs{
-					threshold:             tc.thresholdAmount,
-					totalSuccessfulAmount: totalSuccessfulAmount,
-				}
-
-				// The (B→A) inputs are not asserted by this
-				// test. Pass zero so the second ability is
-				// well-defined but ignored.
-				var inputsBA pairInputs
-
 				// Precompute the starting balances.
 				var sumARemote, sumALocal, sumBRemote,
 					sumBLocal btcutil.Amount
@@ -644,18 +622,25 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 					}
 				}
 
+				// The (B→A) forwarded total is not asserted by
+				// this test; pass zero so the second ability is
+				// well-defined but ignored.
 				abilityAB, _, err :=
 					calculateBothDirectionsUptime(
 						context.Background(),
 						startTime, endTime,
-						inputsAB, inputsBA,
+						tc.liquidityFloor,
 						tc.inStates, tc.outStates,
 						sumARemote, sumALocal,
 						sumBRemote, sumBLocal,
 						mergedEvents,
+						totalSuccessfulAmount, 0,
 					)
 				require.NoError(t, err)
-				require.Equal(t, tc.expected, abilityAB)
+				require.Equal(t, &ForwardingAbility{
+					EffectiveUptime: tc.expectedUptime,
+					ForwardedAmount: totalSuccessfulAmount,
+				}, abilityAB)
 			},
 		)
 	}
@@ -692,17 +677,10 @@ func TestCalculateBothDirectionsUptimeAsymmetric(t *testing.T) {
 		},
 	}
 
-	// Threshold sits between the two directions: A→B has min(1000, 1000)
+	// The floor sits between the two directions: A→B has min(1000, 1000)
 	// = 1000 ≥ 500 (qualifying); B→A has min(100, 100) = 100 < 500 (not
 	// qualifying).
-	inputsAB := pairInputs{
-		threshold:             500,
-		totalSuccessfulAmount: 100,
-	}
-	inputsBA := pairInputs{
-		threshold:             500,
-		totalSuccessfulAmount: 50,
-	}
+	const liquidityFloor btcutil.Amount = 500
 
 	// Precompute the starting balances.
 	var sumARemote, sumALocal, sumBRemote, sumBLocal btcutil.Amount
@@ -721,24 +699,25 @@ func TestCalculateBothDirectionsUptimeAsymmetric(t *testing.T) {
 
 	abilityAB, abilityBA, err := calculateBothDirectionsUptime(
 		context.Background(), startTime, endTime,
-		inputsAB, inputsBA, statesA, statesB,
+		liquidityFloor, statesA, statesB,
 		sumARemote, sumALocal, sumBRemote, sumBLocal,
 		mergeEventSlices(nil, nil),
+		100, 50,
 	)
 	require.NoError(t, err)
 
 	require.Equal(
 		t, &ForwardingAbility{
-			Velocity:       1, // 100 sats / 100s
-			UptimeFraction: 1.0,
+			EffectiveUptime: 100 * time.Second,
+			ForwardedAmount: 100,
 		}, abilityAB,
 	)
 	require.Equal(
 		t, &ForwardingAbility{
-			Velocity:       0,
-			UptimeFraction: 0,
-			// Forwards landed but BA never crossed threshold.
-			Inconsistent: true,
+			// Forwards landed but BA never crossed the floor: zero
+			// uptime, volume still reported.
+			EffectiveUptime: 0,
+			ForwardedAmount: 50,
 		}, abilityBA,
 	)
 }
@@ -938,7 +917,7 @@ func TestEffectiveUptimeIncludesClosedChannels(t *testing.T) {
 	startTime := seedTime.Add(time.Second)
 	endTime := startTime.Add(time.Minute)
 
-	abilities, err := a.EffectiveUptime(ctx, startTime, endTime, 0, 0)
+	abilities, err := a.EffectiveUptime(ctx, startTime, endTime, 0)
 	require.NoError(t, err)
 
 	// Cross-pair entries in both directions are the cleanest assertion
@@ -956,9 +935,9 @@ func TestEffectiveUptimeIncludesClosedChannels(t *testing.T) {
 	)
 }
 
-// TestEffectiveUptimeArgs exercises the fwdPercentile, threshold, startTime,
-// and endTime arguments of EffectiveUptime, verifying that they correctly
-// govern the calculated forwarding liquidity floor and final uptime metrics.
+// TestEffectiveUptimeArgs exercises the liquidityFloor, startTime, and endTime
+// arguments of EffectiveUptime, verifying that the single uniform floor governs
+// effective uptime and that forwarded volume is reported regardless of uptime.
 func TestEffectiveUptimeArgs(t *testing.T) {
 	t.Parallel()
 
@@ -1039,28 +1018,24 @@ func TestEffectiveUptimeArgs(t *testing.T) {
 	startTime := seedTime.Add(time.Second)
 	endTime := startTime.Add(time.Minute)
 
-	// Case 1: fwdPercentile = 50 (percentile = 200k), threshold = 50k.
-	// Since liquidity is 1M > max(200k, 50k) = 200k, uptime must be 1.0.
-	abilities, err := a.EffectiveUptime(
-		ctx, startTime, endTime, 50.0, 50_000,
-	)
+	// Case 1: liquidityFloor = 50k. Liquidity of 1M exceeds the floor for
+	// the whole 60s window, so effective uptime is the full minute and the
+	// forwarded volume is the 400k sat total.
+	abilities, err := a.EffectiveUptime(ctx, startTime, endTime, 50_000)
 	require.NoError(t, err)
 
 	pair := PeerPair{PeerIn: validPubKey1, PeerOut: validPubKey2}
 	require.Contains(t, abilities, pair)
-	require.Equal(t, 1.0, abilities[pair].UptimeFraction)
-	require.False(t, abilities[pair].Inconsistent)
+	require.Equal(t, time.Minute, abilities[pair].EffectiveUptime)
+	require.Equal(t, btcutil.Amount(400_000), abilities[pair].ForwardedAmount)
 
-	// Case 2: fwdPercentile = 50, threshold = 1_500_000.
-	// The threshold is now 1.5M, which is greater than the liquidity of 1M.
-	// Therefore, the liquidity never crosses the floor, resulting in
-	// zero uptime and the Inconsistent flag being true.
-	abilities, err = a.EffectiveUptime(
-		ctx, startTime, endTime, 50.0, 1_500_000,
-	)
+	// Case 2: liquidityFloor = 1.5M, above the 1M liquidity, so the floor is
+	// never crossed and effective uptime is zero. The forwarded volume is
+	// still reported so the consumer keeps the demand signal.
+	abilities, err = a.EffectiveUptime(ctx, startTime, endTime, 1_500_000)
 	require.NoError(t, err)
 
 	require.Contains(t, abilities, pair)
-	require.Equal(t, 0.0, abilities[pair].UptimeFraction)
-	require.True(t, abilities[pair].Inconsistent)
+	require.Zero(t, abilities[pair].EffectiveUptime)
+	require.Equal(t, btcutil.Amount(400_000), abilities[pair].ForwardedAmount)
 }

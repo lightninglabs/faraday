@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
-	"math"
 	"sort"
 	"time"
 
@@ -65,21 +64,19 @@ type ForwardingAnalyzer struct {
 // paired with a propagated error value.
 type channelEventSeq = iter.Seq2[*ChannelEvent, error]
 
-// ForwardingAbility quantifies the historical routing performance of a peer
-// pair. Inconsistent flags the pathological case where forwards were observed
-// without the pair ever crossing the liquidity threshold; Velocity is zero in
-// that case because the rate is undefined over zero qualifying uptime.
+// ForwardingAbility holds the raw forwarding facts for one direction of a peer
+// pair over the analysis window. It carries no derived rates or categories. The
+// consumer derives velocity and uptime fraction from these and the window, and
+// reconstructs any categorization (such as forwards observed without qualifying
+// uptime) from EffectiveUptime and ForwardedAmount.
 type ForwardingAbility struct {
-	// Velocity is the forwarding velocity in sat/s during effective uptime.
-	Velocity float64
+	// EffectiveUptime is the time the pair held at least the liquidity floor
+	// of directional forwardable liquidity over the window.
+	EffectiveUptime time.Duration
 
-	// UptimeFraction is the ratio of effective uptime to the full window
-	// duration, in [0, 1].
-	UptimeFraction float64
-
-	// Inconsistent is set when forwards landed but effective uptime was
-	// zero, indicating the input data and the threshold model disagree.
-	Inconsistent bool
+	// ForwardedAmount is the total successfully forwarded amount over the
+	// window.
+	ForwardedAmount btcutil.Amount
 }
 
 // PeerPair identifies a unidirectional routing edge from PeerIn to PeerOut.
@@ -88,13 +85,6 @@ type ForwardingAbility struct {
 type PeerPair struct {
 	PeerIn  string
 	PeerOut string
-}
-
-// pairInputs encapsulates the routing performance thresholds for a single
-// direction.
-type pairInputs struct {
-	threshold             btcutil.Amount
-	totalSuccessfulAmount btcutil.Amount
 }
 
 // channelState is the per-channel snapshot the uptime walk carries forward as
@@ -118,25 +108,18 @@ func NewForwardingAnalyzer(store EventsSource,
 
 // EffectiveUptime returns a ForwardingAbility for every (peerIn, peerOut) pair
 // over [startTime, endTime). Closed channels are folded into the considered set
-// so survivorship bias does not skew the uptime denominator. The liquidity
-// floor is the fwdPercentile-th percentile of successful forward amounts (with
-// fwdPercentile in [0, 100]), bounded below by threshold. When forwards land
-// but the floor is never crossed, the returned ability is flagged Inconsistent.
+// so survivorship bias does not skew the uptime denominator. A single
+// liquidityFloor is applied uniformly to every pair, so effective uptime is the
+// time each pair held at least that much directional forwardable liquidity.
 func (a *ForwardingAnalyzer) EffectiveUptime(ctx context.Context, startTime,
-	endTime time.Time, fwdPercentile float64, threshold btcutil.Amount) (
+	endTime time.Time, liquidityFloor btcutil.Amount) (
 	map[PeerPair]ForwardingAbility, error) {
-
-	if fwdPercentile < 0 || fwdPercentile > 100 {
-		return nil, fmt.Errorf("fwdPercentile %v outside [0, 100]",
-			fwdPercentile)
-	}
 
 	log.DebugS(
 		ctx, "Calculating effective uptime",
 		slog.Time("startTime", startTime),
 		slog.Time("endTime", endTime),
-		slog.Float64("fwdPercentile", fwdPercentile),
-		slog.Int64("threshold", int64(threshold)),
+		slog.Int64("liquidityFloor", int64(liquidityFloor)),
 	)
 
 	scidToPeer, err := a.store.ScidToPeerMap(ctx)
@@ -176,7 +159,7 @@ func (a *ForwardingAnalyzer) EffectiveUptime(ctx context.Context, startTime,
 	)
 
 	return calculateAllPairsUptime(
-		ctx, a.store, startTime, endTime, fwdPercentile, threshold,
+		ctx, a.store, startTime, endTime, liquidityFloor,
 		successfulForwards, initialStates, peerChannels,
 	)
 }
@@ -443,7 +426,7 @@ func (a *ForwardingAnalyzer) getInitialChannelState(ctx context.Context,
 // calculateAllPairsUptime returns forwarding abilities for every peer pair,
 // computing both directions (A→B and B→A) in a single pass.
 func calculateAllPairsUptime(ctx context.Context, store EventsSource, startTime,
-	endTime time.Time, fwdPercentile float64, threshold btcutil.Amount,
+	endTime time.Time, liquidityFloor btcutil.Amount,
 	successfulForwards map[PeerPair][]btcutil.Amount,
 	initialStates map[string]map[int64]*channelState,
 	peerChannels map[string][]int64) (
@@ -523,21 +506,12 @@ func calculateAllPairsUptime(ctx context.Context, store EventsSource, startTime,
 			statesB := initialStates[peerB]
 			sumsB := initialSums[peerB]
 
-			inputsAB, err := pairThresholdInputs(
-				fwdPercentile, threshold, successfulForwards,
-				peerA, peerB,
+			forwardedAB := pairForwardedTotal(
+				successfulForwards, peerA, peerB,
 			)
-			if err != nil {
-				return nil, err
-			}
-
-			inputsBA, err := pairThresholdInputs(
-				fwdPercentile, threshold, successfulForwards,
-				peerB, peerA,
+			forwardedBA := pairForwardedTotal(
+				successfulForwards, peerB, peerA,
 			)
-			if err != nil {
-				return nil, err
-			}
 
 			sliceB := sliceA
 			if i != j {
@@ -550,11 +524,12 @@ func calculateAllPairsUptime(ctx context.Context, store EventsSource, startTime,
 			abilityAB, abilityBA, err :=
 				calculateBothDirectionsUptime(
 					ctx, startTime, endTime,
-					inputsAB, inputsBA,
+					liquidityFloor,
 					statesA, statesB,
 					sumsA.remote, sumsA.local,
 					sumsB.remote, sumsB.local,
 					mergeEventSlices(sliceA, sliceB),
+					forwardedAB, forwardedBA,
 				)
 			if err != nil {
 				return nil, err
@@ -619,57 +594,32 @@ func loadPeerEvents(ctx context.Context, store EventsSource, startTime,
 	return events, nil
 }
 
-// pairThresholdInputs resolves the liquidity floor and cumulative forwarded
-// amount for one direction of a peer pair, applying the percentile rule when
-// historical forwards exist.
-func pairThresholdInputs(fwdPercentile float64, threshold btcutil.Amount,
-	successfulForwards map[PeerPair][]btcutil.Amount,
-	peerIn, peerOut string) (pairInputs, error) {
-
-	successAmts := successfulForwards[PeerPair{
-		PeerIn: peerIn, PeerOut: peerOut,
-	}]
-	t, err := determineThreshold(fwdPercentile, threshold, successAmts)
-	if err != nil {
-		return pairInputs{}, err
-	}
+// pairForwardedTotal sums the successfully forwarded amounts for one direction
+// of a peer pair over the analysis window.
+func pairForwardedTotal(successfulForwards map[PeerPair][]btcutil.Amount,
+	peerIn, peerOut string) btcutil.Amount {
 
 	var total btcutil.Amount
-	for _, amt := range successAmts {
+	for _, amt := range successfulForwards[PeerPair{
+		PeerIn: peerIn, PeerOut: peerOut,
+	}] {
 		total += amt
 	}
 
-	return pairInputs{threshold: t, totalSuccessfulAmount: total}, nil
-}
-
-// determineThreshold establishes the required liquidity floor based on the
-// user's manual threshold or the calculated percentile of successful forwards.
-func determineThreshold(forwardPercentile float64,
-	thresholdAmount btcutil.Amount,
-	successAmts []btcutil.Amount) (btcutil.Amount, error) {
-
-	if len(successAmts) == 0 {
-		return thresholdAmount, nil
-	}
-
-	q := forwardPercentile / 100
-	p, err := Quantile(successAmts, q)
-	if err != nil {
-		return 0, err
-	}
-
-	return max(btcutil.Amount(math.RoundToEven(p)), thresholdAmount), nil
+	return total
 }
 
 // calculateBothDirectionsUptime computes the effective forwarding uptime for
 // both directions of a peer pair in a single chronological walk of the merged
-// event stream. Only the liquidity-direction roles and the per-direction
-// thresholds differ between the two accumulators. For self-pair calls (statesA
-// == statesB, inputsAB == inputsBA) both returned abilities are equal.
+// event stream. Only the liquidity-direction roles differ between the two
+// accumulators, as both share the same uniform liquidityFloor. forwardedAB and
+// forwardedBA carry each direction's total forwarded volume through to the
+// returned abilities. For self-pair calls both returned abilities are equal.
 func calculateBothDirectionsUptime(ctx context.Context, startTime,
-	endTime time.Time, inputsAB, inputsBA pairInputs, statesA,
+	endTime time.Time, liquidityFloor btcutil.Amount, statesA,
 	statesB map[int64]*channelState, sumARemote, sumALocal, sumBRemote,
-	sumBLocal btcutil.Amount, mergedEvents channelEventSeq) (
+	sumBLocal btcutil.Amount, mergedEvents channelEventSeq,
+	forwardedAB, forwardedBA btcutil.Amount) (
 	*ForwardingAbility, *ForwardingAbility, error) {
 
 	traceOn := log.Level() <= btclog.LevelTrace
@@ -711,13 +661,8 @@ func calculateBothDirectionsUptime(ctx context.Context, startTime,
 			)
 		}
 		log.TraceS(
-			ctx, "Using final forwarding liquidity thresholds",
-			slog.Int64(
-				"thresholdAB", int64(inputsAB.threshold),
-			),
-			slog.Int64(
-				"thresholdBA", int64(inputsBA.threshold),
-			),
+			ctx, "Using uniform forwarding liquidity floor",
+			slog.Int64("liquidityFloor", int64(liquidityFloor)),
 		)
 	}
 
@@ -748,10 +693,16 @@ func calculateBothDirectionsUptime(ctx context.Context, startTime,
 				),
 			)
 		}
-		if liqAB > inputsAB.threshold {
+
+		// A direction qualifies when its bottleneck liquidity is at
+		// least the floor, matching the "at least" contract documented
+		// on the ForwardingAbility proto, struct, and CLI flag. The
+		// liquidity must also be strictly positive: zero forwardable
+		// liquidity can never route a payment, even when the floor is 0.
+		if liqAB >= liquidityFloor && liqAB > 0 {
 			uptimeAB += intervalDuration
 		}
-		if liqBA > inputsBA.threshold {
+		if liqBA >= liquidityFloor && liqBA > 0 {
 			uptimeBA += intervalDuration
 		}
 	}
@@ -836,12 +787,8 @@ func calculateBothDirectionsUptime(ctx context.Context, startTime,
 		)
 	}
 
-	abilityAB := makeAbility(
-		startTime, endTime, uptimeAB, inputsAB.totalSuccessfulAmount,
-	)
-	abilityBA := makeAbility(
-		startTime, endTime, uptimeBA, inputsBA.totalSuccessfulAmount,
-	)
+	abilityAB := makeAbility(uptimeAB, forwardedAB)
+	abilityBA := makeAbility(uptimeBA, forwardedBA)
 
 	return abilityAB, abilityBA, nil
 }
@@ -936,19 +883,13 @@ func applyEvent(state *channelState, event *ChannelEvent) error {
 }
 
 // makeAbility folds an accumulated uptime and successful-amount total into a
-// ForwardingAbility. When uptime is zero and forwards landed, the result is
-// flagged Inconsistent with zero Velocity.
-func makeAbility(startTime, endTime time.Time, totalUptime time.Duration,
+// ForwardingAbility carrying the raw facts. Derived rates and categories are
+// left to the consumer.
+func makeAbility(totalUptime time.Duration,
 	totalAmt btcutil.Amount) *ForwardingAbility {
 
-	if totalUptime == 0 {
-		return &ForwardingAbility{Inconsistent: totalAmt > 0}
-	}
-
-	totalDuration := endTime.Sub(startTime)
-
 	return &ForwardingAbility{
-		Velocity:       float64(totalAmt) / totalUptime.Seconds(),
-		UptimeFraction: float64(totalUptime) / float64(totalDuration),
+		EffectiveUptime: totalUptime,
+		ForwardedAmount: totalAmt,
 	}
 }

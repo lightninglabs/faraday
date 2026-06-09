@@ -836,10 +836,14 @@ func (s *stubLndChannelClient) ClosedChannels(_ context.Context) (
 }
 
 func (s *stubLndChannelClient) ForwardingHistory(_ context.Context,
-	_ lndclient.ForwardingHistoryRequest) (
+	req lndclient.ForwardingHistoryRequest) (
 	*lndclient.ForwardingHistoryResponse, error) {
 
 	if s.forwardingHistory == nil {
+		return &lndclient.ForwardingHistoryResponse{}, nil
+	}
+
+	if req.Offset > 0 {
 		return &lndclient.ForwardingHistoryResponse{}, nil
 	}
 

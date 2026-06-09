@@ -181,32 +181,58 @@ func (a *ForwardingAnalyzer) EffectiveUptime(ctx context.Context, startTime,
 	)
 }
 
-// getForwardingData returns successful forwards and channels from lnd's
-// forwarding history over [startTime, endTime), indexed by peer pair. Unknown
-// channels are skipped.
+// getForwardingData queries lnd's forwarding history sequentially in paginated
+// batches to retrieve successful forwarding events within the specified time
+// range, indexing the results by peer pair.
 func (a *ForwardingAnalyzer) getForwardingData(ctx context.Context, startTime,
 	endTime time.Time, scidToPeer map[uint64]string) (
 	map[PeerPair][]btcutil.Amount, map[uint64]string, error) {
 
-	fwds, err := a.lnd.Client.ForwardingHistory(
-		ctx, lndclient.ForwardingHistoryRequest{
-			StartTime: startTime,
-			EndTime:   endTime,
-		},
-	)
-	if err != nil {
-		return nil, nil, err
+	var events []lndclient.ForwardingEvent
+	var offset uint32
+	const forwardingPageSize = 1000
+
+	for {
+		fwds, err := a.lnd.Client.ForwardingHistory(
+			ctx, lndclient.ForwardingHistoryRequest{
+				StartTime: startTime,
+				EndTime:   endTime,
+				Offset:    offset,
+				MaxEvents: forwardingPageSize,
+			},
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if len(fwds.Events) == 0 {
+			break
+		}
+
+		events = append(events, fwds.Events...)
+		if len(fwds.Events) < forwardingPageSize {
+			break
+		}
+
+		// Guard against a non-advancing offset: if lnd does not move
+		// LastIndexOffset past the cursor we already queried, stop
+		// rather than re-fetch the same page forever.
+		if fwds.LastIndexOffset <= offset {
+			break
+		}
+		offset = fwds.LastIndexOffset
 	}
+
 	log.DebugS(
 		ctx, "Found forwarding events",
 		slog.Int(
-			"count", len(fwds.Events),
+			"count", len(events),
 		),
 	)
 
 	channelPeersConsidered := make(map[uint64]string)
 	successfulForwards := make(map[PeerPair][]btcutil.Amount)
-	for _, fwd := range fwds.Events {
+	for _, fwd := range events {
 		inPeer, ok := scidToPeer[fwd.ChannelIn]
 		if !ok {
 			log.WarnS(

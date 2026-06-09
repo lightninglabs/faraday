@@ -38,7 +38,8 @@ type EventsSource interface {
 
 	// GetChannelEvents fetches up to limit events for a channel with id >
 	// afterID and timestamp in [startTime, endTime), ordered by id ASC.
-	// A large limit (e.g. math.MaxInt32) retrieves the entire range.
+	// Callers page through a range by passing the last returned id as
+	// afterID until a short page comes back.
 	GetChannelEvents(ctx context.Context, channelID, afterID int64,
 		startTime, endTime time.Time,
 		limit int32) ([]*ChannelEvent, error)
@@ -543,22 +544,39 @@ func calculateAllPairsUptime(ctx context.Context, store EventsSource, startTime,
 	return results, nil
 }
 
+// eventPageSize bounds a single channel-event page so the per-channel fetch
+// never asks the store for an unbounded result set.
+const eventPageSize = 1000
+
 // loadPeerEvents fetches every event in [startTime, endTime) on the given
 // channels and returns them merged into a single chronologically sorted slice.
-// Events sharing a timestamp are ordered by ascending id so the result is
-// deterministic.
+// Each channel is paged through in id-ascending batches so no single store
+// query is unbounded. Events sharing a timestamp are ordered by ascending id so
+// the result is deterministic.
 func loadPeerEvents(ctx context.Context, store EventsSource, startTime,
 	endTime time.Time, chanIDs []int64) ([]*ChannelEvent, error) {
 
 	var events []*ChannelEvent
 	for _, chanID := range chanIDs {
-		chanEvents, err := store.GetChannelEvents(
-			ctx, chanID, 0, startTime, endTime, math.MaxInt32,
-		)
-		if err != nil {
-			return nil, err
+		var afterID int64
+		for {
+			page, err := store.GetChannelEvents(
+				ctx, chanID, afterID, startTime, endTime,
+				eventPageSize,
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			events = append(events, page...)
+			if len(page) < eventPageSize {
+				break
+			}
+
+			// Events come back id-ASC, so the last id is the
+			// largest; continue the next page after it.
+			afterID = page[len(page)-1].ID
 		}
-		events = append(events, chanEvents...)
 	}
 
 	sort.SliceStable(

@@ -466,6 +466,58 @@ func (c *testContext) channelRoutable(dest route.Vertex,
 	return err == nil
 }
 
+// disconnectPeer disconnects the given client from a peer, taking any channels
+// between them offline. lnd normally refuses to disconnect from a peer with an
+// active channel, but the itest lnd is a non-integration build where unsafe
+// disconnect is always permitted. The raw lnrpc client is used because the
+// high-level lndclient interface exposes no Disconnect, and the admin macaroon
+// is attached at call time since the shared connection carries none.
+func (c *testContext) disconnectPeer(client *lndclient.GrpcLndServices,
+	peer route.Vertex) {
+
+	c.t.Helper()
+
+	ctx, err := client.WithMacaroonAuthForService(
+		context.Background(), lndclient.AdminServiceMac,
+	)
+	require.NoError(c.t, err, "could not attach macaroon")
+
+	raw := lnrpc.NewLightningClient(client.ClientConn)
+	_, err = raw.DisconnectPeer(ctx, &lnrpc.DisconnectPeerRequest{
+		PubKey: peer.String(),
+	})
+	require.NoError(c.t, err, "could not disconnect peer")
+}
+
+// channelEventCounts returns how many online and offline events faraday has
+// recorded for the given channel up to the present.
+func (c *testContext) channelEventCounts(chanPoint string) (online,
+	offline int) {
+
+	c.t.Helper()
+
+	endTime := time.Now().Add(time.Second).Unix()
+	events, err := c.faradayClient.GetChannelEvents(
+		context.Background(), &frdrpc.ChannelEventsRequest{
+			ChanPoint: chanPoint,
+			EndTime:   endTime,
+		},
+	)
+	require.NoError(c.t, err, "could not get channel events")
+
+	for _, event := range events.Events {
+		switch event.EventType {
+		case frdrpc.ChannelEventType_CHAN_EVENT_ONLINE:
+			online++
+
+		case frdrpc.ChannelEventType_CHAN_EVENT_OFFLINE:
+			offline++
+		}
+	}
+
+	return online, offline
+}
+
 // findChannel finds a channel in a set of open channels, returning nil if it
 // is not found.
 // nolint:interfacer

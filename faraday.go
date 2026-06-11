@@ -177,10 +177,14 @@ func (f *Faraday) Start() error {
 		return fmt.Errorf("error initializing faraday: %v", err)
 	}
 
+	fwdAnalyzer := chanevents.NewForwardingAnalyzer(
+		f.stores.ChanEventsStore, f.lnd.LndServices,
+	)
 	cfg := &frdrpcserver.Config{
-		Lnd:           f.lnd.LndServices,
-		ChanEvents:    f.stores.ChanEventsStore,
-		BitcoinClient: f.bitcoinClient,
+		Lnd:                f.lnd.LndServices,
+		ChanEvents:         f.stores.ChanEventsStore,
+		ForwardingAnalyzer: fwdAnalyzer,
+		BitcoinClient:      f.bitcoinClient,
 	}
 
 	// Create the RPC server.
@@ -400,10 +404,14 @@ func (f *Faraday) StartAsSubserver(lndGrpc *lndclient.GrpcLndServices,
 		return fmt.Errorf("error initializing faraday: %v", err)
 	}
 
+	fwdAnalyzer := chanevents.NewForwardingAnalyzer(
+		f.stores.ChanEventsStore, lndGrpc.LndServices,
+	)
 	cfg := &frdrpcserver.Config{
-		Lnd:           lndGrpc.LndServices,
-		ChanEvents:    f.stores.ChanEventsStore,
-		BitcoinClient: f.bitcoinClient,
+		Lnd:                lndGrpc.LndServices,
+		ChanEvents:         f.stores.ChanEventsStore,
+		ForwardingAnalyzer: fwdAnalyzer,
+		BitcoinClient:      f.bitcoinClient,
 	}
 
 	// Create the RPC server, but don't start it.

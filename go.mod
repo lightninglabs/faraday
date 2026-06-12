@@ -194,4 +194,4 @@ replace github.com/golang-migrate/migrate/v4 => github.com/lightninglabs/migrate
 // We need to replace frdrpc locally until we have this PR merged.
 replace github.com/lightninglabs/faraday/frdrpc => ./frdrpc
 
-go 1.25.5
+go 1.25.10

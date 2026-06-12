@@ -299,8 +299,9 @@ func (c *testContext) closeChannel(client lndclient.LightningClient,
 	require.NoError(c.t, err, "could not close channel")
 
 	var (
-		closeTx  chainhash.Hash
-		closeFee btcutil.Amount
+		closeTx    chainhash.Hash
+		closeFee   btcutil.Amount
+		gotPending bool
 	)
 
 	// Wait for us to get an update from our channel indicating that it is
@@ -314,7 +315,10 @@ func (c *testContext) closeChannel(client lndclient.LightningClient,
 			case *lndclient.PendingCloseUpdate:
 				// Get our close tx from the mempool to get its fee
 				// and add an expected entry because we opened the
-				// channel so we pay the fees.
+				// channel so we pay the fees. This must happen
+				// before we mine any block, otherwise the close tx
+				// is confirmed out of the mempool and the lookup
+				// fails.
 				close, err := c.bitcoindClient.GetMempoolEntry(
 					closeTx.String(),
 				)
@@ -322,6 +326,8 @@ func (c *testContext) closeChannel(client lndclient.LightningClient,
 
 				closeFee, err = btcutil.NewAmount(close.Fee)
 				require.NoError(c.t, err, "could not get fee")
+
+				gotPending = true
 
 			case *lndclient.ChannelClosedUpdate:
 				return true
@@ -331,9 +337,15 @@ func (c *testContext) closeChannel(client lndclient.LightningClient,
 			c.t.Fatalf("error closing channel: %v, %v", channel,
 				err)
 
-		// If we have not received an update yet, mine a block.
+		// If we have not received an update yet, wait for the pending
+		// close to broadcast. Only once we have captured the close tx
+		// fee from the mempool do we start mining blocks to drive the
+		// channel to its fully resolved state, so that mining does not
+		// confirm the close tx before we read its fee.
 		default:
-			c.mine()
+			if gotPending {
+				c.mine()
+			}
 		}
 
 		return false

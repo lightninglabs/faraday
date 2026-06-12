@@ -4,7 +4,7 @@
 # binaries required to run the tests with.
 FROM golang:1.25.10-alpine as builder
 
-ARG LND_VERSION=dd65ba2b01063c4b6e3022835168b19a204f9408
+ARG LND_VERSION=v0.21.0-beta
 
 RUN apk add --no-cache git make
 

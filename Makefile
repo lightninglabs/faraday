@@ -137,6 +137,14 @@ rpc-js-compile:
 	@$(call print, "Compiling JSON/WASM stubs.")
 	GOOS=js GOARCH=wasm $(GOBUILD) $(PKG)/frdrpc
 
+sqlc:
+	@$(call print, "Generating sql models and queries in Go")
+	./scripts/gen_sqlc_docker.sh
+
+sqlc-check: sqlc
+	@$(call print, "Verifying sql code generation.")
+	if test -n "$$(git status --porcelain '*.go')"; then echo "SQL models not properly generated!"; git status --porcelain '*.go'; exit 1; fi
+
 list:
 	@$(call print, "Listing commands.")
 	@$(MAKE)  -qp | \

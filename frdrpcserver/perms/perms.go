@@ -33,4 +33,12 @@ var RequiredPermissions = map[string][]bakery.Op{
 		Entity: "report",
 		Action: "read",
 	}},
+	"/frdrpc.FaradayServer/GetChannelEvents": {{
+		Entity: "events",
+		Action: "read",
+	}},
+	"/frdrpc.FaradayServer/ForwardingAbility": {{
+		Entity: "insights",
+		Action: "read",
+	}},
 }

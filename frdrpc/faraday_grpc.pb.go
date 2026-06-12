@@ -62,6 +62,12 @@ type FaradayServerClient interface {
 	// Example request:
 	// http://localhost:8466/v1/faraday/closereport
 	CloseReport(ctx context.Context, in *CloseReportRequest, opts ...grpc.CallOption) (*CloseReportResponse, error)
+	// *
+	// Get a list of channel events that occurred for a given channel.
+	GetChannelEvents(ctx context.Context, in *ChannelEventsRequest, opts ...grpc.CallOption) (*ChannelEventsResponse, error)
+	// *
+	// Get forwarding ability analysis of peer pairs.
+	ForwardingAbility(ctx context.Context, in *ForwardingAbilityRequest, opts ...grpc.CallOption) (*ForwardingAbilityResponse, error)
 }
 
 type faradayServerClient struct {
@@ -135,6 +141,24 @@ func (c *faradayServerClient) CloseReport(ctx context.Context, in *CloseReportRe
 	return out, nil
 }
 
+func (c *faradayServerClient) GetChannelEvents(ctx context.Context, in *ChannelEventsRequest, opts ...grpc.CallOption) (*ChannelEventsResponse, error) {
+	out := new(ChannelEventsResponse)
+	err := c.cc.Invoke(ctx, "/frdrpc.FaradayServer/GetChannelEvents", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *faradayServerClient) ForwardingAbility(ctx context.Context, in *ForwardingAbilityRequest, opts ...grpc.CallOption) (*ForwardingAbilityResponse, error) {
+	out := new(ForwardingAbilityResponse)
+	err := c.cc.Invoke(ctx, "/frdrpc.FaradayServer/ForwardingAbility", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FaradayServerServer is the server API for FaradayServer service.
 // All implementations must embed UnimplementedFaradayServerServer
 // for forward compatibility
@@ -183,6 +207,12 @@ type FaradayServerServer interface {
 	// Example request:
 	// http://localhost:8466/v1/faraday/closereport
 	CloseReport(context.Context, *CloseReportRequest) (*CloseReportResponse, error)
+	// *
+	// Get a list of channel events that occurred for a given channel.
+	GetChannelEvents(context.Context, *ChannelEventsRequest) (*ChannelEventsResponse, error)
+	// *
+	// Get forwarding ability analysis of peer pairs.
+	ForwardingAbility(context.Context, *ForwardingAbilityRequest) (*ForwardingAbilityResponse, error)
 	mustEmbedUnimplementedFaradayServerServer()
 }
 
@@ -210,6 +240,12 @@ func (UnimplementedFaradayServerServer) NodeAudit(context.Context, *NodeAuditReq
 }
 func (UnimplementedFaradayServerServer) CloseReport(context.Context, *CloseReportRequest) (*CloseReportResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CloseReport not implemented")
+}
+func (UnimplementedFaradayServerServer) GetChannelEvents(context.Context, *ChannelEventsRequest) (*ChannelEventsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetChannelEvents not implemented")
+}
+func (UnimplementedFaradayServerServer) ForwardingAbility(context.Context, *ForwardingAbilityRequest) (*ForwardingAbilityResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ForwardingAbility not implemented")
 }
 func (UnimplementedFaradayServerServer) mustEmbedUnimplementedFaradayServerServer() {}
 
@@ -350,6 +386,42 @@ func _FaradayServer_CloseReport_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FaradayServer_GetChannelEvents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChannelEventsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FaradayServerServer).GetChannelEvents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/frdrpc.FaradayServer/GetChannelEvents",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FaradayServerServer).GetChannelEvents(ctx, req.(*ChannelEventsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FaradayServer_ForwardingAbility_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ForwardingAbilityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FaradayServerServer).ForwardingAbility(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/frdrpc.FaradayServer/ForwardingAbility",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FaradayServerServer).ForwardingAbility(ctx, req.(*ForwardingAbilityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FaradayServer_ServiceDesc is the grpc.ServiceDesc for FaradayServer service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -384,6 +456,14 @@ var FaradayServer_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CloseReport",
 			Handler:    _FaradayServer_CloseReport_Handler,
+		},
+		{
+			MethodName: "GetChannelEvents",
+			Handler:    _FaradayServer_GetChannelEvents_Handler,
+		},
+		{
+			MethodName: "ForwardingAbility",
+			Handler:    _FaradayServer_ForwardingAbility_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

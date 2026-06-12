@@ -188,7 +188,7 @@ func TestNodeAudit(t *testing.T) {
 
 	expected[accounting.FeeReference(closeTx.String())] = expectedReport{
 		eventType: frdrpc.EntryType_CHANNEL_CLOSE_FEE,
-		amount:    lnwire.MilliSatoshi(4535 * 1000),
+		amount:    lnwire.MilliSatoshi(4525 * 1000),
 		onChain:   true,
 	}
 

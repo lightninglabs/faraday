@@ -68,7 +68,7 @@ type testContext struct {
 }
 
 // newTestContext returns a new context instance.
-func newTestContext(t *testing.T) *testContext {
+func newTestContext(t *testing.T, extraFaradayArgs ...string) *testContext {
 	var err error
 
 	ctx := &testContext{
@@ -123,7 +123,7 @@ func newTestContext(t *testing.T) *testContext {
 	require.NoError(t, err)
 
 	// Start faraday.
-	ctx.startFaraday()
+	ctx.startFaraday(extraFaradayArgs...)
 
 	// Wait for faraday's channel events monitor to finish its initial
 	// chain-sync.
@@ -564,10 +564,13 @@ func (c *testContext) waitForMempoolTxCount(txCount int, msg string) {
 // startFaraday starts faraday, connecting to our test context's alice lnd node.
 // It returns process start errors and an error channel for errors that occur
 // after the start.
-func (c *testContext) startFaraday() {
+func (c *testContext) startFaraday(extraArgs ...string) {
+	args := append([]string{}, faradayArgs...)
+	args = append(args, extraArgs...)
+
 	// Start loop client daemon.
 	c.faradayCmd = exec.Command(
-		faradayCmd, faradayArgs...,
+		faradayCmd, args...,
 	)
 
 	attachPrefixStdout(c.faradayCmd, "faraday")

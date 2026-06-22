@@ -360,3 +360,76 @@ func TestForwardingDowntime(t *testing.T) {
 		return ok
 	}, "expected bob self-pair after reconnect")
 }
+
+// TestChannelEventsPruning verifies that starting Faraday with low size limits
+// (e.g. max-events=1 and retention=2s) executes live background pruning
+// successfully and bounds the database size correctly.
+func TestChannelEventsPruning(t *testing.T) {
+	c := newTestContext(
+		t, "--chanevents.max-events=1", "--chanevents.retention=2s",
+	)
+	defer c.stop()
+
+	ctx := context.Background()
+
+	// We will start by opening a channel from alice to bob.
+	var aliceChannelAmt = btcutil.Amount(500000)
+
+	err := c.aliceClient.Client.Connect(
+		ctx, c.bobPubkey, "localhost:10012", true,
+	)
+	require.NoError(c.t, err, "could not connect nodes")
+
+	aliceChannel, _ := c.openChannel(
+		c.aliceClient.Client, c.bobPubkey, aliceChannelAmt,
+	)
+
+	// Use a far-future end time so the query window never excludes a stored
+	// event on a slow host. A tight wall-clock window here would make the
+	// counts below racy.
+	endTime := time.Now().Add(time.Hour).Unix()
+
+	// We deliberately do not assert on the initial event count here: opening
+	// a channel records several events, but the 2-second background prune can
+	// fire before we observe them on a slow host, so any such pre-prune
+	// assertion would be flaky. The eventuallyf checks below verify the
+	// pruning behaviour directly instead.
+
+	// Wait for the live background pruning ticker to bound the table to the
+	// max-events ceiling. We assert at most one event rather than exactly
+	// one: the size limit keeps a single event, but the 2-second retention
+	// limit then ages it out since no new events follow the channel open,
+	// so the steady state is zero or one.
+	var eventsAfter *frdrpc.ChannelEventsResponse
+	c.eventuallyf(func() bool {
+		var err error
+		eventsAfter, err = c.faradayClient.GetChannelEvents(
+			ctx, &frdrpc.ChannelEventsRequest{
+				ChanPoint: aliceChannel.String(),
+				EndTime:   endTime,
+			},
+		)
+		if err != nil {
+			return false
+		}
+		return len(eventsAfter.Events) <= 1
+	}, "expected channel events to be pruned down to at most one in the "+
+		"background")
+
+	// No further events follow the channel open, so once the remaining
+	// event ages past the 2-second retention window the age-based prune
+	// removes it too, draining the table to zero.
+	c.eventuallyf(func() bool {
+		eventsAfter, err := c.faradayClient.GetChannelEvents(
+			ctx, &frdrpc.ChannelEventsRequest{
+				ChanPoint: aliceChannel.String(),
+				EndTime:   endTime,
+			},
+		)
+		if err != nil {
+			return false
+		}
+		return len(eventsAfter.Events) == 0
+	}, "expected channel events to be pruned down to zero once all events "+
+		"age out of the retention window")
+}

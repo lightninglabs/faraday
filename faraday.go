@@ -580,9 +580,17 @@ func (f *Faraday) initialize(withMacaroonService bool) error {
 		return fmt.Errorf("could not create stores: %v", err)
 	}
 
-	// Create the channel event monitor.
+	// Create the channel event monitor. ChanEvents may be nil on
+	// initialization paths that don't go through DefaultConfig (e.g. when
+	// faraday runs as a subserver), so fall back to a zero-value config
+	// instead of dereferencing a nil pointer.
+	var chanEventsCfg chanevents.Config
+	if f.cfg.ChanEvents != nil {
+		chanEventsCfg = *f.cfg.ChanEvents
+	}
+
 	f.monitor = chanevents.NewMonitor(
-		f.lnd.Client, f.stores.ChanEventsStore,
+		f.lnd.Client, f.stores.ChanEventsStore, chanEventsCfg,
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())

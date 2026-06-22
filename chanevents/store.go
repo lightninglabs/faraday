@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
@@ -51,6 +52,12 @@ type Queries interface {
 	)
 
 	GetChannels(ctx context.Context) ([]sqlc.GetChannelsRow, error)
+
+	PruneChannelEventsBySize(ctx context.Context, offset int32) (int64,
+		error)
+
+	PruneChannelEventsByAge(ctx context.Context, timestamp time.Time) (
+		int64, error)
 }
 
 // Store provides access to the db for channel events.
@@ -335,6 +342,60 @@ func (s *Store) GetLatestChannelUpdateBefore(ctx context.Context,
 	}
 
 	return marshalChannelEvent(dbEvent), nil
+}
+
+// PruneEvents enforces the size and age storage limits independently,
+// returning the number of events deleted. A zero maxEvents or retention
+// disables the corresponding limit, and zero for both disables pruning.
+func (s *Store) PruneEvents(ctx context.Context, maxEvents uint64,
+	retention time.Duration) (int64, error) {
+
+	// If both options are 0, pruning is completely disabled.
+	if maxEvents == 0 && retention == 0 {
+		return 0, nil
+	}
+
+	var pruned int64
+
+	// Enforce the size ceiling by keeping only the newest maxEvents rows.
+	// An offset of (maxEvents - 1) lands on the oldest row we want to keep,
+	// so everything with a smaller id is deleted.
+	if maxEvents > 0 {
+		// The size limit becomes an int32 SQL OFFSET below. ValidateConfig
+		// already rejects an out-of-range max-events, but it is not run on
+		// every initialization path (e.g. when faraday runs as a
+		// subserver), so guard the cast here too: an overflowing value
+		// would wrap to a tiny offset and prune almost the entire table.
+		if maxEvents > math.MaxInt32 {
+			return pruned, fmt.Errorf("maxEvents %d exceeds maximum "+
+				"allowed value %d", maxEvents, math.MaxInt32)
+		}
+
+		bySize, err := s.db.PruneChannelEventsBySize(
+			ctx, int32(maxEvents-1),
+		)
+		if err != nil {
+			return pruned, fmt.Errorf("failed to prune channel "+
+				"events by size: %w", err)
+		}
+
+		pruned += bySize
+	}
+
+	// Enforce the retention window by deleting anything older than the
+	// cutoff.
+	if retention > 0 {
+		cutoff := s.clock.Now().UTC().Add(-retention)
+		byAge, err := s.db.PruneChannelEventsByAge(ctx, cutoff)
+		if err != nil {
+			return pruned, fmt.Errorf("failed to prune channel "+
+				"events by age: %w", err)
+		}
+
+		pruned += byAge
+	}
+
+	return pruned, nil
 }
 
 // marshalChannelEvent converts a db channel event into our internal type.

@@ -94,6 +94,42 @@ Faraday serves requests over grpc by default on `localhost:8465`. This default c
 --rpclisten={host:port to listen for requests}
 ```
 
+#### Channel Event Storage
+Faraday records channel events (online/offline transitions and balance updates)
+in its database. On high-frequency channels this table can grow without bound,
+so a size ceiling is enabled by default, with an optional age-based retention
+window:
+```text
+--chanevents.max-events={maximum number of events to retain}
+--chanevents.retention={minimum duration of events to keep, e.g. 1440h}
+```
+By default only the size ceiling is active: a maximum of 7 million events
+(`--chanevents.max-events=7000000`, roughly 1 GB of storage). Age-based
+retention is disabled by default (`--chanevents.retention=0`) so that history is
+never aged out unless an operator opts in. The retention window is a Go duration
+string (e.g. `1440h` for 60 days). The two limits are applied independently:
+
+1. **Size Ceiling (Hard Limit):** If the database exceeds `max-events`, older
+   events are pruned unconditionally to ensure the database size is strictly
+   capped, preventing disk filling. Newer events inside the retention window can
+   still be pruned if needed to satisfy this size limit.
+2. **Age Threshold (Freshness):** When `retention` is set to a non-zero
+   duration, any events older than that window are automatically pruned to keep
+   history fresh, even if the database size is below `max-events`.
+
+Because the two limits are independent, disabling pruning entirely requires
+turning off both: `--chanevents.max-events=0 --chanevents.retention=0`. Setting
+only `max-events=0` disables the size ceiling, leaving the table bounded only by
+any retention window that has been configured.
+
+As a rough rule of thumb, each channel event consumes on the order of 140 bytes
+of storage once table and index overhead is taken into account. The default
+`--chanevents.max-events=7000000` therefore bounds the table at roughly 1 GB
+(7 million events × ~140 bytes ≈ 1 GB). For roughly 100 MB use
+`--chanevents.max-events=700000`. These are approximations measured on a
+compacted SQLite database, and actual usage runs higher on a live database
+(write-ahead log, page fragmentation) and varies by backend.
+
 #### Cli Tool
 The RPC server can be conveniently accessed using a command line tool. 
 1. Run faraday as detailed above

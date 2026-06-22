@@ -6,6 +6,7 @@ package sqlc
 
 import (
 	"context"
+	"time"
 )
 
 type Querier interface {
@@ -18,6 +19,16 @@ type Querier interface {
 	InsertChannel(ctx context.Context, arg InsertChannelParams) (int64, error)
 	InsertChannelEvent(ctx context.Context, arg InsertChannelEventParams) error
 	InsertPeer(ctx context.Context, pubkey string) (int64, error)
+	// PruneChannelEventsByAge enforces the retention window on the channel_events
+	// table, returning the number of rows deleted. It deletes any row whose
+	// timestamp predates the given cutoff.
+	PruneChannelEventsByAge(ctx context.Context, timestamp time.Time) (int64, error)
+	// PruneChannelEventsBySize enforces the size ceiling on the channel_events
+	// table, returning the number of rows deleted. It keeps the newest rows by
+	// deleting everything with a smaller (earlier-inserted) id than the id found at
+	// the given offset from the newest row, so an offset of (max-events - 1) keeps
+	// exactly max-events rows.
+	PruneChannelEventsBySize(ctx context.Context, offset int32) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

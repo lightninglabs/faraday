@@ -227,3 +227,41 @@ func (q *Queries) InsertPeer(ctx context.Context, pubkey string) (int64, error) 
 	err := row.Scan(&id)
 	return id, err
 }
+
+const pruneChannelEventsByAge = `-- name: PruneChannelEventsByAge :execrows
+DELETE FROM channel_events
+WHERE channel_events.timestamp < $1
+`
+
+// PruneChannelEventsByAge enforces the retention window on the channel_events
+// table, returning the number of rows deleted. It deletes any row whose
+// timestamp predates the given cutoff.
+func (q *Queries) PruneChannelEventsByAge(ctx context.Context, timestamp time.Time) (int64, error) {
+	result, err := q.db.ExecContext(ctx, pruneChannelEventsByAge, timestamp)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const pruneChannelEventsBySize = `-- name: PruneChannelEventsBySize :execrows
+DELETE FROM channel_events
+WHERE channel_events.id < COALESCE((
+    SELECT id FROM channel_events
+    ORDER BY id DESC
+    LIMIT 1 OFFSET $1
+), 0)
+`
+
+// PruneChannelEventsBySize enforces the size ceiling on the channel_events
+// table, returning the number of rows deleted. It keeps the newest rows by
+// deleting everything with a smaller (earlier-inserted) id than the id found at
+// the given offset from the newest row, so an offset of (max-events - 1) keeps
+// exactly max-events rows.
+func (q *Queries) PruneChannelEventsBySize(ctx context.Context, offset int32) (int64, error) {
+	result, err := q.db.ExecContext(ctx, pruneChannelEventsBySize, offset)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}

@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -50,6 +51,18 @@ const (
 	// defaultSqliteDatabaseFileName is the default name of the SQLite
 	// database file.
 	defaultSqliteDatabaseFileName = "faraday.db"
+
+	// defaultChanEventsMaxEvents is the default maximum number of channel
+	// events to retain. At roughly 140 bytes per event this acts as a hard
+	// ceiling of approximately 1 GB. A value of 0 disables the size-based
+	// limit.
+	defaultChanEventsMaxEvents = 7000000
+
+	// defaultChanEventsRetention is the default retention window for channel
+	// events. Age-based pruning is disabled by default (0): out of the box
+	// only the max-events size ceiling bounds the table, and operators opt
+	// into a retention window explicitly.
+	defaultChanEventsRetention = 0
 )
 
 var (
@@ -184,6 +197,10 @@ type Config struct { //nolint:maligned
 
 	// Postgres holds the configuration options for a Postgres database
 	Postgres *sqldb.PostgresConfig `group:"postgres" namespace:"postgres"`
+
+	// ChanEvents holds the configuration options for channel event safety
+	// pruning.
+	ChanEvents *chanevents.Config `group:"chanevents" namespace:"chanevents"`
 }
 
 // DefaultConfig returns all default values for the Config struct.
@@ -208,6 +225,10 @@ func DefaultConfig() Config {
 		DatabaseBackend:  DatabaseBackendSqlite,
 		Sqlite: &db.SqliteConfig{
 			DatabaseFileName: defaultSqliteDatabaseFileName,
+		},
+		ChanEvents: &chanevents.Config{
+			MaxEvents: defaultChanEventsMaxEvents,
+			Retention: defaultChanEventsRetention,
 		},
 	}
 }
@@ -342,6 +363,25 @@ func ValidateConfig(config *Config) error {
 	config.Lnd.TLSCertPath = lncfg.CleanAndExpandPath(
 		config.Lnd.TLSCertPath,
 	)
+
+	if config.ChanEvents != nil {
+		// The channel event size limit becomes an int32 SQL OFFSET
+		// during pruning, so reject values that would overflow it and
+		// silently corrupt the prune bound.
+		if config.ChanEvents.MaxEvents > math.MaxInt32 {
+			return fmt.Errorf("chanevents.max-events must not "+
+				"exceed %d", math.MaxInt32)
+		}
+
+		// A negative retention is silently ignored by the prune checks,
+		// which only treat a strictly positive duration as enabling
+		// age-based pruning. Reject it so a misconfigured window fails
+		// loudly instead of disabling pruning unexpectedly.
+		if config.ChanEvents.Retention < 0 {
+			return fmt.Errorf("chanevents.retention must not be " +
+				"negative")
+		}
+	}
 
 	return nil
 }

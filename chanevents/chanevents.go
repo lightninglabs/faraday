@@ -9,6 +9,22 @@ import (
 	"github.com/lightningnetwork/lnd/fn/v2"
 )
 
+// Config holds the configuration options for channel event pruning. See the
+// README for storage sizing guidance.
+type Config struct {
+	// MaxEvents is the maximum number of channel events to retain. Once the
+	// table exceeds this count, the oldest events are pruned. This operates
+	// as a hard ceiling on database size to prevent disk filling. A value
+	// of 0 disables this limit.
+	MaxEvents uint64 `long:"max-events" description:"The maximum number of channel events to retain before pruning the oldest events. This limit acts as a hard ceiling to prevent disk filling. A value of 0 disables pruning based on the number of events."`
+
+	// Retention is the minimum duration of channel events to keep. Events
+	// older than this window are pruned, even if the max-events limit is
+	// not exceeded. If max-events is exceeded, newer events can still be
+	// pruned to enforce the size ceiling. A value of 0 disables this limit.
+	Retention time.Duration `long:"retention" description:"The minimum duration of channel events to keep. Events older than this window are pruned, even if the max-events limit is not exceeded. A value of 0 disables pruning based on age."`
+}
+
 // EventType is an enum for the different types of channel events.
 type EventType int16
 

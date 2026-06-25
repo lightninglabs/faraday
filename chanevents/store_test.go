@@ -196,6 +196,237 @@ func TestStore(t *testing.T) {
 	)
 }
 
+// pruneFixture is an isolated environment for a single TestPruneEvents case. It
+// holds a fresh store with two channels and a fixed clock, and exposes helpers
+// to seed events and inspect the table without leaking state between cases.
+type pruneFixture struct {
+	t      *testing.T
+	store  *Store
+	ctx    context.Context
+	chan1  int64
+	chan2  int64
+	now    time.Time
+	old    time.Time
+	recent time.Time
+}
+
+// newPruneFixture builds a fresh store with two channels on one peer and pins
+// the clock to a reference point. It derives an "old" timestamp well outside
+// and a "recent" timestamp well inside a 30-day retention window.
+func newPruneFixture(t *testing.T) *pruneFixture {
+	t.Helper()
+
+	clk := clock.NewTestClock(testTime)
+	store := NewTestDB(t, clk)
+	ctx := context.Background()
+
+	peerID, err := store.AddPeer(ctx, testPubKey)
+	require.NoError(t, err)
+
+	chan1, err := store.AddChannel(
+		ctx, testChanPoint1, testShortChanID1, peerID,
+	)
+	require.NoError(t, err)
+
+	chan2, err := store.AddChannel(
+		ctx, testChanPoint2, testShortChanID2, peerID,
+	)
+	require.NoError(t, err)
+
+	now := testTime.Add(100 * 24 * time.Hour)
+	clk.SetTime(now)
+
+	return &pruneFixture{
+		t:      t,
+		store:  store,
+		ctx:    ctx,
+		chan1:  chan1,
+		chan2:  chan2,
+		now:    now,
+		old:    now.Add(-90 * 24 * time.Hour),
+		recent: now.Add(-5 * 24 * time.Hour),
+	}
+}
+
+// addEvents inserts n update events on the given channel at timestamp ts.
+func (f *pruneFixture) addEvents(channelID int64, ts time.Time, n int) {
+	f.t.Helper()
+
+	for i := 0; i < n; i++ {
+		err := f.store.AddChannelEvent(f.ctx, &ChannelEvent{
+			ChannelID: channelID,
+			EventType: EventTypeUpdate,
+			Timestamp: ts,
+		})
+		require.NoError(f.t, err)
+	}
+}
+
+// events returns all stored events for a single channel.
+func (f *pruneFixture) events(channelID int64) []*ChannelEvent {
+	f.t.Helper()
+
+	events, err := f.store.GetChannelEvents(
+		f.ctx, channelID, 0, time.Unix(0, 0), f.now.Add(time.Hour),
+		1000,
+	)
+	require.NoError(f.t, err)
+
+	return events
+}
+
+// count returns the total number of events across both channels.
+func (f *pruneFixture) count() int {
+	return len(f.events(f.chan1)) + len(f.events(f.chan2))
+}
+
+// requireAllRecent asserts that every surviving event lies within the
+// retention window, confirming age-based pruning drops the old events rather
+// than the recent ones.
+func (f *pruneFixture) requireAllRecent() {
+	f.t.Helper()
+
+	all := append(f.events(f.chan1), f.events(f.chan2)...)
+	for _, e := range all {
+		require.Equal(f.t, f.recent.Unix(), e.Timestamp.Unix())
+	}
+}
+
+// TestPruneEvents verifies that PruneEvents enforces the max-events count and
+// the retention window independently. Each case runs against its own fresh
+// store so the size and age limits can be exercised in isolation.
+func TestPruneEvents(t *testing.T) {
+	t.Parallel()
+
+	const retention = 30 * 24 * time.Hour
+
+	tests := []struct {
+		name      string
+		seed      func(f *pruneFixture)
+		maxEvents uint64
+		retention time.Duration
+		wantTotal int
+		verify    func(f *pruneFixture)
+	}{{
+		// Pruning an empty table succeeds and deletes nothing.
+		name:      "empty database",
+		maxEvents: 10,
+		retention: retention,
+		wantTotal: 0,
+	}, {
+		// A count equal to max-events is at the ceiling, not over it,
+		// so all events are kept.
+		name: "count equal to max-events keeps all",
+		seed: func(f *pruneFixture) {
+			f.addEvents(f.chan1, f.recent, 5)
+		},
+		maxEvents: 5,
+		retention: retention,
+		wantTotal: 5,
+	}, {
+		// Both limits zero disables pruning entirely, even for events
+		// outside the retention window.
+		name: "both limits zero disables pruning",
+		seed: func(f *pruneFixture) {
+			f.addEvents(f.chan1, f.recent, 5)
+			f.addEvents(f.chan1, f.old, 3)
+		},
+		maxEvents: 0,
+		retention: 0,
+		wantTotal: 8,
+	}, {
+		// The age limit alone drops events older than the window and
+		// keeps the recent ones.
+		name: "age limit prunes old events",
+		seed: func(f *pruneFixture) {
+			f.addEvents(f.chan1, f.recent, 5)
+			f.addEvents(f.chan1, f.old, 3)
+		},
+		maxEvents: 0,
+		retention: retention,
+		wantTotal: 5,
+		verify: func(f *pruneFixture) {
+			f.requireAllRecent()
+		},
+	}, {
+		// The size limit bounds the global table across channels and
+		// keeps the newest events, even when all are inside the
+		// retention window. Channel 2 is seeded last, so its events
+		// have the newest ids and must be the survivors.
+		name: "size limit prunes oldest across channels",
+		seed: func(f *pruneFixture) {
+			f.addEvents(f.chan1, f.recent, 5)
+			f.addEvents(f.chan2, f.recent, 5)
+		},
+		maxEvents: 4,
+		retention: retention,
+		wantTotal: 4,
+		verify: func(f *pruneFixture) {
+			require.Empty(f.t, f.events(f.chan1))
+			require.Len(f.t, f.events(f.chan2), 4)
+		},
+	}, {
+		// With the size ceiling not exceeded, the age limit still
+		// prunes old events independently.
+		name: "age limit prunes with size headroom",
+		seed: func(f *pruneFixture) {
+			f.addEvents(f.chan2, f.recent, 4)
+			f.addEvents(f.chan1, f.old, 3)
+		},
+		maxEvents: 10,
+		retention: retention,
+		wantTotal: 4,
+		verify: func(f *pruneFixture) {
+			f.requireAllRecent()
+		},
+	}, {
+		// Retention zero disables the age limit. With the count under
+		// max-events nothing is pruned.
+		name: "retention zero disables age limit",
+		seed: func(f *pruneFixture) {
+			f.addEvents(f.chan2, f.recent, 4)
+		},
+		maxEvents: 10,
+		retention: 0,
+		wantTotal: 4,
+	}, {
+		// Max-events zero disables the size limit. The age limit still
+		// prunes old events on its own.
+		name: "max-events zero leaves age limit active",
+		seed: func(f *pruneFixture) {
+			f.addEvents(f.chan2, f.recent, 4)
+			f.addEvents(f.chan1, f.old, 3)
+		},
+		maxEvents: 0,
+		retention: retention,
+		wantTotal: 4,
+		verify: func(f *pruneFixture) {
+			f.requireAllRecent()
+		},
+	}}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := newPruneFixture(t)
+			if tc.seed != nil {
+				tc.seed(f)
+			}
+
+			_, err := f.store.PruneEvents(
+				f.ctx, tc.maxEvents, tc.retention,
+			)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantTotal, f.count())
+
+			if tc.verify != nil {
+				tc.verify(f)
+			}
+		})
+	}
+}
+
 // TestPagination verifies that the keyset cursor advances correctly across
 // events sharing one second-resolution timestamp.
 func TestPagination(t *testing.T) {

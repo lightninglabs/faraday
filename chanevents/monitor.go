@@ -18,6 +18,16 @@ const (
 	// retryInterval is the time to wait before retrying after a
 	// transient error or while waiting for lnd to become ready.
 	retryInterval = 5 * time.Second
+
+	// pruneInterval is how often the monitor enforces the channel event
+	// storage limits while consuming live events.
+	pruneInterval = time.Hour
+
+	// minPruneInterval is the floor for the background pruning ticker. A
+	// tiny retention window would otherwise drive the ticker interval down
+	// to milliseconds and starve the CPU, so we never tick faster than
+	// this.
+	minPruneInterval = time.Second
 )
 
 var (
@@ -42,15 +52,25 @@ type Monitor struct {
 	// channel events.
 	store *Store
 
+	// cfg holds the channel event pruning configuration.
+	cfg Config
+
+	// warnedDestructivePrune ensures the operator is warned only once that
+	// pruning has permanently deleted events.
+	warnedDestructivePrune atomic.Bool
+
 	wg   sync.WaitGroup
 	quit chan struct{}
 }
 
 // NewMonitor creates a new channel events monitor.
-func NewMonitor(lnd lndclient.LightningClient, store *Store) *Monitor {
+func NewMonitor(lnd lndclient.LightningClient, store *Store,
+	cfg Config) *Monitor {
+
 	return &Monitor{
 		lnd:   lnd,
 		store: store,
+		cfg:   cfg,
 		quit:  make(chan struct{}),
 	}
 }
@@ -94,6 +114,28 @@ func (m *Monitor) monitorLoop(ctx context.Context) {
 
 	log.Info("Channel events monitor starting")
 
+	// Prune periodically while consuming live events, to bound the query
+	// overhead on high-frequency channels. Only arm the ticker when pruning
+	// is actually enabled; otherwise leave pruneChan nil so the select below
+	// never fires and we don't spin a ticker for nothing.
+	var pruneChan <-chan time.Time
+	if m.cfg.MaxEvents > 0 || m.cfg.Retention > 0 {
+		pruneIntervalToUse := pruneInterval
+		if m.cfg.Retention > 0 && m.cfg.Retention < pruneIntervalToUse {
+			pruneIntervalToUse = m.cfg.Retention
+
+			// Never tick faster than the floor: an extremely small
+			// retention would otherwise spin the ticker continuously.
+			if pruneIntervalToUse < minPruneInterval {
+				pruneIntervalToUse = minPruneInterval
+			}
+		}
+
+		pruneTicker := time.NewTicker(pruneIntervalToUse)
+		defer pruneTicker.Stop()
+		pruneChan = pruneTicker.C
+	}
+
 	var synced bool
 
 	for {
@@ -108,12 +150,16 @@ func (m *Monitor) monitorLoop(ctx context.Context) {
 				log.Errorf("Error during initial sync: %v", err)
 			} else {
 				synced = true
+
+				// The initial sync can insert a sizeable number
+				// of events, so prune once it completes.
+				m.pruneEvents(ctx)
 			}
 		}
 
 		// Subscribe and consume events until the stream breaks or an
 		// error occurs.
-		if !m.subscribe(ctx) {
+		if !m.subscribe(ctx, pruneChan) {
 			return
 		}
 
@@ -127,6 +173,36 @@ func (m *Monitor) monitorLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		}
+	}
+}
+
+// pruneEvents enforces the configured channel event storage limits, logging
+// how many events were deleted.
+func (m *Monitor) pruneEvents(ctx context.Context) {
+	pruned, err := m.store.PruneEvents(
+		ctx, m.cfg.MaxEvents, m.cfg.Retention,
+	)
+	if err != nil {
+		log.Errorf("Error pruning channel events: %v", err)
+		return
+	}
+
+	if pruned == 0 {
+		return
+	}
+
+	// Pruning permanently deletes events, so warn the first time it happens.
+	// This gives a clear signal to an operator who did not expect the default
+	// limits to remove pre-existing history. Subsequent prunes log at info
+	// level.
+	if m.warnedDestructivePrune.CompareAndSwap(false, true) {
+		log.Warnf("Pruned %d channel event(s) to enforce storage "+
+			"limits (max-events=%d, retention=%v); pruning is "+
+			"enabled by default and permanently deletes events",
+			pruned, m.cfg.MaxEvents, m.cfg.Retention)
+	} else {
+		log.Infof("Pruned %d channel event(s) to enforce storage "+
+			"limits", pruned)
 	}
 }
 
@@ -157,7 +233,9 @@ func (m *Monitor) waitForReady(ctx context.Context) bool {
 // subscribe subscribes to lnd channel events and processes them until the
 // stream breaks or an error occurs. It returns true on transient failures
 // (caller should retry) or false if the monitor is shutting down.
-func (m *Monitor) subscribe(ctx context.Context) bool {
+func (m *Monitor) subscribe(ctx context.Context,
+	pruneChan <-chan time.Time) bool {
+
 	eventChan, errChan, err := m.lnd.SubscribeChannelEvents(ctx)
 	if err != nil {
 		log.Errorf("Error subscribing to channel events: %v", err)
@@ -177,6 +255,11 @@ func (m *Monitor) subscribe(ctx context.Context) bool {
 				log.Errorf("Error handling channel event: %v",
 					err)
 			}
+
+		case <-pruneChan:
+			// Periodically enforce the storage limits to keep the
+			// channel_events table bounded.
+			m.pruneEvents(ctx)
 
 		case err, ok := <-errChan:
 			if !ok {

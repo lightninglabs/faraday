@@ -38,3 +38,23 @@ LIMIT 1;
 SELECT c.id, c.short_channel_id, p.pubkey
 FROM channels c
 JOIN peers p ON c.peer_id = p.id;
+
+-- name: PruneChannelEventsBySize :execrows
+-- PruneChannelEventsBySize enforces the size ceiling on the channel_events
+-- table, returning the number of rows deleted. It keeps the newest rows by
+-- deleting everything with a smaller (earlier-inserted) id than the id found at
+-- the given offset from the newest row, so an offset of (max-events - 1) keeps
+-- exactly max-events rows.
+DELETE FROM channel_events
+WHERE channel_events.id < COALESCE((
+    SELECT id FROM channel_events
+    ORDER BY id DESC
+    LIMIT 1 OFFSET $1
+), 0);
+
+-- name: PruneChannelEventsByAge :execrows
+-- PruneChannelEventsByAge enforces the retention window on the channel_events
+-- table, returning the number of rows deleted. It deletes any row whose
+-- timestamp predates the given cutoff.
+DELETE FROM channel_events
+WHERE channel_events.timestamp < $1;

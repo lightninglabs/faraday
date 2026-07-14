@@ -88,6 +88,27 @@ To connect Faraday to btcd:
 --bitcoin.tlspath={path to btcd cert}
 ```
 
+Notes on the `bitcoin.*` options:
+
+- `--bitcoin.host` must include the port of the node's **RPC interface** —
+  there is no default port. Common bitcoind RPC ports: `8332` (mainnet),
+  `18332` (testnet), `38332` (signet), `18443` (regtest).
+- `--bitcoin.user` and `--bitcoin.password` are the node's **RPC
+  credentials** — for bitcoind that is `rpcuser`/`rpcpassword`, or the
+  user and password behind an `rpcauth` entry.
+- The connection is **established lazily**, when an endpoint first needs
+  it — not on startup. A misconfigured connection therefore tends to
+  surface later, as an error such as `status code: 401` when running
+  `closereport` or an `audit` over a period that contains channel closes.
+  If you see such an error, verify the `bitcoin.*` values by querying the
+  node directly with the same credentials, e.g.:
+
+  ```shell
+  curl --user {user}:{password} --data-binary \
+      '{"jsonrpc":"1.0","method":"getblockchaininfo","params":[]}' \
+      http://{host:port}/
+  ```
+
 #### RPCServer
 Faraday serves requests over grpc by default on `localhost:8465`. This default can be overwritten:
 ```text

@@ -91,8 +91,10 @@ To connect Faraday to btcd:
 Notes on the `bitcoin.*` options:
 
 - `--bitcoin.host` must include the port of the node's **RPC interface** —
-  there is no default port. Common bitcoind RPC ports: `8332` (mainnet),
-  `18332` (testnet), `38332` (signet), `18443` (regtest).
+  no port is appended automatically when a custom host is set. (If the
+  option is omitted entirely, it defaults to `localhost:8332`.) Common
+  bitcoind RPC ports: `8332` (mainnet), `18332` (testnet), `38332`
+  (signet), `18443` (regtest).
 - `--bitcoin.user` and `--bitcoin.password` are the node's **RPC
   credentials** — for bitcoind that is `rpcuser`/`rpcpassword`, or the
   user and password behind an `rpcauth` entry.

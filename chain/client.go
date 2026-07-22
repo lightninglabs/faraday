@@ -20,7 +20,7 @@ type BitcoinClient interface {
 // BitcoinConfig defines exported config options for the connection to the
 // btcd/bitcoind backend.
 type BitcoinConfig struct {
-	Host         string `long:"host" description:"host:port of the bitcoind/btcd RPC interface; the port must be included explicitly. Common bitcoind RPC ports: 8332 (mainnet), 18332 (testnet), 38332 (signet), 18443 (regtest)"`
+	Host         string `long:"host" description:"host:port of the bitcoind/btcd RPC interface; no port is appended automatically, so a custom host must include it explicitly (defaults to localhost:8332 if unset). Common bitcoind RPC ports: 8332 (mainnet), 18332 (testnet), 38332 (signet), 18443 (regtest)"`
 	User         string `long:"user" description:"RPC user of the bitcoind/btcd instance (for bitcoind: rpcuser, or the user of an rpcauth entry)"`
 	Password     string `long:"password" description:"RPC password of the bitcoind/btcd instance (for bitcoind: rpcpassword, or the password behind an rpcauth entry)"`
 	HTTPPostMode bool   `long:"httppostmode" description:"Use HTTP POST mode? bitcoind only supports this mode"`

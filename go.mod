@@ -16,7 +16,7 @@ require (
 	github.com/lightningnetwork/lnd/clock v1.1.1
 	github.com/lightningnetwork/lnd/fn/v2 v2.0.9
 	github.com/lightningnetwork/lnd/kvdb v1.4.16
-	github.com/lightningnetwork/lnd/sqldb/v2 v2.0.0-20260326184657-f7cc56305bae
+	github.com/lightningnetwork/lnd/sqldb/v2 v2.0.0
 	github.com/shopspring/decimal v1.2.0
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli v1.22.14
@@ -196,4 +196,4 @@ replace github.com/golang-migrate/migrate/v4 => github.com/lightninglabs/migrate
 // We need to replace frdrpc locally until we have this PR merged.
 replace github.com/lightninglabs/faraday/frdrpc => ./frdrpc
 
-go 1.25.10
+go 1.25.12

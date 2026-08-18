@@ -84,12 +84,10 @@ type BatchedSQLQueries interface {
 // SQLQueries is a subset of the sqlc.Queries interface that can be used to
 // interact with various chanevents tables.
 type SQLQueries interface {
-	sqldb.BaseQuerier
-
 	Queries
 }
 
-type SQLQueriesExecutor[T sqldb.BaseQuerier] struct {
+type SQLQueriesExecutor[T any] struct {
 	*sqldb.TransactionExecutor[T]
 
 	SQLQueries

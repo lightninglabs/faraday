@@ -18,6 +18,7 @@ var (
 		//
 		// NOTE: This MUST be updated when a new migration is added.
 		LatestMigrationVersion: LatestMigrationVersion,
+		Descriptors:            MakeMigrationDescriptors(),
 
 		MakeProgrammaticMigrations: func(
 			db *sqldb.BaseDB,

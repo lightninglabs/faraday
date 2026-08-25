@@ -67,6 +67,8 @@ func TestForwardingAbility(t *testing.T) {
 					}: {
 						EffectiveUptime: 90 * time.Second,
 						ForwardedAmount: 550,
+						FeeMsat:         1100,
+						Forwards:        2,
 					},
 				}, nil
 			},
@@ -91,6 +93,12 @@ func TestForwardingAbility(t *testing.T) {
 				)
 				require.EqualValues(
 					t, 550, resp.Entries[0].ForwardedSat,
+				)
+				require.EqualValues(
+					t, 1100, resp.Entries[0].FeeMsat,
+				)
+				require.EqualValues(
+					t, 2, resp.Entries[0].Forwards,
 				)
 
 				// An unset threshold echoes the server default,

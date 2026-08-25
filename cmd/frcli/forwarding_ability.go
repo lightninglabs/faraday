@@ -46,8 +46,11 @@ type pairView struct {
 	PeerOut          string  `json:"peer_out"`
 	EffectiveUptimeS int64   `json:"effective_uptime_s"`
 	ForwardedSat     int64   `json:"forwarded_sat"`
+	FeeMsat          int64   `json:"fee_msat"`
+	Forwards         int64   `json:"forwards"`
 	UptimeFraction   float64 `json:"uptime_fraction"`
 	Velocity         float64 `json:"velocity"`
+	FeeRate          float64 `json:"fee_rate"`
 }
 
 func queryForwardingAbility(ctx *cli.Context) error {
@@ -72,8 +75,8 @@ func queryForwardingAbility(ctx *cli.Context) error {
 		return err
 	}
 
-	// The metrics are raw, so derive uptime fraction and velocity here from
-	// the window the server reported.
+	// The metrics are raw, so derive uptime fraction, velocity and fee rate
+	// here from the window the server reported.
 	windowSeconds := resp.EndTime - resp.StartTime
 
 	var views []pairView
@@ -91,14 +94,26 @@ func queryForwardingAbility(ctx *cli.Context) error {
 					float64(ability.EffectiveUptimeS)
 			}
 
+			// Fees over volume. A pair with only sub-satoshi
+			// forwards has no volume to divide by, so it keeps a
+			// zero rate rather than an infinite one.
+			var feeRate float64
+			if ability.ForwardedSat > 0 {
+				feeRate = float64(ability.FeeMsat) /
+					(float64(ability.ForwardedSat) * 1000)
+			}
+
 			views = append(
 				views, pairView{
 					PeerIn:           inPeer,
 					PeerOut:          outPeer,
 					EffectiveUptimeS: ability.EffectiveUptimeS,
 					ForwardedSat:     ability.ForwardedSat,
+					FeeMsat:          ability.FeeMsat,
+					Forwards:         ability.Forwards,
 					UptimeFraction:   uptimeFraction,
 					Velocity:         velocity,
+					FeeRate:          feeRate,
 				},
 			)
 		}

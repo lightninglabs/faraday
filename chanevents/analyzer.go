@@ -12,6 +12,7 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btclog/v2"
 	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/lnwire"
 )
 
 var (
@@ -75,8 +76,31 @@ type ForwardingAbility struct {
 	EffectiveUptime time.Duration
 
 	// ForwardedAmount is the total successfully forwarded amount over the
-	// window.
+	// window, at satoshi granularity.
 	ForwardedAmount btcutil.Amount
+
+	// FeeMsat is the total fee earned on the pair's forwards over the
+	// window.
+	FeeMsat lnwire.MilliSatoshi
+
+	// Forwards is how many successful forwards the pair carried. It decides
+	// whether the pair forwarded at all, since both sums can be zero for
+	// one that did: sub-satoshi volume floors away and a zero-fee policy
+	// earns nothing.
+	Forwards int64
+}
+
+// pairForwards accumulates what one direction of a peer pair carried over the
+// analysis window.
+type pairForwards struct {
+	// amount is the total forwarded amount, at satoshi granularity.
+	amount btcutil.Amount
+
+	// feeMsat is the total fee earned on those forwards.
+	feeMsat lnwire.MilliSatoshi
+
+	// forwards is how many successful forwards were carried.
+	forwards int64
 }
 
 // PeerPair identifies a unidirectional routing edge from PeerIn to PeerOut.
@@ -166,10 +190,10 @@ func (a *ForwardingAnalyzer) EffectiveUptime(ctx context.Context, startTime,
 
 // getForwardingData queries lnd's forwarding history sequentially in paginated
 // batches to retrieve successful forwarding events within the specified time
-// range, indexing the results by peer pair.
+// range, accumulating the volume, fees and count of each peer pair's forwards.
 func (a *ForwardingAnalyzer) getForwardingData(ctx context.Context, startTime,
 	endTime time.Time, scidToPeer map[uint64]string) (
-	map[PeerPair][]btcutil.Amount, map[uint64]string, error) {
+	map[PeerPair]*pairForwards, map[uint64]string, error) {
 
 	var events []lndclient.ForwardingEvent
 	var offset uint32
@@ -214,7 +238,7 @@ func (a *ForwardingAnalyzer) getForwardingData(ctx context.Context, startTime,
 	)
 
 	channelPeersConsidered := make(map[uint64]string)
-	successfulForwards := make(map[PeerPair][]btcutil.Amount)
+	successfulForwards := make(map[PeerPair]*pairForwards)
 	for _, fwd := range events {
 		inPeer, ok := scidToPeer[fwd.ChannelIn]
 		if !ok {
@@ -242,8 +266,15 @@ func (a *ForwardingAnalyzer) getForwardingData(ctx context.Context, startTime,
 			PeerOut: outPeer,
 		}
 
-		amt := fwd.AmountMsatOut.ToSatoshis()
-		successfulForwards[pair] = append(successfulForwards[pair], amt)
+		totals, ok := successfulForwards[pair]
+		if !ok {
+			totals = &pairForwards{}
+			successfulForwards[pair] = totals
+		}
+
+		totals.amount += fwd.AmountMsatOut.ToSatoshis()
+		totals.feeMsat += fwd.FeeMsat
+		totals.forwards++
 	}
 
 	return successfulForwards, channelPeersConsidered, nil
@@ -427,7 +458,7 @@ func (a *ForwardingAnalyzer) getInitialChannelState(ctx context.Context,
 // computing both directions (A→B and B→A) in a single pass.
 func calculateAllPairsUptime(ctx context.Context, store EventsSource, startTime,
 	endTime time.Time, liquidityFloor btcutil.Amount,
-	successfulForwards map[PeerPair][]btcutil.Amount,
+	successfulForwards map[PeerPair]*pairForwards,
 	initialStates map[string]map[int64]*channelState,
 	peerChannels map[string][]int64) (
 	map[PeerPair]ForwardingAbility, error) {
@@ -506,10 +537,10 @@ func calculateAllPairsUptime(ctx context.Context, store EventsSource, startTime,
 			statesB := initialStates[peerB]
 			sumsB := initialSums[peerB]
 
-			forwardedAB := pairForwardedTotal(
+			totalsAB := pairForwardTotals(
 				successfulForwards, peerA, peerB,
 			)
-			forwardedBA := pairForwardedTotal(
+			totalsBA := pairForwardTotals(
 				successfulForwards, peerB, peerA,
 			)
 
@@ -529,7 +560,7 @@ func calculateAllPairsUptime(ctx context.Context, store EventsSource, startTime,
 					sumsA.remote, sumsA.local,
 					sumsB.remote, sumsB.local,
 					mergeEventSlices(sliceA, sliceB),
-					forwardedAB, forwardedBA,
+					totalsAB, totalsBA,
 				)
 			if err != nil {
 				return nil, err
@@ -594,32 +625,34 @@ func loadPeerEvents(ctx context.Context, store EventsSource, startTime,
 	return events, nil
 }
 
-// pairForwardedTotal sums the successfully forwarded amounts for one direction
-// of a peer pair over the analysis window.
-func pairForwardedTotal(successfulForwards map[PeerPair][]btcutil.Amount,
-	peerIn, peerOut string) btcutil.Amount {
+// pairForwardTotals returns the accumulated forwards for one direction of a
+// peer pair over the analysis window. A pair with no recorded forwards yields
+// the zero value, whose zero count marks it as having carried nothing.
+func pairForwardTotals(successfulForwards map[PeerPair]*pairForwards,
+	peerIn, peerOut string) pairForwards {
 
-	var total btcutil.Amount
-	for _, amt := range successfulForwards[PeerPair{
+	totals, ok := successfulForwards[PeerPair{
 		PeerIn: peerIn, PeerOut: peerOut,
-	}] {
-		total += amt
+	}]
+	if !ok {
+		return pairForwards{}
 	}
 
-	return total
+	return *totals
 }
 
 // calculateBothDirectionsUptime computes the effective forwarding uptime for
 // both directions of a peer pair in a single chronological walk of the merged
 // event stream. Only the liquidity-direction roles differ between the two
-// accumulators, as both share the same uniform liquidityFloor. forwardedAB and
-// forwardedBA carry each direction's total forwarded volume through to the
-// returned abilities. For self-pair calls both returned abilities are equal.
+// accumulators, as both share the same uniform liquidityFloor. totalsAB and
+// totalsBA carry each direction's forwarded volume, fees and count through to
+// the returned abilities. For self-pair calls both returned abilities are
+// equal.
 func calculateBothDirectionsUptime(ctx context.Context, startTime,
 	endTime time.Time, liquidityFloor btcutil.Amount, statesA,
 	statesB map[int64]*channelState, sumARemote, sumALocal, sumBRemote,
 	sumBLocal btcutil.Amount, mergedEvents channelEventSeq,
-	forwardedAB, forwardedBA btcutil.Amount) (
+	totalsAB, totalsBA pairForwards) (
 	*ForwardingAbility, *ForwardingAbility, error) {
 
 	traceOn := log.Level() <= btclog.LevelTrace
@@ -787,8 +820,8 @@ func calculateBothDirectionsUptime(ctx context.Context, startTime,
 		)
 	}
 
-	abilityAB := makeAbility(uptimeAB, forwardedAB)
-	abilityBA := makeAbility(uptimeBA, forwardedBA)
+	abilityAB := makeAbility(uptimeAB, totalsAB)
+	abilityBA := makeAbility(uptimeBA, totalsBA)
 
 	return abilityAB, abilityBA, nil
 }
@@ -882,14 +915,16 @@ func applyEvent(state *channelState, event *ChannelEvent) error {
 	return nil
 }
 
-// makeAbility folds an accumulated uptime and successful-amount total into a
-// ForwardingAbility carrying the raw facts. Derived rates and categories are
+// makeAbility folds an accumulated uptime and a direction's forward totals into
+// a ForwardingAbility carrying the raw facts. Derived rates and categories are
 // left to the consumer.
 func makeAbility(totalUptime time.Duration,
-	totalAmt btcutil.Amount) *ForwardingAbility {
+	totals pairForwards) *ForwardingAbility {
 
 	return &ForwardingAbility{
 		EffectiveUptime: totalUptime,
-		ForwardedAmount: totalAmt,
+		ForwardedAmount: totals.amount,
+		FeeMsat:         totals.feeMsat,
+		Forwards:        totals.forwards,
 	}
 }

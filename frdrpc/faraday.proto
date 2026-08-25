@@ -711,10 +711,10 @@ message ForwardingAbilityResponse {
     repeated bytes peers = 1;
 
     // Sparse list of forwarding ability entries. An entry is present only for a
-    // pair that forwarded volume, carrying its exact effective_uptime_s and
-    // forwarded_sat. Pairs that did not forward are never listed here; they are
-    // either flagged in quiet_uptime_bitmask or absent. Entries take precedence
-    // over the bitmask for the same pair.
+    // pair that carried at least one forward, with its exact facts. Pairs that
+    // carried none are never listed here; they are either flagged in
+    // up_but_idle_bitmask or absent. Entries take precedence over the bitmask
+    // for the same pair.
     repeated ForwardingAbilityEntry entries = 2;
 
     // The start of the window the metrics cover, as unix seconds.
@@ -725,8 +725,8 @@ message ForwardingAbilityResponse {
 
     // A packed bitmask over the n*n ordered peer pairs, where n is the length
     // of peers. The bit at index in*n+out is set when that pair held at least
-    // the uptime_threshold fraction of effective uptime over the window but did
-    // not forward: the dense "up but idle" population. A pair with a forwarded
+    // the uptime_threshold fraction of effective uptime over the window but
+    // carried no forward: the dense "up but idle" population. A pair with an
     // entry is never flagged here. A pair that is neither listed in entries nor
     // flagged here had sub-threshold uptime and no forwards: treat it as zero.
     bytes up_but_idle_bitmask = 5;
@@ -746,6 +746,20 @@ message ForwardingAbilityEntry {
     // directional forwardable liquidity over the window.
     int64 effective_uptime_s = 2;
 
-    // Total successfully forwarded amount over the window, in satoshis.
+    // Total successfully forwarded amount over the window, in satoshis. A
+    // pair whose forwards were all sub-satoshi reports zero here and still
+    // reports them in forwards.
     int64 forwarded_sat = 3;
+
+    // Total fees earned on the pair's forwards over the window, in
+    // millisatoshis. Fees are reported at millisatoshi granularity because a
+    // single forward routinely earns less than one satoshi, and a satoshi
+    // granular sum would floor a low-fee pair's earnings to zero.
+    int64 fee_msat = 4;
+
+    // The number of successful forwards the pair carried over the window. It
+    // decides whether the pair forwarded at all, since both sums can be zero
+    // for one that did: sub-satoshi volume floors away and a zero-fee policy
+    // earns nothing. With forwarded_sat it also gives the mean forward size.
+    int64 forwards = 5;
 }

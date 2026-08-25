@@ -1041,7 +1041,17 @@
         "forwarded_sat": {
           "type": "string",
           "format": "int64",
-          "description": "Total successfully forwarded amount over the window, in satoshis."
+          "description": "Total successfully forwarded amount over the window, in satoshis. A\npair whose forwards were all sub-satoshi reports zero here and still\nreports them in forwards."
+        },
+        "fee_msat": {
+          "type": "string",
+          "format": "int64",
+          "description": "Total fees earned on the pair's forwards over the window, in\nmillisatoshis. Fees are reported at millisatoshi granularity because a\nsingle forward routinely earns less than one satoshi, and a satoshi\ngranular sum would floor a low-fee pair's earnings to zero."
+        },
+        "forwards": {
+          "type": "string",
+          "format": "int64",
+          "description": "The number of successful forwards the pair carried over the window. It\ndecides whether the pair forwarded at all, since both sums can be zero\nfor one that did: sub-satoshi volume floors away and a zero-fee policy\nearns nothing. With forwarded_sat it also gives the mean forward size."
         }
       }
     },
@@ -1062,7 +1072,7 @@
             "type": "object",
             "$ref": "#/definitions/frdrpcForwardingAbilityEntry"
           },
-          "description": "Sparse list of forwarding ability entries. An entry is present only for a\npair that forwarded volume, carrying its exact effective_uptime_s and\nforwarded_sat. Pairs that did not forward are never listed here; they are\neither flagged in quiet_uptime_bitmask or absent. Entries take precedence\nover the bitmask for the same pair."
+          "description": "Sparse list of forwarding ability entries. An entry is present only for a\npair that carried at least one forward, with its exact facts. Pairs that\ncarried none are never listed here; they are either flagged in\nup_but_idle_bitmask or absent. Entries take precedence over the bitmask\nfor the same pair."
         },
         "start_time": {
           "type": "string",
@@ -1077,7 +1087,7 @@
         "up_but_idle_bitmask": {
           "type": "string",
           "format": "byte",
-          "description": "A packed bitmask over the n*n ordered peer pairs, where n is the length\nof peers. The bit at index in*n+out is set when that pair held at least\nthe uptime_threshold fraction of effective uptime over the window but did\nnot forward: the dense \"up but idle\" population. A pair with a forwarded\nentry is never flagged here. A pair that is neither listed in entries nor\nflagged here had sub-threshold uptime and no forwards: treat it as zero."
+          "description": "A packed bitmask over the n*n ordered peer pairs, where n is the length\nof peers. The bit at index in*n+out is set when that pair held at least\nthe uptime_threshold fraction of effective uptime over the window but\ncarried no forward: the dense \"up but idle\" population. A pair with an\nentry is never flagged here. A pair that is neither listed in entries nor\nflagged here had sub-threshold uptime and no forwards: treat it as zero."
         },
         "uptime_threshold": {
           "type": "number",

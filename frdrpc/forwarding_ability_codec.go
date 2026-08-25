@@ -27,8 +27,21 @@ type ForwardingAbility struct {
 	EffectiveUptimeS int64
 
 	// ForwardedSat is the total successfully forwarded amount over the
-	// window, in satoshis.
+	// window, in satoshis. A pair whose forwards were all sub-satoshi
+	// reports zero here and still reports them in Forwards.
 	ForwardedSat int64
+
+	// FeeMsat is the total fee earned on the pair's forwards over the
+	// window, in millisatoshis. A single forward routinely earns less than
+	// one satoshi, so a satoshi granular sum would floor a low-fee pair's
+	// earnings to zero.
+	FeeMsat int64
+
+	// Forwards is how many successful forwards the pair carried. It decides
+	// whether the pair forwarded at all, since both sums can be zero for
+	// one that did: sub-satoshi volume floors away and a zero-fee policy
+	// earns nothing.
+	Forwards int64
 }
 
 // abilityTier classifies how a pair is encoded: a full entry, a single "up but
@@ -44,8 +57,9 @@ const (
 	// the uptime threshold but did not forward.
 	tierBit
 
-	// tierEntry emits a full entry carrying the pair's exact uptime and
-	// forwarded volume. Reserved for pairs that actually forwarded.
+	// tierEntry emits a full entry carrying the pair's exact uptime,
+	// forwarded volume, fees and forward count. Reserved for pairs that
+	// actually forwarded.
 	tierEntry
 )
 
@@ -178,6 +192,8 @@ func EncodeForwardingAbility(abilities map[string]map[string]ForwardingAbility,
 			PackedIdx:        packed,
 			EffectiveUptimeS: a.EffectiveUptimeS,
 			ForwardedSat:     a.ForwardedSat,
+			FeeMsat:          a.FeeMsat,
+			Forwards:         a.Forwards,
 		})
 	}
 
@@ -252,8 +268,9 @@ func EncodeForwardingAbility(abilities map[string]map[string]ForwardingAbility,
 // DecodeForwardingAbility reconstructs the nested map of peer forwarding
 // abilities from a sparse packed gRPC response. Forwarded pairs come back with
 // their exact facts; up-but-idle pairs flagged in the bitmask come back at full
-// window uptime with zero forwarded volume. It validates packed indices and the
-// bitmask length against the decoded peer list to prevent out-of-bounds errors.
+// window uptime with no forwards, and therefore no volume and no fees. It
+// validates packed indices and the bitmask length against the decoded peer list
+// to prevent out-of-bounds errors.
 func DecodeForwardingAbility(resp *ForwardingAbilityResponse) (
 	map[string]map[string]ForwardingAbility, error) {
 
@@ -300,6 +317,8 @@ func DecodeForwardingAbility(resp *ForwardingAbilityResponse) (
 			inIdx, outIdx, ForwardingAbility{
 				EffectiveUptimeS: entry.EffectiveUptimeS,
 				ForwardedSat:     entry.ForwardedSat,
+				FeeMsat:          entry.FeeMsat,
+				Forwards:         entry.Forwards,
 			},
 		)
 	}
@@ -321,10 +340,11 @@ func DecodeForwardingAbility(resp *ForwardingAbilityResponse) (
 	}
 
 	// Up-but-idle pairs were up the whole window by definition of the
-	// threshold bucket, so reconstruct them at full window uptime with zero
-	// forwarded volume. Iterate over the bitmask bytes directly, skipping
-	// zero bytes, so cost scales with the number of set bits rather than
-	// the O(n*n) pair space; padding bits beyond n*n are ignored.
+	// threshold bucket, so reconstruct them at full window uptime with no
+	// forwards, and therefore no volume and no fees. Iterate over the
+	// bitmask bytes directly, skipping zero bytes, so cost scales with the
+	// number of set bits rather than the O(n*n) pair space; padding bits
+	// beyond n*n are ignored.
 	windowSeconds := resp.EndTime - resp.StartTime
 	for i, b := range bitmask {
 		if b == 0 {

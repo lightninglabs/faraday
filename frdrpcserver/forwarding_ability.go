@@ -128,6 +128,8 @@ func (s *RPCServer) ForwardingAbility(ctx context.Context,
 				ability.EffectiveUptime.Seconds(),
 			),
 			ForwardedSat: int64(ability.ForwardedAmount),
+			FeeMsat:      int64(ability.FeeMsat),
+			Forwards:     ability.Forwards,
 		}
 	}
 

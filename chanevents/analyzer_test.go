@@ -9,6 +9,7 @@ import (
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/clock"
 	"github.com/lightningnetwork/lnd/fn/v2"
+	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/stretchr/testify/require"
 )
@@ -596,9 +597,20 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 			func(t *testing.T) {
 				t.Parallel()
 
-				var totalSuccessfulAmount btcutil.Amount
+				forwards := pairForwards{
+					forwards: int64(len(tc.successAmts)),
+				}
 				for _, amt := range tc.successAmts {
-					totalSuccessfulAmount += amt
+					forwards.amount += amt
+
+					// Two msat of fee per satoshi
+					// forwarded, so the fee total is
+					// distinct from the volume total and a
+					// crossed assignment fails the
+					// assertion below.
+					forwards.feeMsat += lnwire.MilliSatoshi(
+						amt,
+					) * 2
 				}
 
 				mergedEvents := mergeEventSlices(
@@ -622,9 +634,9 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 					}
 				}
 
-				// The (B→A) forwarded total is not asserted by
-				// this test; pass zero so the second ability is
-				// well-defined but ignored.
+				// The (B→A) forwarded totals are not asserted
+				// by this test; pass the zero value so the
+				// second ability is well-defined but ignored.
 				abilityAB, _, err :=
 					calculateBothDirectionsUptime(
 						context.Background(),
@@ -634,12 +646,14 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 						sumARemote, sumALocal,
 						sumBRemote, sumBLocal,
 						mergedEvents,
-						totalSuccessfulAmount, 0,
+						forwards, pairForwards{},
 					)
 				require.NoError(t, err)
 				require.Equal(t, &ForwardingAbility{
 					EffectiveUptime: tc.expectedUptime,
-					ForwardedAmount: totalSuccessfulAmount,
+					ForwardedAmount: forwards.amount,
+					FeeMsat:         forwards.feeMsat,
+					Forwards:        forwards.forwards,
 				}, abilityAB)
 			},
 		)
@@ -702,7 +716,8 @@ func TestCalculateBothDirectionsUptimeAsymmetric(t *testing.T) {
 		liquidityFloor, statesA, statesB,
 		sumARemote, sumALocal, sumBRemote, sumBLocal,
 		mergeEventSlices(nil, nil),
-		100, 50,
+		pairForwards{amount: 100, feeMsat: 200, forwards: 2},
+		pairForwards{amount: 50, feeMsat: 100, forwards: 1},
 	)
 	require.NoError(t, err)
 
@@ -710,14 +725,18 @@ func TestCalculateBothDirectionsUptimeAsymmetric(t *testing.T) {
 		t, &ForwardingAbility{
 			EffectiveUptime: 100 * time.Second,
 			ForwardedAmount: 100,
+			FeeMsat:         200,
+			Forwards:        2,
 		}, abilityAB,
 	)
 	require.Equal(
 		t, &ForwardingAbility{
 			// Forwards landed but BA never crossed the floor: zero
-			// uptime, volume still reported.
+			// uptime, volume and fees still reported.
 			EffectiveUptime: 0,
 			ForwardedAmount: 50,
+			FeeMsat:         100,
+			Forwards:        1,
 		}, abilityBA,
 	)
 }
@@ -1003,11 +1022,13 @@ func TestEffectiveUptimeArgs(t *testing.T) {
 					ChannelIn:     testShortChanID1,
 					ChannelOut:    testShortChanID2,
 					AmountMsatOut: 100_000_000, // 100k sat
+					FeeMsat:       100_000,
 				},
 				{
 					ChannelIn:     testShortChanID1,
 					ChannelOut:    testShortChanID2,
 					AmountMsatOut: 300_000_000, // 300k sat
+					FeeMsat:       300_000,
 				},
 			},
 		},
@@ -1020,7 +1041,7 @@ func TestEffectiveUptimeArgs(t *testing.T) {
 
 	// Case 1: liquidityFloor = 50k. Liquidity of 1M exceeds the floor for
 	// the whole 60s window, so effective uptime is the full minute and the
-	// forwarded volume is the 400k sat total.
+	// forwarded volume is the 400k sat total, earning 400k msat.
 	abilities, err := a.EffectiveUptime(ctx, startTime, endTime, 50_000)
 	require.NoError(t, err)
 
@@ -1028,14 +1049,22 @@ func TestEffectiveUptimeArgs(t *testing.T) {
 	require.Contains(t, abilities, pair)
 	require.Equal(t, time.Minute, abilities[pair].EffectiveUptime)
 	require.Equal(t, btcutil.Amount(400_000), abilities[pair].ForwardedAmount)
+	require.Equal(
+		t, lnwire.MilliSatoshi(400_000), abilities[pair].FeeMsat,
+	)
+	require.EqualValues(t, 2, abilities[pair].Forwards)
 
 	// Case 2: liquidityFloor = 1.5M, above the 1M liquidity, so the floor is
-	// never crossed and effective uptime is zero. The forwarded volume is
-	// still reported so the consumer keeps the demand signal.
+	// never crossed and effective uptime is zero. The forwarded volume and
+	// fees are still reported so the consumer keeps the signal.
 	abilities, err = a.EffectiveUptime(ctx, startTime, endTime, 1_500_000)
 	require.NoError(t, err)
 
 	require.Contains(t, abilities, pair)
 	require.Zero(t, abilities[pair].EffectiveUptime)
 	require.Equal(t, btcutil.Amount(400_000), abilities[pair].ForwardedAmount)
+	require.Equal(
+		t, lnwire.MilliSatoshi(400_000), abilities[pair].FeeMsat,
+	)
+	require.EqualValues(t, 2, abilities[pair].Forwards)
 }

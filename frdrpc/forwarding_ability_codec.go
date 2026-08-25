@@ -49,12 +49,13 @@ type ForwardingAbility struct {
 type abilityTier int
 
 const (
-	// tierAbsent omits the pair: it neither forwarded nor held enough
-	// uptime to clear the threshold. Consumers treat absence as zero.
+	// tierAbsent omits the pair: it carried no forward and did not hold
+	// enough uptime to clear the threshold. Consumers treat absence as
+	// zero.
 	tierAbsent abilityTier = iota
 
 	// tierBit flags the pair in the up-but-idle bitmask: it held at least
-	// the uptime threshold but did not forward.
+	// the uptime threshold but carried no forward.
 	tierBit
 
 	// tierEntry emits a full entry carrying the pair's exact uptime,
@@ -67,9 +68,12 @@ const (
 // seconds. Forwarding always wins, so a pair that forwarded keeps its exact
 // facts even if its uptime is below the threshold; otherwise the pair is
 // compacted to a bit when it was up enough, and dropped when it was not.
+//
+// The count decides whether the pair forwarded, not the sums: both can be zero
+// for a pair that did, and demoting it to a bit would record it as idle.
 func (a ForwardingAbility) tier(minUptimeS int64) abilityTier {
 	switch {
-	case a.ForwardedSat > 0:
+	case a.Forwards > 0:
 		return tierEntry
 
 	case a.EffectiveUptimeS >= minUptimeS:
@@ -116,11 +120,11 @@ func getBit(mask []byte, index int64) bool {
 
 // EncodeForwardingAbility serializes a nested map of peer forwarding abilities
 // into a memory-efficient sparse gRPC response over [startTime, endTime]. To
-// optimize payload size it tiers each pair: pairs that forwarded keep a full
-// entry, pairs that were up at least uptimeThreshold of the window but did not
-// forward collapse to a single bit in the up-but-idle bitmask, and pairs below
-// the threshold that did not forward are omitted entirely. Public keys are
-// deduplicated and peer pairs packed into 32-bit indices.
+// optimize payload size it tiers each pair: pairs that carried at least one
+// forward keep a full entry, pairs that were up at least uptimeThreshold of the
+// window but carried none collapse to a single bit in the up-but-idle bitmask,
+// and pairs below the threshold that carried none are omitted entirely. Public
+// keys are deduplicated and peer pairs packed into 32-bit indices.
 func EncodeForwardingAbility(abilities map[string]map[string]ForwardingAbility,
 	startTime, endTime int64,
 	uptimeThreshold float64) (*ForwardingAbilityResponse, error) {

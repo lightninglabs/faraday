@@ -25,9 +25,9 @@ type pair struct {
 }
 
 // TestForwardingAbilityCodecRoundTrip verifies the three-tier encoding: pairs
-// that forwarded keep exact facts as entries, pairs up at least the threshold
-// but idle collapse to a bitmask bit (decoded at full window uptime), and
-// sub-threshold idle pairs are dropped. The window is [0, 100) and the
+// that carried a forward keep exact facts as entries, pairs up at least the
+// threshold but idle collapse to a bitmask bit (decoded at full window uptime),
+// and sub-threshold idle pairs are dropped. The window is [0, 100) and the
 // threshold 0.5, so the minimum qualifying uptime is 50 seconds.
 func TestForwardingAbilityCodecRoundTrip(t *testing.T) {
 	const (
@@ -256,6 +256,54 @@ func TestForwardingAbilityCodecRoundTrip(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestForwardingAbilityCodecZeroValueForward verifies that a pair whose
+// forwards summed to no volume and no fees still survives as a full entry
+// rather than collapsing to an up-but-idle bit. Both sums can legitimately be
+// zero for a pair that really did forward, so only the count can tell the two
+// apart, and recording such a pair as idle would report traffic that happened
+// as traffic that did not.
+func TestForwardingAbilityCodecZeroValueForward(t *testing.T) {
+	const (
+		startTime, endTime int64   = 0, 100
+		threshold          float64 = 0.5
+	)
+
+	abilities := map[string]map[string]ForwardingAbility{
+		fwdKey(1): {
+			// Sub-satoshi volume and a zero-fee policy: the pair
+			// forwarded, but both sums floor to zero.
+			fwdKey(2): {
+				EffectiveUptimeS: 80,
+				Forwards:         2,
+			},
+		},
+	}
+
+	resp, err := EncodeForwardingAbility(
+		abilities, startTime, endTime, threshold,
+	)
+	require.NoError(t, err)
+
+	// The pair clears the uptime threshold, so a volume-driven tier would
+	// have demoted it to a bit. It must be an entry instead, and the
+	// bitmask must stay empty.
+	require.Len(t, resp.Entries, 1)
+	require.Empty(t, resp.UpButIdleBitmask)
+
+	decoded, err := DecodeForwardingAbility(resp)
+	require.NoError(t, err)
+
+	// The entry keeps its exact uptime rather than the full-window uptime a
+	// decoded bit would have synthesized.
+	require.Equal(
+		t, ForwardingAbility{
+			EffectiveUptimeS: 80,
+			Forwards:         2,
+		},
+		decoded[fwdKey(1)][fwdKey(2)],
+	)
 }
 
 // TestMinQualifyingUptime verifies the threshold-to-seconds conversion shared

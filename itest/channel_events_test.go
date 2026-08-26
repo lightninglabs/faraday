@@ -232,7 +232,7 @@ func TestForwardingAbility(t *testing.T) {
 	// no forwards, hence neither volume nor fees.
 	require.Greater(c.t, ability.EffectiveUptimeS, int64(0))
 	require.Zero(c.t, ability.Forwards)
-	require.Zero(c.t, ability.ForwardedSat)
+	require.Zero(c.t, ability.ForwardedMsat)
 	require.Zero(c.t, ability.FeeMsat)
 }
 

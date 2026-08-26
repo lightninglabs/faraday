@@ -23,13 +23,12 @@ type ForwardingAbility struct {
 	// liquidity floor of directional forwardable liquidity over the window.
 	// The value is whole seconds: sub-second uptime floors to zero, so a
 	// pair that forwarded volume over a fleeting qualifying window can
-	// report a zero uptime alongside a non-zero ForwardedSat.
+	// report a zero uptime alongside a non-zero ForwardedMsat.
 	EffectiveUptimeS int64
 
-	// ForwardedSat is the total successfully forwarded amount over the
-	// window, in satoshis. A pair whose forwards were all sub-satoshi
-	// reports zero here and still reports them in Forwards.
-	ForwardedSat int64
+	// ForwardedMsat is the total successfully forwarded amount over the
+	// window, in millisatoshis.
+	ForwardedMsat int64
 
 	// FeeMsat is the total fee earned on the pair's forwards over the
 	// window, in millisatoshis. A single forward routinely earns less than
@@ -38,9 +37,8 @@ type ForwardingAbility struct {
 	FeeMsat int64
 
 	// Forwards is how many successful forwards the pair carried. It decides
-	// whether the pair forwarded at all, since both sums can be zero for
-	// one that did: sub-satoshi volume floors away and a zero-fee policy
-	// earns nothing.
+	// whether the pair forwarded at all, since the fee total can be zero
+	// for one that did under a zero-fee policy.
 	Forwards int64
 }
 
@@ -69,8 +67,9 @@ const (
 // facts even if its uptime is below the threshold; otherwise the pair is
 // compacted to a bit when it was up enough, and dropped when it was not.
 //
-// The count decides whether the pair forwarded, not the sums: both can be zero
-// for a pair that did, and demoting it to a bit would record it as idle.
+// The count decides whether the pair forwarded, not the sums: a zero-fee policy
+// leaves the fee total at zero for a pair that did, and demoting it to a bit
+// would record it as idle.
 func (a ForwardingAbility) tier(minUptimeS int64) abilityTier {
 	switch {
 	case a.Forwards > 0:
@@ -195,7 +194,7 @@ func EncodeForwardingAbility(abilities map[string]map[string]ForwardingAbility,
 		entries = append(entries, &ForwardingAbilityEntry{
 			PackedIdx:        packed,
 			EffectiveUptimeS: a.EffectiveUptimeS,
-			ForwardedSat:     a.ForwardedSat,
+			ForwardedMsat:    a.ForwardedMsat,
 			FeeMsat:          a.FeeMsat,
 			Forwards:         a.Forwards,
 		})
@@ -320,7 +319,7 @@ func DecodeForwardingAbility(resp *ForwardingAbilityResponse) (
 		record(
 			inIdx, outIdx, ForwardingAbility{
 				EffectiveUptimeS: entry.EffectiveUptimeS,
-				ForwardedSat:     entry.ForwardedSat,
+				ForwardedMsat:    entry.ForwardedMsat,
 				FeeMsat:          entry.FeeMsat,
 				Forwards:         entry.Forwards,
 			},
@@ -388,7 +387,7 @@ func DecodeForwardingAbility(resp *ForwardingAbilityResponse) (
 			record(
 				inIdx, outIdx, ForwardingAbility{
 					EffectiveUptimeS: windowSeconds,
-					ForwardedSat:     0,
+					ForwardedMsat:    0,
 				},
 			)
 		}

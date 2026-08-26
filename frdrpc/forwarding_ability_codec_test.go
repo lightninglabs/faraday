@@ -51,7 +51,7 @@ func TestForwardingAbilityCodecRoundTrip(t *testing.T) {
 				fwdKey(1): {
 					fwdKey(2): {
 						EffectiveUptimeS: 80,
-						ForwardedSat:     1500,
+						ForwardedMsat:    1_500_000,
 						FeeMsat:          1500,
 						Forwards:         3,
 					},
@@ -59,7 +59,7 @@ func TestForwardingAbilityCodecRoundTrip(t *testing.T) {
 				fwdKey(2): {
 					fwdKey(1): {
 						EffectiveUptimeS: 0,
-						ForwardedSat:     2500,
+						ForwardedMsat:    2_500_000,
 						FeeMsat:          5000,
 						Forwards:         1,
 					},
@@ -75,7 +75,7 @@ func TestForwardingAbilityCodecRoundTrip(t *testing.T) {
 					fwdKey(2),
 					ForwardingAbility{
 						EffectiveUptimeS: 80,
-						ForwardedSat:     1500,
+						ForwardedMsat:    1_500_000,
 						FeeMsat:          1500,
 						Forwards:         3,
 					},
@@ -85,7 +85,7 @@ func TestForwardingAbilityCodecRoundTrip(t *testing.T) {
 					fwdKey(1),
 					ForwardingAbility{
 						EffectiveUptimeS: 0,
-						ForwardedSat:     2500,
+						ForwardedMsat:    2_500_000,
 						FeeMsat:          5000,
 						Forwards:         1,
 					},
@@ -154,7 +154,7 @@ func TestForwardingAbilityCodecRoundTrip(t *testing.T) {
 				fwdKey(1): {
 					fwdKey(2): {
 						EffectiveUptimeS: 80,
-						ForwardedSat:     1500,
+						ForwardedMsat:    1_500_000,
 						FeeMsat:          750,
 						Forwards:         2,
 					},
@@ -169,9 +169,9 @@ func TestForwardingAbilityCodecRoundTrip(t *testing.T) {
 				},
 				fwdKey(3): {
 					fwdKey(1): {
-						ForwardedSat: 500,
-						FeeMsat:      250,
-						Forwards:     1,
+						ForwardedMsat: 500_000,
+						FeeMsat:       250,
+						Forwards:      1,
 					},
 				},
 			},
@@ -186,7 +186,7 @@ func TestForwardingAbilityCodecRoundTrip(t *testing.T) {
 					fwdKey(2),
 					ForwardingAbility{
 						EffectiveUptimeS: 80,
-						ForwardedSat:     1500,
+						ForwardedMsat:    1_500_000,
 						FeeMsat:          750,
 						Forwards:         2,
 					},
@@ -202,9 +202,9 @@ func TestForwardingAbilityCodecRoundTrip(t *testing.T) {
 					fwdKey(3),
 					fwdKey(1),
 					ForwardingAbility{
-						ForwardedSat: 500,
-						FeeMsat:      250,
-						Forwards:     1,
+						ForwardedMsat: 500_000,
+						FeeMsat:       250,
+						Forwards:      1,
 					},
 				},
 			},
@@ -395,7 +395,7 @@ func TestForwardingAbilityDecodeEntryPrecedence(t *testing.T) {
 			{
 				PackedIdx:        (0 << 16) | 1,
 				EffectiveUptimeS: 42,
-				ForwardedSat:     7,
+				ForwardedMsat:    7_000,
 				FeeMsat:          21,
 				Forwards:         2,
 			},
@@ -408,7 +408,7 @@ func TestForwardingAbilityDecodeEntryPrecedence(t *testing.T) {
 	require.Equal(
 		t, ForwardingAbility{
 			EffectiveUptimeS: 42,
-			ForwardedSat:     7,
+			ForwardedMsat:    7_000,
 			FeeMsat:          21,
 			Forwards:         2,
 		},
@@ -435,7 +435,7 @@ func TestForwardingAbilityDecodeBadIndex(t *testing.T) {
 				// peer.
 				PackedIdx:        (0 << 16) | 1,
 				EffectiveUptimeS: 3600,
-				ForwardedSat:     1000,
+				ForwardedMsat:    1_000_000,
 			},
 		},
 	}
@@ -475,8 +475,8 @@ func TestForwardingAbilityEncodePeerCap(t *testing.T) {
 	for i := 1; i <= maxPackedPeers+1; i++ {
 		// Use a carried forward so inclusion is threshold-independent.
 		outMap[fwdKey(i)] = ForwardingAbility{
-			ForwardedSat: 1,
-			Forwards:     1,
+			ForwardedMsat: 1_000,
+			Forwards:      1,
 		}
 	}
 	abilities := map[string]map[string]ForwardingAbility{
@@ -498,14 +498,14 @@ func TestForwardingAbilityEncodeNormalizesCase(t *testing.T) {
 	abilities := map[string]map[string]ForwardingAbility{
 		strings.ToUpper(peer): {
 			fwdKey(2): {
-				ForwardedSat: 20,
-				Forwards:     1,
+				ForwardedMsat: 20_000,
+				Forwards:      1,
 			},
 		},
 		peer: {
 			fwdKey(3): {
-				ForwardedSat: 40,
-				Forwards:     1,
+				ForwardedMsat: 40_000,
+				Forwards:      1,
 			},
 		},
 	}
@@ -521,15 +521,15 @@ func TestForwardingAbilityEncodeNormalizesCase(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(
 		t, ForwardingAbility{
-			ForwardedSat: 20,
-			Forwards:     1,
+			ForwardedMsat: 20_000,
+			Forwards:      1,
 		},
 		decoded[peer][fwdKey(2)],
 	)
 	require.Equal(
 		t, ForwardingAbility{
-			ForwardedSat: 40,
-			Forwards:     1,
+			ForwardedMsat: 40_000,
+			Forwards:      1,
 		},
 		decoded[peer][fwdKey(3)],
 	)
@@ -547,14 +547,14 @@ func TestForwardingAbilityEncodeRejectsCaseCollision(t *testing.T) {
 	abilities := map[string]map[string]ForwardingAbility{
 		strings.ToUpper(inPeer): {
 			outPeer: {
-				ForwardedSat: 10,
-				Forwards:     1,
+				ForwardedMsat: 10_000,
+				Forwards:      1,
 			},
 		},
 		inPeer: {
 			outPeer: {
-				ForwardedSat: 20,
-				Forwards:     1,
+				ForwardedMsat: 20_000,
+				Forwards:      1,
 			},
 		},
 	}
@@ -589,7 +589,7 @@ func TestForwardingAbilityCodecRoundTripHighIndices(t *testing.T) {
 			// Add pair that forwarded.
 			enc = ForwardingAbility{
 				EffectiveUptimeS: 70,
-				ForwardedSat:     int64(i + 1),
+				ForwardedMsat:    int64(i + 1),
 				FeeMsat:          int64(i + 1),
 				Forwards:         1,
 			}

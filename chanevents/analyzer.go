@@ -69,32 +69,31 @@ type channelEventSeq = iter.Seq2[*ChannelEvent, error]
 // pair over the analysis window. It carries no derived rates or categories. The
 // consumer derives velocity and uptime fraction from these and the window, and
 // reconstructs any categorization (such as forwards observed without qualifying
-// uptime) from EffectiveUptime and ForwardedAmount.
+// uptime) from EffectiveUptime and ForwardedMsat.
 type ForwardingAbility struct {
 	// EffectiveUptime is the time the pair held at least the liquidity floor
 	// of directional forwardable liquidity over the window.
 	EffectiveUptime time.Duration
 
-	// ForwardedAmount is the total successfully forwarded amount over the
-	// window, at satoshi granularity.
-	ForwardedAmount btcutil.Amount
+	// ForwardedMsat is the total successfully forwarded amount over the
+	// window, in millisatoshis.
+	ForwardedMsat lnwire.MilliSatoshi
 
 	// FeeMsat is the total fee earned on the pair's forwards over the
 	// window.
 	FeeMsat lnwire.MilliSatoshi
 
 	// Forwards is how many successful forwards the pair carried. It decides
-	// whether the pair forwarded at all, since both sums can be zero for
-	// one that did: sub-satoshi volume floors away and a zero-fee policy
-	// earns nothing.
+	// whether the pair forwarded at all, since the fee total can be zero
+	// for one that did under a zero-fee policy.
 	Forwards int64
 }
 
 // pairForwards accumulates what one direction of a peer pair carried over the
 // analysis window.
 type pairForwards struct {
-	// amount is the total forwarded amount, at satoshi granularity.
-	amount btcutil.Amount
+	// amountMsat is the total forwarded amount, in millisatoshis.
+	amountMsat lnwire.MilliSatoshi
 
 	// feeMsat is the total fee earned on those forwards.
 	feeMsat lnwire.MilliSatoshi
@@ -272,7 +271,7 @@ func (a *ForwardingAnalyzer) getForwardingData(ctx context.Context, startTime,
 			successfulForwards[pair] = totals
 		}
 
-		totals.amount += fwd.AmountMsatOut.ToSatoshis()
+		totals.amountMsat += fwd.AmountMsatOut
 		totals.feeMsat += fwd.FeeMsat
 		totals.forwards++
 	}
@@ -923,7 +922,7 @@ func makeAbility(totalUptime time.Duration,
 
 	return &ForwardingAbility{
 		EffectiveUptime: totalUptime,
-		ForwardedAmount: totals.amount,
+		ForwardedMsat:   totals.amountMsat,
 		FeeMsat:         totals.feeMsat,
 		Forwards:        totals.forwards,
 	}

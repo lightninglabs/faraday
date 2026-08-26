@@ -601,7 +601,8 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 					forwards: int64(len(tc.successAmts)),
 				}
 				for _, amt := range tc.successAmts {
-					forwards.amount += amt
+					forwards.amountMsat +=
+						lnwire.NewMSatFromSatoshis(amt)
 
 					// Two msat of fee per satoshi
 					// forwarded, so the fee total is
@@ -651,7 +652,7 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, &ForwardingAbility{
 					EffectiveUptime: tc.expectedUptime,
-					ForwardedAmount: forwards.amount,
+					ForwardedMsat:   forwards.amountMsat,
 					FeeMsat:         forwards.feeMsat,
 					Forwards:        forwards.forwards,
 				}, abilityAB)
@@ -716,15 +717,15 @@ func TestCalculateBothDirectionsUptimeAsymmetric(t *testing.T) {
 		liquidityFloor, statesA, statesB,
 		sumARemote, sumALocal, sumBRemote, sumBLocal,
 		mergeEventSlices(nil, nil),
-		pairForwards{amount: 100, feeMsat: 200, forwards: 2},
-		pairForwards{amount: 50, feeMsat: 100, forwards: 1},
+		pairForwards{amountMsat: 100_000, feeMsat: 200, forwards: 2},
+		pairForwards{amountMsat: 50_000, feeMsat: 100, forwards: 1},
 	)
 	require.NoError(t, err)
 
 	require.Equal(
 		t, &ForwardingAbility{
 			EffectiveUptime: 100 * time.Second,
-			ForwardedAmount: 100,
+			ForwardedMsat:   100_000,
 			FeeMsat:         200,
 			Forwards:        2,
 		}, abilityAB,
@@ -734,7 +735,7 @@ func TestCalculateBothDirectionsUptimeAsymmetric(t *testing.T) {
 			// Forwards landed but BA never crossed the floor: zero
 			// uptime, volume and fees still reported.
 			EffectiveUptime: 0,
-			ForwardedAmount: 50,
+			ForwardedMsat:   50_000,
 			FeeMsat:         100,
 			Forwards:        1,
 		}, abilityBA,
@@ -1041,14 +1042,17 @@ func TestEffectiveUptimeArgs(t *testing.T) {
 
 	// Case 1: liquidityFloor = 50k. Liquidity of 1M exceeds the floor for
 	// the whole 60s window, so effective uptime is the full minute and the
-	// forwarded volume is the 400k sat total, earning 400k msat.
+	// forwarded volume is the 400M msat total, earning 400k msat.
 	abilities, err := a.EffectiveUptime(ctx, startTime, endTime, 50_000)
 	require.NoError(t, err)
 
 	pair := PeerPair{PeerIn: validPubKey1, PeerOut: validPubKey2}
 	require.Contains(t, abilities, pair)
 	require.Equal(t, time.Minute, abilities[pair].EffectiveUptime)
-	require.Equal(t, btcutil.Amount(400_000), abilities[pair].ForwardedAmount)
+	require.Equal(
+		t, lnwire.MilliSatoshi(400_000_000),
+		abilities[pair].ForwardedMsat,
+	)
 	require.Equal(
 		t, lnwire.MilliSatoshi(400_000), abilities[pair].FeeMsat,
 	)
@@ -1062,7 +1066,10 @@ func TestEffectiveUptimeArgs(t *testing.T) {
 
 	require.Contains(t, abilities, pair)
 	require.Zero(t, abilities[pair].EffectiveUptime)
-	require.Equal(t, btcutil.Amount(400_000), abilities[pair].ForwardedAmount)
+	require.Equal(
+		t, lnwire.MilliSatoshi(400_000_000),
+		abilities[pair].ForwardedMsat,
+	)
 	require.Equal(
 		t, lnwire.MilliSatoshi(400_000), abilities[pair].FeeMsat,
 	)

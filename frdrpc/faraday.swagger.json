@@ -1038,10 +1038,10 @@
           "format": "int64",
           "description": "Seconds the peer pair held at least the requested liquidity floor of\ndirectional forwardable liquidity over the window."
         },
-        "forwarded_sat": {
+        "forwarded_msat": {
           "type": "string",
           "format": "int64",
-          "description": "Total successfully forwarded amount over the window, in satoshis. A\npair whose forwards were all sub-satoshi reports zero here and still\nreports them in forwards."
+          "description": "Total successfully forwarded amount over the window, in millisatoshis."
         },
         "fee_msat": {
           "type": "string",
@@ -1051,7 +1051,7 @@
         "forwards": {
           "type": "string",
           "format": "int64",
-          "description": "The number of successful forwards the pair carried over the window. It\ndecides whether the pair forwarded at all, since both sums can be zero\nfor one that did: sub-satoshi volume floors away and a zero-fee policy\nearns nothing. With forwarded_sat it also gives the mean forward size."
+          "description": "The number of successful forwards the pair carried over the window. It\ndecides whether the pair forwarded at all, since the fee total can be\nzero for one that did under a zero-fee policy. With forwarded_msat it\nalso gives the mean forward size."
         }
       }
     },

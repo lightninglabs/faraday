@@ -313,7 +313,7 @@ func TestMinQualifyingUptime(t *testing.T) {
 		name      string
 		threshold float64
 		window    int64
-		want      int64
+		want      uint64
 	}{
 		{
 			"half of clean window",
@@ -343,7 +343,7 @@ func TestMinQualifyingUptime(t *testing.T) {
 			"non-positive window admits nothing",
 			0.5,
 			0,
-			math.MaxInt64,
+			math.MaxUint64,
 		},
 	}
 
@@ -598,7 +598,7 @@ func TestForwardingAbilityCodecRoundTripHighIndices(t *testing.T) {
 			// Add up, but idle pair.
 			enc = ForwardingAbility{EffectiveUptimeS: 60}
 			dec = ForwardingAbility{
-				EffectiveUptimeS: endTime - startTime,
+				EffectiveUptimeS: uint64(endTime - startTime),
 			}
 		}
 

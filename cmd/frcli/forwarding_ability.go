@@ -44,7 +44,7 @@ var forwardingAbilityCommand = cli.Command{
 type pairView struct {
 	PeerIn           string  `json:"peer_in"`
 	PeerOut          string  `json:"peer_out"`
-	EffectiveUptimeS int64   `json:"effective_uptime_s"`
+	EffectiveUptimeS uint64  `json:"effective_uptime_s"`
 	ForwardedMsat    int64   `json:"forwarded_msat"`
 	FeeMsat          int64   `json:"fee_msat"`
 	Forwards         int64   `json:"forwards"`

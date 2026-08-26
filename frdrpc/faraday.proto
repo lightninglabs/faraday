@@ -744,7 +744,7 @@ message ForwardingAbilityEntry {
 
     // Seconds the peer pair held at least the requested liquidity floor of
     // directional forwardable liquidity over the window.
-    int64 effective_uptime_s = 2;
+    uint64 effective_uptime_s = 2;
 
     // Total successfully forwarded amount over the window, in millisatoshis.
     int64 forwarded_msat = 3;

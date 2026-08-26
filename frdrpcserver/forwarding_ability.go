@@ -124,7 +124,7 @@ func (s *RPCServer) ForwardingAbility(ctx context.Context,
 		}
 
 		nested[pair.PeerIn][pair.PeerOut] = frdrpc.ForwardingAbility{
-			EffectiveUptimeS: int64(
+			EffectiveUptimeS: uint64(
 				ability.EffectiveUptime.Seconds(),
 			),
 			ForwardedMsat: int64(ability.ForwardedMsat),

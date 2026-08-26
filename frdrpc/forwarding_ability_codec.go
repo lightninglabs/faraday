@@ -24,7 +24,7 @@ type ForwardingAbility struct {
 	// The value is whole seconds: sub-second uptime floors to zero, so a
 	// pair that forwarded volume over a fleeting qualifying window can
 	// report a zero uptime alongside a non-zero ForwardedMsat.
-	EffectiveUptimeS int64
+	EffectiveUptimeS uint64
 
 	// ForwardedMsat is the total successfully forwarded amount over the
 	// window, in millisatoshis.
@@ -70,7 +70,7 @@ const (
 // The count decides whether the pair forwarded, not the sums: a zero-fee policy
 // leaves the fee total at zero for a pair that did, and demoting it to a bit
 // would record it as idle.
-func (a ForwardingAbility) tier(minUptimeS int64) abilityTier {
+func (a ForwardingAbility) tier(minUptimeS uint64) abilityTier {
 	switch {
 	case a.Forwards > 0:
 		return tierEntry
@@ -91,12 +91,12 @@ func (a ForwardingAbility) tier(minUptimeS int64) abilityTier {
 // the threshold fraction" contract. The result is floored at one second so a
 // pair with zero uptime is never treated as up. A non-positive window admits
 // nothing.
-func MinQualifyingUptime(threshold float64, windowSeconds int64) int64 {
+func MinQualifyingUptime(threshold float64, windowSeconds int64) uint64 {
 	if windowSeconds <= 0 {
-		return math.MaxInt64
+		return math.MaxUint64
 	}
 
-	v := int64(math.Ceil(threshold * float64(windowSeconds)))
+	v := uint64(math.Ceil(threshold * float64(windowSeconds)))
 	if v < 1 {
 		v = 1
 	}
@@ -348,7 +348,13 @@ func DecodeForwardingAbility(resp *ForwardingAbilityResponse) (
 	// bitmask bytes directly, skipping zero bytes, so cost scales with the
 	// number of set bits rather than the O(n*n) pair space; padding bits
 	// beyond n*n are ignored.
-	windowSeconds := resp.EndTime - resp.StartTime
+	// The window is a difference of signed unix timestamps, so an end
+	// before the start yields zero uptime rather than wrapping into a
+	// near-infinite one.
+	var windowSeconds uint64
+	if d := resp.EndTime - resp.StartTime; d > 0 {
+		windowSeconds = uint64(d)
+	}
 	for i, b := range bitmask {
 		if b == 0 {
 			continue

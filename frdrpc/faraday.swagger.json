@@ -1035,7 +1035,7 @@
         },
         "effective_uptime_s": {
           "type": "string",
-          "format": "int64",
+          "format": "uint64",
           "description": "Seconds the peer pair held at least the requested liquidity floor of\ndirectional forwardable liquidity over the window."
         },
         "forwarded_msat": {

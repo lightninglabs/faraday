@@ -23,13 +23,12 @@ type ForwardingAbility struct {
 	// liquidity floor of directional forwardable liquidity over the window.
 	// The value is whole seconds: sub-second uptime floors to zero, so a
 	// pair that forwarded volume over a fleeting qualifying window can
-	// report a zero uptime alongside a non-zero ForwardedSat.
-	EffectiveUptimeS int64
+	// report a zero uptime alongside a non-zero ForwardedMsat.
+	EffectiveUptimeS uint64
 
-	// ForwardedSat is the total successfully forwarded amount over the
-	// window, in satoshis. A pair whose forwards were all sub-satoshi
-	// reports zero here and still reports them in Forwards.
-	ForwardedSat int64
+	// ForwardedMsat is the total successfully forwarded amount over the
+	// window, in millisatoshis.
+	ForwardedMsat int64
 
 	// FeeMsat is the total fee earned on the pair's forwards over the
 	// window, in millisatoshis. A single forward routinely earns less than
@@ -38,9 +37,8 @@ type ForwardingAbility struct {
 	FeeMsat int64
 
 	// Forwards is how many successful forwards the pair carried. It decides
-	// whether the pair forwarded at all, since both sums can be zero for
-	// one that did: sub-satoshi volume floors away and a zero-fee policy
-	// earns nothing.
+	// whether the pair forwarded at all, since the fee total can be zero
+	// for one that did under a zero-fee policy.
 	Forwards int64
 }
 
@@ -69,9 +67,10 @@ const (
 // facts even if its uptime is below the threshold; otherwise the pair is
 // compacted to a bit when it was up enough, and dropped when it was not.
 //
-// The count decides whether the pair forwarded, not the sums: both can be zero
-// for a pair that did, and demoting it to a bit would record it as idle.
-func (a ForwardingAbility) tier(minUptimeS int64) abilityTier {
+// The count decides whether the pair forwarded, not the sums: a zero-fee policy
+// leaves the fee total at zero for a pair that did, and demoting it to a bit
+// would record it as idle.
+func (a ForwardingAbility) tier(minUptimeS uint64) abilityTier {
 	switch {
 	case a.Forwards > 0:
 		return tierEntry
@@ -92,12 +91,12 @@ func (a ForwardingAbility) tier(minUptimeS int64) abilityTier {
 // the threshold fraction" contract. The result is floored at one second so a
 // pair with zero uptime is never treated as up. A non-positive window admits
 // nothing.
-func MinQualifyingUptime(threshold float64, windowSeconds int64) int64 {
+func MinQualifyingUptime(threshold float64, windowSeconds int64) uint64 {
 	if windowSeconds <= 0 {
-		return math.MaxInt64
+		return math.MaxUint64
 	}
 
-	v := int64(math.Ceil(threshold * float64(windowSeconds)))
+	v := uint64(math.Ceil(threshold * float64(windowSeconds)))
 	if v < 1 {
 		v = 1
 	}
@@ -195,7 +194,7 @@ func EncodeForwardingAbility(abilities map[string]map[string]ForwardingAbility,
 		entries = append(entries, &ForwardingAbilityEntry{
 			PackedIdx:        packed,
 			EffectiveUptimeS: a.EffectiveUptimeS,
-			ForwardedSat:     a.ForwardedSat,
+			ForwardedMsat:    a.ForwardedMsat,
 			FeeMsat:          a.FeeMsat,
 			Forwards:         a.Forwards,
 		})
@@ -320,7 +319,7 @@ func DecodeForwardingAbility(resp *ForwardingAbilityResponse) (
 		record(
 			inIdx, outIdx, ForwardingAbility{
 				EffectiveUptimeS: entry.EffectiveUptimeS,
-				ForwardedSat:     entry.ForwardedSat,
+				ForwardedMsat:    entry.ForwardedMsat,
 				FeeMsat:          entry.FeeMsat,
 				Forwards:         entry.Forwards,
 			},
@@ -349,7 +348,13 @@ func DecodeForwardingAbility(resp *ForwardingAbilityResponse) (
 	// bitmask bytes directly, skipping zero bytes, so cost scales with the
 	// number of set bits rather than the O(n*n) pair space; padding bits
 	// beyond n*n are ignored.
-	windowSeconds := resp.EndTime - resp.StartTime
+	// The window is a difference of signed unix timestamps, so an end
+	// before the start yields zero uptime rather than wrapping into a
+	// near-infinite one.
+	var windowSeconds uint64
+	if d := resp.EndTime - resp.StartTime; d > 0 {
+		windowSeconds = uint64(d)
+	}
 	for i, b := range bitmask {
 		if b == 0 {
 			continue
@@ -388,7 +393,7 @@ func DecodeForwardingAbility(resp *ForwardingAbilityResponse) (
 			record(
 				inIdx, outIdx, ForwardingAbility{
 					EffectiveUptimeS: windowSeconds,
-					ForwardedSat:     0,
+					ForwardedMsat:    0,
 				},
 			)
 		}

@@ -744,12 +744,10 @@ message ForwardingAbilityEntry {
 
     // Seconds the peer pair held at least the requested liquidity floor of
     // directional forwardable liquidity over the window.
-    int64 effective_uptime_s = 2;
+    uint64 effective_uptime_s = 2;
 
-    // Total successfully forwarded amount over the window, in satoshis. A
-    // pair whose forwards were all sub-satoshi reports zero here and still
-    // reports them in forwards.
-    int64 forwarded_sat = 3;
+    // Total successfully forwarded amount over the window, in millisatoshis.
+    int64 forwarded_msat = 3;
 
     // Total fees earned on the pair's forwards over the window, in
     // millisatoshis. Fees are reported at millisatoshi granularity because a
@@ -758,8 +756,8 @@ message ForwardingAbilityEntry {
     int64 fee_msat = 4;
 
     // The number of successful forwards the pair carried over the window. It
-    // decides whether the pair forwarded at all, since both sums can be zero
-    // for one that did: sub-satoshi volume floors away and a zero-fee policy
-    // earns nothing. With forwarded_sat it also gives the mean forward size.
+    // decides whether the pair forwarded at all, since the fee total can be
+    // zero for one that did under a zero-fee policy. With forwarded_msat it
+    // also gives the mean forward size.
     int64 forwards = 5;
 }

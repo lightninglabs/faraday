@@ -66,7 +66,7 @@ func TestForwardingAbility(t *testing.T) {
 						PeerOut: peerOut,
 					}: {
 						EffectiveUptime: 90 * time.Second,
-						ForwardedAmount: 550,
+						ForwardedMsat:   550_000,
 						FeeMsat:         1100,
 						Forwards:        2,
 					},
@@ -92,7 +92,8 @@ func TestForwardingAbility(t *testing.T) {
 					t, 90, resp.Entries[0].EffectiveUptimeS,
 				)
 				require.EqualValues(
-					t, 550, resp.Entries[0].ForwardedSat,
+					t, 550_000,
+					resp.Entries[0].ForwardedMsat,
 				)
 				require.EqualValues(
 					t, 1100, resp.Entries[0].FeeMsat,
@@ -172,7 +173,7 @@ func TestForwardingAbility(t *testing.T) {
 				return map[chanevents.PeerPair]chanevents.ForwardingAbility{
 					{PeerIn: peerIn, PeerOut: peerOut}: {
 						EffectiveUptime: 10 * time.Second,
-						ForwardedAmount: 999,
+						ForwardedMsat:   999_000,
 					},
 				}, nil
 			},

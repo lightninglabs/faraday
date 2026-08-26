@@ -44,8 +44,8 @@ var forwardingAbilityCommand = cli.Command{
 type pairView struct {
 	PeerIn           string  `json:"peer_in"`
 	PeerOut          string  `json:"peer_out"`
-	EffectiveUptimeS int64   `json:"effective_uptime_s"`
-	ForwardedSat     int64   `json:"forwarded_sat"`
+	EffectiveUptimeS uint64  `json:"effective_uptime_s"`
+	ForwardedMsat    int64   `json:"forwarded_msat"`
 	FeeMsat          int64   `json:"fee_msat"`
 	Forwards         int64   `json:"forwards"`
 	UptimeFraction   float64 `json:"uptime_fraction"`
@@ -89,18 +89,21 @@ func queryForwardingAbility(ctx *cli.Context) error {
 				) / float64(windowSeconds)
 			}
 
+			// Volume over the uptime that carried it, in
+			// millisatoshis per second.
 			if ability.EffectiveUptimeS > 0 {
-				velocity = float64(ability.ForwardedSat) /
+				velocity = float64(ability.ForwardedMsat) /
 					float64(ability.EffectiveUptimeS)
 			}
 
-			// Fees over volume. A pair with only sub-satoshi
-			// forwards has no volume to divide by, so it keeps a
-			// zero rate rather than an infinite one.
+			// Fees over volume, both in millisatoshis, so the rate
+			// is the unitless fraction of volume kept as fees. A
+			// pair with no volume has nothing to divide by, so it
+			// keeps a zero rate rather than an infinite one.
 			var feeRate float64
-			if ability.ForwardedSat > 0 {
+			if ability.ForwardedMsat > 0 {
 				feeRate = float64(ability.FeeMsat) /
-					(float64(ability.ForwardedSat) * 1000)
+					float64(ability.ForwardedMsat)
 			}
 
 			views = append(
@@ -108,7 +111,7 @@ func queryForwardingAbility(ctx *cli.Context) error {
 					PeerIn:           inPeer,
 					PeerOut:          outPeer,
 					EffectiveUptimeS: ability.EffectiveUptimeS,
-					ForwardedSat:     ability.ForwardedSat,
+					ForwardedMsat:    ability.ForwardedMsat,
 					FeeMsat:          ability.FeeMsat,
 					Forwards:         ability.Forwards,
 					UptimeFraction:   uptimeFraction,

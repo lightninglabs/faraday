@@ -230,9 +230,9 @@ func TestForwardingAbility(t *testing.T) {
 	// The bob self-pair was up but never forwarded through itself, so it
 	// surfaces via the up-but-idle bitmask: non-zero effective uptime and
 	// no forwards, hence neither volume nor fees.
-	require.Greater(c.t, ability.EffectiveUptimeS, int64(0))
+	require.Greater(c.t, ability.EffectiveUptimeS, uint64(0))
 	require.Zero(c.t, ability.Forwards)
-	require.Zero(c.t, ability.ForwardedSat)
+	require.Zero(c.t, ability.ForwardedMsat)
 	require.Zero(c.t, ability.FeeMsat)
 }
 

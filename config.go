@@ -148,7 +148,7 @@ type Config struct { //nolint:maligned
 	FaradayDir string `long:"faradaydir" description:"The directory for all of faraday's data. If set, this option overwrites --macaroonpath, --tlscertpath and --tlskeypath."`
 
 	// ChainConn specifies whether to attempt connecting to a bitcoin backend.
-	ChainConn bool `long:"connect_bitcoin" description:"Whether to attempt to connect to a backing bitcoin node. Some endpoints will not be available if this option is not enabled."`
+	ChainConn bool `long:"connect_bitcoin" description:"Whether to attempt to connect to a backing bitcoin node. Some endpoints will not be available if this option is not enabled. Note that the connection is only established once an endpoint needs it, so a misconfigured connection (see the bitcoin.* options) may only surface as an error at request time rather than on startup."`
 
 	ShowVersion bool `long:"version" description:"Display version information and exit"`
 

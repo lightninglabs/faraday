@@ -88,6 +88,14 @@ To connect Faraday to btcd:
 --bitcoin.tlspath={path to btcd cert}
 ```
 
+Instead of passing the password on the command line with `--bitcoin.password`,
+it can be read from a file with `--bitcoin.passwordfile`, which keeps the
+password out of the process list and shell history:
+```text
+--bitcoin.passwordfile={path to a file containing the rpc password}
+```
+`--bitcoin.password` and `--bitcoin.passwordfile` are mutually exclusive.
+
 #### RPCServer
 Faraday serves requests over grpc by default on `localhost:8465`. This default can be overwritten:
 ```text

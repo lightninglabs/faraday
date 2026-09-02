@@ -329,9 +329,11 @@ func ValidateConfig(config *Config) error {
 					"bitcoin.passwordfile: %v", err)
 			}
 
-			config.Bitcoin.Password = strings.TrimSpace(
-				string(pw),
-			)
+			config.Bitcoin.Password = strings.TrimSpace(string(pw))
+			if config.Bitcoin.Password == "" {
+				return fmt.Errorf("bitcoin.passwordfile %v "+
+					"is empty", pwPath)
+			}
 		}
 
 		if config.Bitcoin.User == "" || config.Bitcoin.Password == "" {

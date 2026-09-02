@@ -90,7 +90,8 @@ To connect Faraday to btcd:
 
 Instead of passing the password on the command line with `--bitcoin.password`,
 it can be read from a file with `--bitcoin.passwordfile`, which keeps the
-password out of the process list and shell history:
+password out of the process list and shell history; surrounding whitespace
+and the trailing newline are stripped:
 ```text
 --bitcoin.passwordfile={path to a file containing the rpc password}
 ```

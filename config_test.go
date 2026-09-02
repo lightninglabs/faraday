@@ -37,6 +37,10 @@ func TestValidateConfigBitcoinPassword(t *testing.T) {
 	err := os.WriteFile(pwFile, []byte("filepassword\n"), 0644)
 	require.NoError(t, err)
 
+	emptyPwFile := filepath.Join(t.TempDir(), "empty-pw.txt")
+	err = os.WriteFile(emptyPwFile, []byte("  \n"), 0644)
+	require.NoError(t, err)
+
 	tests := []struct {
 		name        string
 		setup       func(cfg *Config)
@@ -65,6 +69,13 @@ func TestValidateConfigBitcoinPassword(t *testing.T) {
 				)
 			},
 			expectedErr: "could not read bitcoin.passwordfile",
+		},
+		{
+			name: "password file is empty",
+			setup: func(cfg *Config) {
+				cfg.Bitcoin.PasswordFile = emptyPwFile
+			},
+			expectedErr: "is empty",
 		},
 		{
 			name: "password and password file set",

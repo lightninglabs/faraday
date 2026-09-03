@@ -23,6 +23,7 @@ type BitcoinConfig struct {
 	Host         string `long:"host" description:"host:port of the bitcoind/btcd instance address"`
 	User         string `long:"user" description:"bitcoind/btcd user name"`
 	Password     string `long:"password" description:"bitcoind/btcd password"`
+	PasswordFile string `long:"passwordfile" description:"path to a file containing the bitcoind/btcd password, as an alternative to --bitcoin.password"`
 	HTTPPostMode bool   `long:"httppostmode" description:"Use HTTP POST mode? bitcoind only supports this mode"`
 	UseTLS       bool   `long:"usetls" description:"Use TLS to connect? bitcoind only supports non-TLS connections"`
 	TLSPath      string `long:"tlspath" description:"Path to btcd tls certificate, bitcoind only supports non-TLS connections"`

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
@@ -309,6 +310,32 @@ func ValidateConfig(config *Config) error {
 	// that we have a rpc user and password, and that tls path is set if
 	// required.
 	if config.ChainConn {
+		switch {
+		case config.Bitcoin.Password != "" &&
+			config.Bitcoin.PasswordFile != "":
+
+			return fmt.Errorf("bitcoin.password and " +
+				"bitcoin.passwordfile are mutually " +
+				"exclusive, please only set one")
+
+		case config.Bitcoin.PasswordFile != "":
+			pwPath := lncfg.CleanAndExpandPath(
+				config.Bitcoin.PasswordFile,
+			)
+
+			pw, err := os.ReadFile(pwPath)
+			if err != nil {
+				return fmt.Errorf("could not read "+
+					"bitcoin.passwordfile: %v", err)
+			}
+
+			config.Bitcoin.Password = strings.TrimSpace(string(pw))
+			if config.Bitcoin.Password == "" {
+				return fmt.Errorf("bitcoin.passwordfile %v "+
+					"is empty", pwPath)
+			}
+		}
+
 		if config.Bitcoin.User == "" || config.Bitcoin.Password == "" {
 			return fmt.Errorf("rpc user and password " +
 				"required when chainconn is set")

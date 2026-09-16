@@ -5,12 +5,15 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/lightninglabs/faraday/fees"
 	"github.com/lightninglabs/faraday/fiat"
 	"github.com/lightninglabs/faraday/lndwrap"
 	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/lightningnetwork/lnd/routing/route"
+	"github.com/lightningnetwork/lnd/zpay32"
 )
 
 // decodePaymentRequest is a signature for decoding payment requests.
@@ -194,7 +197,7 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 		DecodePayReq: func(payReq string) (*lndclient.PaymentRequest,
 			error) {
 
-			return lnd.Client.DecodePaymentRequest(ctx, payReq)
+			return decodePaymentReq(payReq, lnd.ChainParams)
 		},
 		OwnPubKey: ownPubkey,
 		CommonConfig: CommonConfig{
@@ -205,4 +208,35 @@ func NewOffChainConfig(ctx context.Context, lnd lndclient.LndServices,
 			PriceSourceCfg: priceCfg,
 		},
 	}
+}
+
+func decodePaymentReq(payReq string,
+	chainParams *chaincfg.Params) (*lndclient.PaymentRequest, error) {
+
+	invoice, err := zpay32.Decode(payReq, chainParams)
+	if err != nil {
+		return nil, err
+	}
+
+	desc := ""
+	if invoice.Description != nil {
+		desc = *invoice.Description
+	}
+
+	var amtMsat lnwire.MilliSatoshi
+	if invoice.MilliSat != nil {
+		amtMsat = *invoice.MilliSat
+	}
+
+	req := &lndclient.PaymentRequest{
+		Destination:    route.NewVertex(invoice.Destination),
+		Hash:           *invoice.PaymentHash,
+		Value:          amtMsat,
+		Description:    desc,
+		Timestamp:      invoice.Timestamp,
+		Expiry:         invoice.Timestamp.Add(invoice.Expiry()),
+		PaymentAddress: invoice.PaymentAddr.UnwrapOr([32]byte{}),
+	}
+
+	return req, nil
 }

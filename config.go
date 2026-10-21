@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/btcutil/v2"
 	"github.com/lightninglabs/faraday/chain"
 	"github.com/lightninglabs/faraday/chanevents"
 	"github.com/lightninglabs/faraday/db"

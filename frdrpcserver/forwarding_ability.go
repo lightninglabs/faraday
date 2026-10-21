@@ -6,7 +6,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/btcutil/v2"
 	"github.com/lightninglabs/faraday/frdrpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

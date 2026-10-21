@@ -386,15 +386,17 @@ type CloseRecommendationRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The minimum amount of time in seconds that a channel should have been
-	// monitored by lnd to be eligible for close. This value is in place to
-	// protect against closing of newer channels.
+	//
+	//The minimum amount of time in seconds that a channel should have been
+	//monitored by lnd to be eligible for close. This value is in place to
+	//protect against closing of newer channels.
 	MinimumMonitored int64 `protobuf:"varint,1,opt,name=minimum_monitored,json=minimumMonitored,proto3" json:"minimum_monitored,omitempty"`
-	// The data point base close recommendations on. Available options are:
-	// Uptime: ratio of channel peer's uptime to the period they have been
-	// monitored to.
-	// Revenue: the revenue that the channel has produced per block that its
-	// funding transaction has been confirmed for.
+	//
+	//The data point base close recommendations on. Available options are:
+	//Uptime: ratio of channel peer's uptime to the period they have been
+	//monitored to.
+	//Revenue: the revenue that the channel has produced per block that its
+	//funding transaction has been confirmed for.
 	Metric CloseRecommendationRequest_Metric `protobuf:"varint,2,opt,name=metric,proto3,enum=frdrpc.CloseRecommendationRequest_Metric" json:"metric,omitempty"`
 }
 
@@ -449,13 +451,15 @@ type OutlierRecommendationsRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The parameters that are common to all close recommendations.
+	//
+	//The parameters that are common to all close recommendations.
 	RecRequest *CloseRecommendationRequest `protobuf:"bytes,1,opt,name=rec_request,json=recRequest,proto3" json:"rec_request,omitempty"`
-	// The number of inter-quartile ranges a value needs to be beneath the lower
-	// quartile/ above the upper quartile to be considered a lower/upper outlier.
-	// Lower values will be more aggressive in recommending channel closes, and
-	// upper values will be more conservative. Recommended values are 1.5 for
-	// aggressive recommendations and 3 for conservative recommendations.
+	//
+	//The number of inter-quartile ranges a value needs to be beneath the lower
+	//quartile/ above the upper quartile to be considered a lower/upper outlier.
+	//Lower values will be more aggressive in recommending channel closes, and
+	//upper values will be more conservative. Recommended values are 1.5 for
+	//aggressive recommendations and 3 for conservative recommendations.
 	OutlierMultiplier float32 `protobuf:"fixed32,2,opt,name=outlier_multiplier,json=outlierMultiplier,proto3" json:"outlier_multiplier,omitempty"`
 }
 
@@ -510,31 +514,33 @@ type ThresholdRecommendationsRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The parameters that are common to all close recommendations.
+	//
+	//The parameters that are common to all close recommendations.
 	RecRequest *CloseRecommendationRequest `protobuf:"bytes,1,opt,name=rec_request,json=recRequest,proto3" json:"rec_request,omitempty"`
-	// The threshold that recommendations will be calculated based on.
-	// For uptime: ratio of uptime to observed lifetime beneath which channels
-	// will be recommended for closure.
 	//
-	// For revenue: revenue per block that capital has been committed to the
-	// channel beneath which channels will be recommended for closure. This
-	// value is provided per block so that channels that have been open for
-	// different periods of time can be compared.
+	//The threshold that recommendations will be calculated based on.
+	//For uptime: ratio of uptime to observed lifetime beneath which channels
+	//will be recommended for closure.
 	//
-	// For incoming volume: The incoming volume per block that capital has
-	// been committed to the channel beneath which channels will be recommended
-	// for closure. This value is provided per block so that channels that have
-	// been open for different periods of time can be compared.
+	//For revenue: revenue per block that capital has been committed to the
+	//channel beneath which channels will be recommended for closure. This
+	//value is provided per block so that channels that have been open for
+	//different periods of time can be compared.
 	//
-	// For outgoing volume: The outgoing volume per block that capital has been
-	// committed to the channel beneath which channels will be recommended for
-	// closure. This value is provided per block so that channels that have been
-	// open for different periods of time can be compared.
+	//For incoming volume: The incoming volume per block that capital has
+	//been committed to the channel beneath which channels will be recommended
+	//for closure. This value is provided per block so that channels that have
+	//been open for different periods of time can be compared.
 	//
-	// For total volume: The total volume per block that capital has been
-	// committed to the channel beneath which channels will be recommended for
-	// closure. This value is provided per block so that channels that have been
-	// open for different periods of time can be compared.
+	//For outgoing volume: The outgoing volume per block that capital has been
+	//committed to the channel beneath which channels will be recommended for
+	//closure. This value is provided per block so that channels that have been
+	//open for different periods of time can be compared.
+	//
+	//For total volume: The total volume per block that capital has been
+	//committed to the channel beneath which channels will be recommended for
+	//closure. This value is provided per block so that channels that have been
+	//open for different periods of time can be compared.
 	ThresholdValue float32 `protobuf:"fixed32,2,opt,name=threshold_value,json=thresholdValue,proto3" json:"threshold_value,omitempty"`
 }
 
@@ -589,15 +595,18 @@ type CloseRecommendationsResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The total number of channels, before filtering out channels that are
-	// not eligible for close recommendations.
+	//
+	//The total number of channels, before filtering out channels that are
+	//not eligible for close recommendations.
 	TotalChannels int32 `protobuf:"varint,1,opt,name=total_channels,json=totalChannels,proto3" json:"total_channels,omitempty"`
-	// The number of channels that were considered for close recommendations.
+	//
+	//The number of channels that were considered for close recommendations.
 	ConsideredChannels int32 `protobuf:"varint,2,opt,name=considered_channels,json=consideredChannels,proto3" json:"considered_channels,omitempty"`
-	// A set of channel close recommendations. The absence of a channel in this
-	// set implies that it was not considered for close because it did not meet
-	// the criteria for close recommendations (it is private, or has not been
-	// monitored for long enough).
+	//
+	//A set of channel close recommendations. The absence of a channel in this
+	//set implies that it was not considered for close because it did not meet
+	//the criteria for close recommendations (it is private, or has not been
+	//monitored for long enough).
 	Recommendations []*Recommendation `protobuf:"bytes,3,rep,name=recommendations,proto3" json:"recommendations,omitempty"`
 }
 
@@ -659,8 +668,9 @@ type Recommendation struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The channel point [funding txid: outpoint] of the channel being considered
-	// for close.
+	//
+	//The channel point [funding txid: outpoint] of the channel being considered
+	//for close.
 	ChanPoint string `protobuf:"bytes,1,opt,name=chan_point,json=chanPoint,proto3" json:"chan_point,omitempty"`
 	// The value of the metric that close recommendations were based on.
 	Value float32 `protobuf:"fixed32,2,opt,name=value,proto3" json:"value,omitempty"`
@@ -726,16 +736,19 @@ type RevenueReportRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The funding transaction outpoints for the channels to generate a revenue
-	// report for. If this is empty, it will be generated for all open and closed
-	// channels. Channel funding points should be expressed with the format
-	// fundingTxID:outpoint.
+	//
+	//The funding transaction outpoints for the channels to generate a revenue
+	//report for. If this is empty, it will be generated for all open and closed
+	//channels. Channel funding points should be expressed with the format
+	//fundingTxID:outpoint.
 	ChanPoints []string `protobuf:"bytes,1,rep,name=chan_points,json=chanPoints,proto3" json:"chan_points,omitempty"`
-	// Start time is beginning of the range over which the report will be
-	// generated, expressed as unix epoch offset in seconds.
+	//
+	//Start time is beginning of the range over which the report will be
+	//generated, expressed as unix epoch offset in seconds.
 	StartTime uint64 `protobuf:"varint,2,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	// End time is end of the range over which the report will be
-	// generated, expressed as unix epoch offset in seconds.
+	//
+	//End time is end of the range over which the report will be
+	//generated, expressed as unix epoch offset in seconds.
 	EndTime uint64 `protobuf:"varint,3,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
 }
 
@@ -797,8 +810,9 @@ type RevenueReportResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Reports is a set of pairwise revenue report generated for the channel(s)
-	// over the period specified.
+	//
+	//Reports is a set of pairwise revenue report generated for the channel(s)
+	//over the period specified.
 	Reports []*RevenueReport `protobuf:"bytes,1,rep,name=reports,proto3" json:"reports,omitempty"`
 }
 
@@ -846,13 +860,15 @@ type RevenueReport struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Target channel is the channel that the report is generated for; incoming
-	// fields in the report mean that this channel was the incoming channel,
-	// and the pair as the outgoing, outgoing fields mean that this channel was
-	// the outgoing channel and the peer was the incoming channel.
+	//
+	//Target channel is the channel that the report is generated for; incoming
+	//fields in the report mean that this channel was the incoming channel,
+	//and the pair as the outgoing, outgoing fields mean that this channel was
+	//the outgoing channel and the peer was the incoming channel.
 	TargetChannel string `protobuf:"bytes,1,opt,name=target_channel,json=targetChannel,proto3" json:"target_channel,omitempty"`
-	// Pair reports maps the channel point of a peer that we generated revenue
-	// with to a report detailing the revenue.
+	//
+	//Pair reports maps the channel point of a peer that we generated revenue
+	//with to a report detailing the revenue.
 	PairReports map[string]*PairReport `protobuf:"bytes,2,rep,name=pair_reports,json=pairReports,proto3" json:"pair_reports,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
@@ -907,19 +923,23 @@ type PairReport struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Amount outgoing msat is the amount in millisatoshis that arrived
-	// on the pair channel to be forwarded onwards by our channel.
+	//
+	//Amount outgoing msat is the amount in millisatoshis that arrived
+	//on the pair channel to be forwarded onwards by our channel.
 	AmountOutgoingMsat int64 `protobuf:"varint,1,opt,name=amount_outgoing_msat,json=amountOutgoingMsat,proto3" json:"amount_outgoing_msat,omitempty"`
-	// Fees outgoing is the amount of fees in millisatoshis that we
-	// attribute to the channel for its role as the outgoing channel in
-	// forwards.
+	//
+	//Fees outgoing is the amount of fees in millisatoshis that we
+	//attribute to the channel for its role as the outgoing channel in
+	//forwards.
 	FeesOutgoingMsat int64 `protobuf:"varint,2,opt,name=fees_outgoing_msat,json=feesOutgoingMsat,proto3" json:"fees_outgoing_msat,omitempty"`
-	// Amount incoming msat is the amount in millisatoshis that arrived
-	// on our channel to be forwarded onwards by the pair channel.
+	//
+	//Amount incoming msat is the amount in millisatoshis that arrived
+	//on our channel to be forwarded onwards by the pair channel.
 	AmountIncomingMsat int64 `protobuf:"varint,3,opt,name=amount_incoming_msat,json=amountIncomingMsat,proto3" json:"amount_incoming_msat,omitempty"`
-	// Fees incoming is the amount of fees in millisatoshis that we
-	// attribute to the channel for its role as the incoming channel in
-	// forwards.
+	//
+	//Fees incoming is the amount of fees in millisatoshis that we
+	//attribute to the channel for its role as the incoming channel in
+	//forwards.
 	FeesIncomingMsat int64 `protobuf:"varint,4,opt,name=fees_incoming_msat,json=feesIncomingMsat,proto3" json:"fees_incoming_msat,omitempty"`
 }
 
@@ -1076,21 +1096,26 @@ type ChannelInsight struct {
 
 	// The outpoint of the channel's funding transaction.
 	ChanPoint string `protobuf:"bytes,1,opt,name=chan_point,json=chanPoint,proto3" json:"chan_point,omitempty"`
-	// The amount of time in seconds that we have monitored the channel peer's
-	// uptime for.
+	//
+	//The amount of time in seconds that we have monitored the channel peer's
+	//uptime for.
 	MonitoredSeconds uint64 `protobuf:"varint,2,opt,name=monitored_seconds,json=monitoredSeconds,proto3" json:"monitored_seconds,omitempty"`
-	// The amount of time in seconds that the channel peer has been online over
-	// the period it has been monitored for.
+	//
+	//The amount of time in seconds that the channel peer has been online over
+	//the period it has been monitored for.
 	UptimeSeconds uint64 `protobuf:"varint,3,opt,name=uptime_seconds,json=uptimeSeconds,proto3" json:"uptime_seconds,omitempty"`
-	// The volume, in millisatoshis, that has been forwarded with this channel as
-	// the incoming channel.
+	//
+	//The volume, in millisatoshis, that has been forwarded with this channel as
+	//the incoming channel.
 	VolumeIncomingMsat int64 `protobuf:"varint,4,opt,name=volume_incoming_msat,json=volumeIncomingMsat,proto3" json:"volume_incoming_msat,omitempty"`
-	// The volume, in millisatoshis, that has been forwarded with this channel as
-	// the outgoing channel.
+	//
+	//The volume, in millisatoshis, that has been forwarded with this channel as
+	//the outgoing channel.
 	VolumeOutgoingMsat int64 `protobuf:"varint,5,opt,name=volume_outgoing_msat,json=volumeOutgoingMsat,proto3" json:"volume_outgoing_msat,omitempty"`
-	// The total fees earned by this channel for its participation in forwards,
-	// expressed in millisatoshis. Note that we attribute fees evenly across
-	// incoming and outgoing channels.
+	//
+	//The total fees earned by this channel for its participation in forwards,
+	//expressed in millisatoshis. Note that we attribute fees evenly across
+	//incoming and outgoing channels.
 	FeesEarnedMsat int64 `protobuf:"varint,6,opt,name=fees_earned_msat,json=feesEarnedMsat,proto3" json:"fees_earned_msat,omitempty"`
 	// The number of confirmations the funding transaction has.
 	Confirmations uint32 `protobuf:"varint,7,opt,name=confirmations,proto3" json:"confirmations,omitempty"`
@@ -1382,9 +1407,10 @@ type ExchangeRate struct {
 
 	// timestamp is the timestamp of the original request made.
 	Timestamp uint64 `protobuf:"varint,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	// Price is the bitcoin price approximation for the timestamp queried. Note
-	// that this value has its own timestamp because we are not guaranteed to get
-	// price points for the exact timestamp that was queried.
+	//
+	//Price is the bitcoin price approximation for the timestamp queried. Note
+	//that this value has its own timestamp because we are not guaranteed to get
+	//price points for the exact timestamp that was queried.
 	BtcPrice *BitcoinPrice `protobuf:"bytes,2,opt,name=btc_price,json=btcPrice,proto3" json:"btc_price,omitempty"`
 }
 
@@ -1443,15 +1469,17 @@ type NodeAuditRequest struct {
 	StartTime uint64 `protobuf:"varint,1,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
 	// The unix time until which to produce the report, exclusive.
 	EndTime uint64 `protobuf:"varint,2,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
-	// Set to generate a report without conversion to fiat. If set, fiat values
-	// will display as 0.
+	//
+	//Set to generate a report without conversion to fiat. If set, fiat values
+	//will display as 0.
 	DisableFiat bool `protobuf:"varint,4,opt,name=disable_fiat,json=disableFiat,proto3" json:"disable_fiat,omitempty"`
 	// The level of granularity at which we wish to produce fiat prices.
 	Granularity Granularity `protobuf:"varint,5,opt,name=granularity,proto3,enum=frdrpc.Granularity" json:"granularity,omitempty"`
-	// An optional set of custom categories which can be used to identify bespoke
-	// categories in the report. Each category must have a unique name, and may not
-	// have common identifier regexes. Transactions that are matched to these
-	// categories report the category name in the CustomCategory field.
+	//
+	//An optional set of custom categories which can be used to identify bespoke
+	//categories in the report. Each category must have a unique name, and may not
+	//have common identifier regexes. Transactions that are matched to these
+	//categories report the category name in the CustomCategory field.
 	CustomCategories []*CustomCategory `protobuf:"bytes,6,rep,name=custom_categories,json=customCategories,proto3" json:"custom_categories,omitempty"`
 	// The api to be used for fiat related queries.
 	FiatBackend FiatBackend `protobuf:"varint,7,opt,name=fiat_backend,json=fiatBackend,proto3,enum=frdrpc.FiatBackend" json:"fiat_backend,omitempty"`
@@ -1545,25 +1573,29 @@ type CustomCategory struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The name for the custom category which will contain all transactions that
-	// are labelled with a string matching one of the regexes provided in
-	// label identifiers.
+	//
+	//The name for the custom category which will contain all transactions that
+	//are labelled with a string matching one of the regexes provided in
+	//label identifiers.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Set to true to apply this category to on chain transactions. Can be set in
-	// conjunction with off_chain to apply the category to all transactions.
+	//
+	//Set to true to apply this category to on chain transactions. Can be set in
+	//conjunction with off_chain to apply the category to all transactions.
 	OnChain bool `protobuf:"varint,2,opt,name=on_chain,json=onChain,proto3" json:"on_chain,omitempty"`
-	// Set to true to apply this category to off chain transactions. Can be set in
-	// conjunction with on_chain to apply the category to all transactions.
+	//
+	//Set to true to apply this category to off chain transactions. Can be set in
+	//conjunction with on_chain to apply the category to all transactions.
 	OffChain bool `protobuf:"varint,3,opt,name=off_chain,json=offChain,proto3" json:"off_chain,omitempty"`
-	// A set of regular expressions which identify transactions by their label as
-	// belonging in this custom category. If a label matches any single regex in
-	// the set, it is considered to be in the category. These expressions will be
-	// matched against various labels that are present in lnd: on chain
-	// transactions will be matched against their label field, off chain receipts
-	// will be matched against their memo. At present, there is no way to match
-	// forwards or off chain payments. These expressions must be unique across
-	// custom categories, otherwise faraday will not be able to identify which
-	// custom category a transaction belongs in.
+	//
+	//A set of regular expressions which identify transactions by their label as
+	//belonging in this custom category. If a label matches any single regex in
+	//the set, it is considered to be in the category. These expressions will be
+	//matched against various labels that are present in lnd: on chain
+	//transactions will be matched against their label field, off chain receipts
+	//will be matched against their memo. At present, there is no way to match
+	//forwards or off chain payments. These expressions must be unique across
+	//custom categories, otherwise faraday will not be able to identify which
+	//custom category a transaction belongs in.
 	LabelPatterns []string `protobuf:"bytes,5,rep,name=label_patterns,json=labelPatterns,proto3" json:"label_patterns,omitempty"`
 }
 
@@ -1644,8 +1676,9 @@ type ReportEntry struct {
 	Asset string `protobuf:"bytes,5,opt,name=asset,proto3" json:"asset,omitempty"`
 	// The kind of activity that this entry represents.
 	Type EntryType `protobuf:"varint,6,opt,name=type,proto3,enum=frdrpc.EntryType" json:"type,omitempty"`
-	// This field will be populated for entry type custom, and represents the name
-	// of a custom category that the report was produced with.
+	//
+	//This field will be populated for entry type custom, and represents the name
+	//of a custom category that the report was produced with.
 	CustomCategory string `protobuf:"bytes,12,opt,name=custom_category,json=customCategory,proto3" json:"custom_category,omitempty"`
 	// The transaction id of the entry.
 	Txid string `protobuf:"bytes,7,opt,name=txid,proto3" json:"txid,omitempty"`
@@ -1829,8 +1862,9 @@ type CloseReportRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The funding outpoint of the channel the report should be created for,
-	// formatted txid:outpoint.
+	//
+	//The funding outpoint of the channel the report should be created for,
+	//formatted txid:outpoint.
 	ChannelPoint string `protobuf:"bytes,1,opt,name=channel_point,json=channelPoint,proto3" json:"channel_point,omitempty"`
 }
 
@@ -1886,11 +1920,13 @@ type CloseReportResponse struct {
 	CloseType string `protobuf:"bytes,3,opt,name=close_type,json=closeType,proto3" json:"close_type,omitempty"`
 	// The transaction id of the close transaction that confirmed on chain.
 	CloseTxid string `protobuf:"bytes,4,opt,name=close_txid,json=closeTxid,proto3" json:"close_txid,omitempty"`
-	// The fee we paid on chain to open this channel in satoshis, note that this
-	// field will be zero if the remote party paid.
+	//
+	//The fee we paid on chain to open this channel in satoshis, note that this
+	//field will be zero if the remote party paid.
 	OpenFee string `protobuf:"bytes,5,opt,name=open_fee,json=openFee,proto3" json:"open_fee,omitempty"`
-	// The fee we paid on chain for the close transaction in staoshis, note that
-	// this field will be zero if the remote party paid.
+	//
+	//The fee we paid on chain for the close transaction in staoshis, note that
+	//this field will be zero if the remote party paid.
 	CloseFee string `protobuf:"bytes,6,opt,name=close_fee,json=closeFee,proto3" json:"close_fee,omitempty"`
 }
 
@@ -1973,20 +2009,25 @@ type ChannelEventsRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The channel point of the channel to get events for, formatted txid:outpoint.
+	//
+	//The channel point of the channel to get events for, formatted txid:outpoint.
 	ChanPoint string `protobuf:"bytes,1,opt,name=chan_point,json=chanPoint,proto3" json:"chan_point,omitempty"`
-	// Lower time bound, inclusive, as Unix seconds. Independent filter — does
-	// not need to advance between paginated calls. Zero means no lower bound.
+	//
+	//Lower time bound, inclusive, as Unix seconds. Independent filter — does
+	//not need to advance between paginated calls. Zero means no lower bound.
 	StartTime int64 `protobuf:"varint,2,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	// Upper time bound, exclusive, as Unix seconds. Must be greater than or
-	// equal to start_time. Zero means "use the server's current time".
+	//
+	//Upper time bound, exclusive, as Unix seconds. Must be greater than or
+	//equal to start_time. Zero means "use the server's current time".
 	EndTime int64 `protobuf:"varint,3,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
-	// The maximum number of events to return. If zero, the server default is
-	// used. The server enforces a hard cap; values above the cap are clamped.
+	//
+	//The maximum number of events to return. If zero, the server default is
+	//used. The server enforces a hard cap; values above the cap are clamped.
 	MaxEvents uint32 `protobuf:"varint,4,opt,name=max_events,json=maxEvents,proto3" json:"max_events,omitempty"`
-	// Pagination cursor: id of the last event from the previous response.
-	// Pass zero on the first call; for subsequent calls pass the response's
-	// last_id to resume past already-returned events.
+	//
+	//Pagination cursor: id of the last event from the previous response.
+	//Pass zero on the first call; for subsequent calls pass the response's
+	//last_id to resume past already-returned events.
 	LastId int64 `protobuf:"varint,5,opt,name=last_id,json=lastId,proto3" json:"last_id,omitempty"`
 }
 

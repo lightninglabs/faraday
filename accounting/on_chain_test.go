@@ -3,7 +3,7 @@ package accounting
 import (
 	"testing"
 
-	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcd/wire/v2"
 	"github.com/lightninglabs/lndclient"
 	"github.com/stretchr/testify/require"
 )

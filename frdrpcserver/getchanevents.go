@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/btcutil/v2"
 	"github.com/lightninglabs/faraday/chanevents"
 	"github.com/lightninglabs/faraday/frdrpc"
 	"google.golang.org/grpc/codes"

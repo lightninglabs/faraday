@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	btcaddr "github.com/btcsuite/btcd/address/v2"
+	"github.com/btcsuite/btcd/btcutil/v2"
+	"github.com/btcsuite/btcd/chaincfg/v2"
+	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcd/wire/v2"
 	"github.com/lightninglabs/faraday"
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/lndclient"
@@ -59,7 +60,7 @@ type testContext struct {
 
 	alicePubkey, bobPubkey route.Vertex
 
-	dummyAddress btcutil.Address
+	dummyAddress btcaddr.Address
 
 	faradayCmd *exec.Cmd
 	faradayErr chan error
@@ -80,7 +81,7 @@ func newTestContext(t *testing.T, extraFaradayArgs ...string) *testContext {
 	require.NoError(t, err)
 
 	// Set a dummy mining address.
-	ctx.dummyAddress, err = btcutil.DecodeAddress(
+	ctx.dummyAddress, err = btcaddr.DecodeAddress(
 		"2N9kBLwWmJjoPxBddwR8G9hwLMrQyHum44K",
 		&chaincfg.RegressionNetParams,
 	)

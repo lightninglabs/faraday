@@ -264,7 +264,7 @@ func (c *testContext) makePayment(src, dest lndclient.LndServices,
 			preimage = status.Preimage
 			return status.State == targetState
 
-		case <-errChan:
+		case err := <-errChan:
 			require.NoError(c.t, err, "error sending payment")
 			return false
 		}
@@ -333,9 +333,8 @@ func (c *testContext) closeChannel(client lndclient.LightningClient,
 				return true
 			}
 
-		case <-errChan:
-			c.t.Fatalf("error closing channel: %v, %v", channel,
-				err)
+		case err := <-errChan:
+			c.t.Fatalf("error closing channel: %v, %v", channel, err)
 
 		// If we have not received an update yet, wait for the pending
 		// close to broadcast. Only once we have captured the close tx
@@ -611,7 +610,8 @@ func (c *testContext) stopFaraday() {
 	require.NoError(c.t, c.faradayCmd.Process.Kill())
 
 	select {
-	case <-c.faradayErr:
+	case err := <-c.faradayErr:
+		require.Error(c.t, err, "expected faraday process to exit after kill")
 	case <-time.After(processKillTimeout):
 		require.FailNow(c.t, "cannot kill faraday process")
 	}

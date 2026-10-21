@@ -1,33 +1,51 @@
+version: "2"
+
 run:
-  # timeout for analysis
+  # Timeout for analysis.
   timeout: 4m
 
-linters-settings:
-  gofmt:
-    # simplify code: gofmt with `-s` option, true by default
-    simplify: true
-
-  tagliatelle:
-    case:
-      rules:
-        json: snake
-
-  whitespace:
-    multi-func: true
-    multi-if: true
-
-  gosec:
-    excludes:
-      - G402 # Look for bad TLS connection settings.
-      - G306 # Poor file permissions used when writing to a new file.
-      - G601 # Implicit memory aliasing in for loop.
-      - G115 # Integer overflow in conversion.
-
-  staticcheck:
-    checks: ["-SA1019"]
-
-linters:
+formatters:
   enable:
     - gofmt
+  settings:
+    gofmt:
+      simplify: true
+
+linters:
+  default: standard
+  enable:
     - whitespace
     - gosec
+  exclusions:
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+
+  settings:
+    govet:
+      disable:
+        - inline
+
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+
+    whitespace:
+      multi-func: true
+      multi-if: true
+
+    gosec:
+      excludes:
+        - G402 # Look for bad TLS connection settings.
+        - G306 # Poor file permissions used when writing a new file.
+        - G601 # Implicit memory aliasing in for loop.
+        - G115 # Integer overflow in conversion.
+
+
+    staticcheck:
+      # Preserve the v1 default gosimple (S*) checks.
+      # The v1 negative-only staticcheck list enabled no SA checks.
+      checks: ["S*"]

@@ -206,5 +206,7 @@ replace github.com/lightninglabs/faraday/frdrpc => ./frdrpc
 
 go 1.26.8
 
+godebug multipathtcp=0
+
 // Match the lnd source revision, including its SQL schema and pgx v5 fixes.
 replace github.com/lightningnetwork/lnd/sqldb => github.com/lightningnetwork/lnd/sqldb v1.0.13-0.20260925031608-f2963ce1fd19

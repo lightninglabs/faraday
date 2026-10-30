@@ -19,6 +19,11 @@ const (
 	// transient error or while waiting for lnd to become ready.
 	retryInterval = 5 * time.Second
 
+	// maxReconnectInterval caps the reconnect backoff. Each reconnect
+	// writes a full sync batch, so a subscription that fails at once must
+	// not reconnect at retryInterval forever.
+	maxReconnectInterval = 5 * time.Minute
+
 	// pruneInterval is how often the monitor enforces the channel event
 	// storage limits while consuming live events.
 	pruneInterval = time.Hour
@@ -108,7 +113,8 @@ func (m *Monitor) Stop() error {
 // monitorLoop is the main loop of the channel events monitor. It waits for lnd
 // to be fully synced, performs an initial state sync, and then subscribes to
 // channel events. If the subscription fails or the stream breaks, it retries
-// from the beginning.
+// from the beginning, so every reconnect writes a new sync batch that ends the
+// unobserved interval of the break.
 func (m *Monitor) monitorLoop(ctx context.Context) {
 	defer m.wg.Done()
 
@@ -136,43 +142,80 @@ func (m *Monitor) monitorLoop(ctx context.Context) {
 		pruneChan = pruneTicker.C
 	}
 
-	var synced bool
-
+	var reconnectDelay time.Duration
 	for {
 		// Wait for lnd to be synced to chain, retrying on RPC errors.
 		if !m.waitForReady(ctx) {
 			return
 		}
 
-		// Initial state sync, only performed once.
-		if !synced {
-			if err := m.initialSync(ctx); err != nil {
-				log.Errorf("Error during initial sync: %v", err)
-			} else {
-				synced = true
+		// Re-baseline the channel state, as events may have been missed
+		// since the last subscription broke. Do not subscribe without a
+		// sync batch: a live event would then end the unobserved
+		// interval, and the outage would count as observed time.
+		if err := m.initialSync(ctx); err != nil {
+			reconnectDelay = nextReconnectDelay(
+				reconnectDelay, false,
+			)
+			log.Errorf("Error during initial sync, retrying in "+
+				"%v: %v", reconnectDelay, err)
 
-				// The initial sync can insert a sizeable number
-				// of events, so prune once it completes.
-				m.pruneEvents(ctx)
+			if !m.wait(ctx, reconnectDelay) {
+				return
 			}
+
+			continue
 		}
+
+		// The initial sync can insert a sizeable number of events, so
+		// prune once it completes.
+		m.pruneEvents(ctx)
 
 		// Subscribe and consume events until the stream breaks or an
 		// error occurs.
-		if !m.subscribe(ctx, pruneChan) {
+		retry, handledEvent := m.subscribe(ctx, pruneChan)
+		if !retry {
 			return
 		}
 
 		// Stream broke, wait before reconnecting.
-		log.Infof("Reconnecting channel event subscription...")
+		reconnectDelay = nextReconnectDelay(
+			reconnectDelay, handledEvent,
+		)
+		log.Infof("Reconnecting channel event subscription in %v...",
+			reconnectDelay)
 
-		select {
-		case <-time.After(retryInterval):
-		case <-m.quit:
-			return
-		case <-ctx.Done():
+		if !m.wait(ctx, reconnectDelay) {
 			return
 		}
+	}
+}
+
+// nextReconnectDelay returns the wait before the next reconnect, given the
+// last wait. It returns retryInterval after a subscription that handled an
+// event. It also returns retryInterval when the last wait is below
+// retryInterval. Otherwise it doubles the last wait, up to
+// maxReconnectInterval.
+func nextReconnectDelay(last time.Duration,
+	handledEvent bool) time.Duration {
+
+	if handledEvent || last < retryInterval {
+		return retryInterval
+	}
+
+	return min(2*last, maxReconnectInterval)
+}
+
+// wait blocks for the given duration. It returns false if the monitor shuts
+// down first.
+func (m *Monitor) wait(ctx context.Context, d time.Duration) bool {
+	select {
+	case <-time.After(d):
+		return true
+	case <-m.quit:
+		return false
+	case <-ctx.Done():
+		return false
 	}
 }
 
@@ -231,17 +274,18 @@ func (m *Monitor) waitForReady(ctx context.Context) bool {
 }
 
 // subscribe subscribes to lnd channel events and processes them until the
-// stream breaks or an error occurs. It returns true on transient failures
-// (caller should retry) or false if the monitor is shutting down.
+// stream breaks or an error occurs. retry is true on transient failures
+// (caller should retry) and false if the monitor is shutting down.
+// handledEvent reports whether the subscription delivered at least one event.
 func (m *Monitor) subscribe(ctx context.Context,
-	pruneChan <-chan time.Time) bool {
+	pruneChan <-chan time.Time) (retry, handledEvent bool) {
 
 	eventChan, errChan, err := m.lnd.SubscribeChannelEvents(ctx)
 	if err != nil {
 		log.Errorf("Error subscribing to channel events: %v", err)
 
 		// Return true to signal the caller to retry.
-		return true
+		return true, false
 	}
 
 	for {
@@ -249,8 +293,9 @@ func (m *Monitor) subscribe(ctx context.Context,
 		case event, ok := <-eventChan:
 			if !ok {
 				log.Warn("Channel event stream closed")
-				return true
+				return true, handledEvent
 			}
+			handledEvent = true
 			if err := m.handleChannelEvent(ctx, event); err != nil {
 				log.Errorf("Error handling channel event: %v",
 					err)
@@ -266,31 +311,33 @@ func (m *Monitor) subscribe(ctx context.Context,
 				log.Warn("Channel event error stream " +
 					"closed")
 
-				return true
+				return true, handledEvent
 			}
 			log.Errorf("Error from channel event "+
 				"subscription: %v", err)
 
-			return true
+			return true, handledEvent
 
 		case <-m.quit:
 			log.Info("Channel events monitor stopping")
-			return false
+			return false, handledEvent
 
 		case <-ctx.Done():
 			log.Info("Channel events monitor stopping")
-			return false
+			return false, handledEvent
 		}
 	}
 }
 
-// initialSync performs an initial sync of the channel state. It queries lnd for
-// all known channels (open and closed) and records their current state in the
-// database. This ensures that any channel events that occurred while faraday
-// was offline are accounted for: even though individual events are lost, the
+// initialSync performs an initial sync of the channel state. It runs on start
+// and on every reconnect of the subscription. It queries lnd for all known
+// channels (open and closed) and records their current state in the database.
+// This ensures that any channel events that occurred while faraday did not
+// observe lnd are accounted for: even though individual events are lost, the
 // latest state is captured as a baseline. Events recorded during initial sync
 // are marked with IsSync=true to distinguish them from real-time events
-// received via the subscription.
+// received via the subscription. The analyzer treats the time from the last
+// live event before such a sync batch to the end of that batch as unobserved.
 func (m *Monitor) initialSync(ctx context.Context) error {
 	log.Info("Performing initial sync of channel state")
 

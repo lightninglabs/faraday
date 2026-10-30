@@ -33,9 +33,10 @@ var forwardingAbilityCommand = cli.Command{
 		},
 		cli.Float64Flag{
 			Name: "uptime_threshold",
-			Usage: "the uptime fraction in [0,1] at or above " +
-				"which a non-forwarding pair is reported as " +
-				"up but idle; zero uses the server default",
+			Usage: "the uptime fraction in [0,1] of the observed " +
+				"window at or above which a non-forwarding " +
+				"pair is reported as up but idle; zero uses " +
+				"the server default",
 		},
 	},
 	Action: queryForwardingAbility,
@@ -51,6 +52,14 @@ type pairView struct {
 	UptimeFraction   float64 `json:"uptime_fraction"`
 	Velocity         float64 `json:"velocity"`
 	FeeRate          float64 `json:"fee_rate"`
+}
+
+// forwardingAbilityView is the JSON output of the command. UnobservedS is the
+// seconds of the window that faraday did not observe lnd. Uptime fractions use
+// the observed window.
+type forwardingAbilityView struct {
+	UnobservedS uint64     `json:"unobserved_s"`
+	Pairs       []pairView `json:"pairs"`
 }
 
 func queryForwardingAbility(ctx *cli.Context) error {
@@ -76,8 +85,10 @@ func queryForwardingAbility(ctx *cli.Context) error {
 	}
 
 	// The metrics are raw, so derive uptime fraction, velocity and fee rate
-	// here from the window the server reported.
-	windowSeconds := resp.EndTime - resp.StartTime
+	// here from the observed window the server reported.
+	windowSeconds := frdrpc.ObservedWindow(
+		resp.StartTime, resp.EndTime, resp.UnobservedS,
+	)
 
 	var views []pairView
 	for inPeer, outMap := range abilities {
@@ -134,7 +145,10 @@ func queryForwardingAbility(ctx *cli.Context) error {
 		},
 	)
 
-	printJSON(views)
+	printJSON(forwardingAbilityView{
+		UnobservedS: resp.UnobservedS,
+		Pairs:       views,
+	})
 
 	return nil
 }

@@ -215,7 +215,7 @@ func TestForwardingAbilityCodecRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			resp, err := EncodeForwardingAbility(
-				tc.abilities, startTime, endTime, threshold,
+				tc.abilities, startTime, endTime, 0, threshold,
 			)
 			require.NoError(t, err)
 			require.Equal(t, startTime, resp.StartTime)
@@ -282,7 +282,7 @@ func TestForwardingAbilityCodecZeroValueForward(t *testing.T) {
 	}
 
 	resp, err := EncodeForwardingAbility(
-		abilities, startTime, endTime, threshold,
+		abilities, startTime, endTime, 0, threshold,
 	)
 	require.NoError(t, err)
 
@@ -303,6 +303,46 @@ func TestForwardingAbilityCodecZeroValueForward(t *testing.T) {
 			Forwards:         2,
 		},
 		decoded[fwdKey(1)][fwdKey(2)],
+	)
+}
+
+// TestForwardingAbilityCodecObservedWindow verifies that the threshold applies
+// to the observed window, which is the window minus the unobserved time, and
+// that a decoded bit carries the observed window as its uptime. The window is
+// [0, 100) with 40 unobserved seconds and the threshold 0.5, so the minimum
+// qualifying uptime is 30 seconds instead of 50.
+func TestForwardingAbilityCodecObservedWindow(t *testing.T) {
+	const (
+		startTime, endTime int64   = 0, 100
+		unobservedS        uint64  = 40
+		threshold          float64 = 0.5
+	)
+
+	abilities := map[string]map[string]ForwardingAbility{
+		fwdKey(1): {
+			// Meets the threshold of the observed window only.
+			fwdKey(2): {EffectiveUptimeS: 40},
+		},
+		fwdKey(2): {
+			// Misses the threshold of the observed window.
+			fwdKey(1): {EffectiveUptimeS: 20},
+		},
+	}
+
+	resp, err := EncodeForwardingAbility(
+		abilities, startTime, endTime, unobservedS, threshold,
+	)
+	require.NoError(t, err)
+	require.Equal(t, unobservedS, resp.UnobservedS)
+	require.Empty(t, resp.Entries)
+	require.NotEmpty(t, resp.UpButIdleBitmask)
+
+	decoded, err := DecodeForwardingAbility(resp)
+	require.NoError(t, err)
+	require.Equal(
+		t, map[string]map[string]ForwardingAbility{
+			fwdKey(1): {fwdKey(2): {EffectiveUptimeS: 60}},
+		}, decoded,
 	)
 }
 
@@ -358,6 +398,29 @@ func TestMinQualifyingUptime(t *testing.T) {
 				)
 			},
 		)
+	}
+}
+
+// TestObservedWindow verifies that the observed window is the window minus the
+// unobserved time, and that it never goes below zero.
+func TestObservedWindow(t *testing.T) {
+	tests := []struct {
+		name               string
+		startTime, endTime int64
+		unobservedS        uint64
+		want               int64
+	}{
+		{"subtracts unobserved time", 0, 100, 40, 60},
+		{"unobserved time exceeds window", 0, 100, 150, 0},
+		{"end before start", 100, 0, 0, 0},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, ObservedWindow(
+				tc.startTime, tc.endTime, tc.unobservedS,
+			))
+		})
 	}
 }
 
@@ -483,7 +546,7 @@ func TestForwardingAbilityEncodePeerCap(t *testing.T) {
 		fwdKey(0): outMap,
 	}
 
-	_, err := EncodeForwardingAbility(abilities, 0, 1, 0.5)
+	_, err := EncodeForwardingAbility(abilities, 0, 1, 0, 0.5)
 	require.ErrorContains(t, err, "exceeds")
 }
 
@@ -510,7 +573,7 @@ func TestForwardingAbilityEncodeNormalizesCase(t *testing.T) {
 		},
 	}
 
-	resp, err := EncodeForwardingAbility(abilities, 0, 1, 0.5)
+	resp, err := EncodeForwardingAbility(abilities, 0, 1, 0, 0.5)
 	require.NoError(t, err)
 
 	// The upper- and lower-case forms of the shared peer must dedup to one
@@ -559,7 +622,7 @@ func TestForwardingAbilityEncodeRejectsCaseCollision(t *testing.T) {
 		},
 	}
 
-	_, err := EncodeForwardingAbility(abilities, 0, 1, 0.5)
+	_, err := EncodeForwardingAbility(abilities, 0, 1, 0, 0.5)
 	require.Error(t, err)
 }
 
@@ -607,7 +670,7 @@ func TestForwardingAbilityCodecRoundTripHighIndices(t *testing.T) {
 	}
 
 	resp, err := EncodeForwardingAbility(
-		abilities, startTime, endTime, threshold,
+		abilities, startTime, endTime, 0, threshold,
 	)
 	require.NoError(t, err)
 	require.Len(t, resp.Peers, numPeers)

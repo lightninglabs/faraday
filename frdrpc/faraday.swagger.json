@@ -1036,7 +1036,7 @@
         "effective_uptime_s": {
           "type": "string",
           "format": "uint64",
-          "description": "Seconds the peer pair held at least the requested liquidity floor of\ndirectional forwardable liquidity over the window."
+          "description": "Seconds the peer pair held at least the requested liquidity floor of\ndirectional forwardable liquidity over the observed window."
         },
         "forwarded_msat": {
           "type": "string",
@@ -1087,12 +1087,17 @@
         "up_but_idle_bitmask": {
           "type": "string",
           "format": "byte",
-          "description": "A packed bitmask over the n*n ordered peer pairs, where n is the length\nof peers. The bit at index in*n+out is set when that pair held at least\nthe uptime_threshold fraction of effective uptime over the window but\ncarried no forward: the dense \"up but idle\" population. A pair with an\nentry is never flagged here. A pair that is neither listed in entries nor\nflagged here had sub-threshold uptime and no forwards: treat it as zero."
+          "description": "A packed bitmask over the n*n ordered peer pairs, where n is the length\nof peers. The bit at index in*n+out is set when that pair held at least\nthe uptime_threshold fraction of effective uptime over the observed\nwindow but carried no forward: the dense \"up but idle\" population. A pair\nwith an entry is never flagged here. A pair that is neither listed in\nentries nor flagged here had sub-threshold uptime and no forwards: treat\nit as zero."
         },
         "uptime_threshold": {
           "type": "number",
           "format": "double",
-          "description": "The uptime fraction in [0, 1] used to populate up_but_idle_bitmask,\nechoed back so consumers know the threshold the server applied."
+          "description": "The uptime fraction in [0, 1] of the observed window used to populate\nup_but_idle_bitmask, echoed back so consumers know the threshold the\nserver applied."
+        },
+        "unobserved_s": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The seconds of the window in which faraday did not observe lnd, for\nexample while faraday or lnd was down. Effective uptime excludes this\ntime, so clients divide effective uptime by\nend_time - start_time - unobserved_s. A server that does not report it\nleaves it at 0."
         }
       }
     },

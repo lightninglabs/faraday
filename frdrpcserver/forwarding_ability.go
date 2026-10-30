@@ -155,7 +155,7 @@ func (s *RPCServer) ForwardingAbility(ctx context.Context,
 	}
 
 	resp, err := frdrpc.EncodeForwardingAbility(
-		nested, startTime.Unix(), endTime.Unix(), uptimeThreshold,
+		nested, startTime.Unix(), endTime.Unix(), 0, uptimeThreshold,
 	)
 	if err != nil {
 		log.ErrorS(

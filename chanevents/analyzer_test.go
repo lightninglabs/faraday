@@ -229,6 +229,10 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 		successAmts    []btcutil.Amount
 		liquidityFloor btcutil.Amount
 
+		// unobserved lists unobserved intervals as [start, end)
+		// pairs of Unix seconds.
+		unobserved [][2]int64
+
 		expectedUptime time.Duration
 	}{
 		{
@@ -589,6 +593,69 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 			},
 			expectedUptime: 0,
 		},
+		{
+			name: "Unobserved interval in the middle",
+			inStates: map[int64]*channelState{
+				chanInID: {
+					online:        true,
+					remoteBalance: 1000,
+				},
+			},
+			outStates: map[int64]*channelState{
+				chanOutID: {
+					online:       true,
+					localBalance: 800,
+				},
+			},
+			unobserved:     [][2]int64{{130, 160}},
+			expectedUptime: 70 * time.Second,
+		},
+		{
+			// The interval covers the event at t=150 that takes
+			// the in channel offline. Only t=100..120 is observed
+			// and qualifying; t=180..200 is observed but offline.
+			name: "Unobserved interval covers an event",
+			inStates: map[int64]*channelState{
+				chanInID: {
+					online:        true,
+					remoteBalance: 1000,
+				},
+			},
+			outStates: map[int64]*channelState{
+				chanOutID: {
+					online:       true,
+					localBalance: 800,
+				},
+			},
+			inEvents: []*ChannelEvent{
+				newStatusEvent(chanInID, 150, EventTypeOffline),
+			},
+			unobserved:     [][2]int64{{120, 180}},
+			expectedUptime: 20 * time.Second,
+		},
+		{
+			name: "Several unobserved intervals",
+			inStates: map[int64]*channelState{
+				chanInID: {
+					online:        true,
+					remoteBalance: 1000,
+				},
+			},
+			outStates: map[int64]*channelState{
+				chanOutID: {
+					online:       true,
+					localBalance: 800,
+				},
+			},
+			inEvents: []*ChannelEvent{
+				newEvent(
+					chanInID, 140, EventTypeUpdate, 0,
+					900,
+				),
+			},
+			unobserved:     [][2]int64{{110, 120}, {130, 150}},
+			expectedUptime: 70 * time.Second,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -618,6 +685,20 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 					tc.inEvents, tc.outEvents,
 				)
 
+				var unobserved []UnobservedInterval
+				for _, iv := range tc.unobserved {
+					unobserved = append(
+						unobserved, UnobservedInterval{
+							Start: time.Unix(
+								iv[0], 0,
+							),
+							End: time.Unix(
+								iv[1], 0,
+							),
+						},
+					)
+				}
+
 				// Precompute the starting balances.
 				var sumARemote, sumALocal, sumBRemote,
 					sumBLocal btcutil.Amount
@@ -642,6 +723,7 @@ func TestCalculateBothDirectionsUptime(t *testing.T) {
 					calculateBothDirectionsUptime(
 						context.Background(),
 						startTime, endTime,
+						unobserved,
 						tc.liquidityFloor,
 						tc.inStates, tc.outStates,
 						sumARemote, sumALocal,
@@ -713,7 +795,7 @@ func TestCalculateBothDirectionsUptimeAsymmetric(t *testing.T) {
 	}
 
 	abilityAB, abilityBA, err := calculateBothDirectionsUptime(
-		context.Background(), startTime, endTime,
+		context.Background(), startTime, endTime, nil,
 		liquidityFloor, statesA, statesB,
 		sumARemote, sumALocal, sumBRemote, sumBLocal,
 		mergeEventSlices(nil, nil),
@@ -937,7 +1019,7 @@ func TestEffectiveUptimeIncludesClosedChannels(t *testing.T) {
 	startTime := seedTime.Add(time.Second)
 	endTime := startTime.Add(time.Minute)
 
-	abilities, err := a.EffectiveUptime(ctx, startTime, endTime, 0)
+	abilities, _, err := a.EffectiveUptime(ctx, startTime, endTime, 0)
 	require.NoError(t, err)
 
 	// Cross-pair entries in both directions are the cleanest assertion
@@ -953,6 +1035,88 @@ func TestEffectiveUptimeIncludesClosedChannels(t *testing.T) {
 		t, abilities, PeerPair{PeerIn: validPubKey2, PeerOut: validPubKey1},
 		"closed-channel peer absent: survivorship handling skipped",
 	)
+}
+
+// TestEffectiveUptimeUnobserved pins that a restart with a remote lnd does not
+// count as uptime. Both channels stay online with the same balances across the
+// restart, so only the unobserved interval tells the analyzer that nobody
+// watched the node in that time.
+func TestEffectiveUptimeUnobserved(t *testing.T) {
+	t.Parallel()
+
+	store := NewTestDB(t, clock.NewTestClock(testTime))
+	ctx := context.Background()
+
+	peerA, err := store.AddPeer(ctx, validPubKey1)
+	require.NoError(t, err)
+	peerB, err := store.AddPeer(ctx, validPubKey2)
+	require.NoError(t, err)
+
+	chanA, err := store.AddChannel(
+		ctx, testChanPoint1, testShortChanID1, peerA,
+	)
+	require.NoError(t, err)
+	chanB, err := store.AddChannel(
+		ctx, testChanPoint2, testShortChanID2, peerB,
+	)
+	require.NoError(t, err)
+
+	startTime := testTime.Add(time.Second)
+	endTime := startTime.Add(3 * time.Hour)
+	lastLive := startTime.Add(10 * time.Minute)
+	syncTime := lastLive.Add(time.Hour)
+
+	addEvents := func(ts time.Time, isSync bool) {
+		for _, chanID := range []int64{chanA, chanB} {
+			err := store.AddChannelEvent(ctx, &ChannelEvent{
+				ChannelID: chanID,
+				EventType: EventTypeOnline,
+				Timestamp: ts,
+				IsSync:    isSync,
+			})
+			require.NoError(t, err)
+
+			err = store.AddChannelEvent(ctx, &ChannelEvent{
+				ChannelID:     chanID,
+				EventType:     EventTypeUpdate,
+				Timestamp:     ts,
+				LocalBalance:  fn.Some(btcutil.Amount(1000)),
+				RemoteBalance: fn.Some(btcutil.Amount(1000)),
+				IsSync:        isSync,
+			})
+			require.NoError(t, err)
+		}
+	}
+
+	// Live events before and inside the window, then one hour without
+	// events, then the sync batch of the restart with unchanged state.
+	addEvents(testTime, false)
+	addEvents(lastLive, false)
+	addEvents(syncTime, true)
+
+	vertexA, err := route.NewVertexFromStr(validPubKey1)
+	require.NoError(t, err)
+	vertexB, err := route.NewVertexFromStr(validPubKey2)
+	require.NoError(t, err)
+
+	stub := &stubLndChannelClient{
+		openChannels: []lndclient.ChannelInfo{
+			{ChannelID: testShortChanID1, PubKeyBytes: vertexA},
+			{ChannelID: testShortChanID2, PubKeyBytes: vertexB},
+		},
+	}
+	a := NewForwardingAnalyzer(store, lndclient.LndServices{Client: stub})
+
+	pairAB := PeerPair{PeerIn: validPubKey1, PeerOut: validPubKey2}
+	pairBA := PeerPair{PeerIn: validPubKey2, PeerOut: validPubKey1}
+
+	abilities, unobserved, err := a.EffectiveUptime(
+		ctx, startTime, endTime, 0,
+	)
+	require.NoError(t, err)
+	require.Equal(t, time.Hour, unobserved)
+	require.Equal(t, 2*time.Hour, abilities[pairAB].EffectiveUptime)
+	require.Equal(t, 2*time.Hour, abilities[pairBA].EffectiveUptime)
 }
 
 // TestEffectiveUptimeArgs exercises the liquidityFloor, startTime, and endTime
@@ -1043,7 +1207,7 @@ func TestEffectiveUptimeArgs(t *testing.T) {
 	// Case 1: liquidityFloor = 50k. Liquidity of 1M exceeds the floor for
 	// the whole 60s window, so effective uptime is the full minute and the
 	// forwarded volume is the 400M msat total, earning 400k msat.
-	abilities, err := a.EffectiveUptime(ctx, startTime, endTime, 50_000)
+	abilities, _, err := a.EffectiveUptime(ctx, startTime, endTime, 50_000)
 	require.NoError(t, err)
 
 	pair := PeerPair{PeerIn: validPubKey1, PeerOut: validPubKey2}
@@ -1061,7 +1225,9 @@ func TestEffectiveUptimeArgs(t *testing.T) {
 	// Case 2: liquidityFloor = 1.5M, above the 1M liquidity, so the floor is
 	// never crossed and effective uptime is zero. The forwarded volume and
 	// fees are still reported so the consumer keeps the signal.
-	abilities, err = a.EffectiveUptime(ctx, startTime, endTime, 1_500_000)
+	abilities, _, err = a.EffectiveUptime(
+		ctx, startTime, endTime, 1_500_000,
+	)
 	require.NoError(t, err)
 
 	require.Contains(t, abilities, pair)

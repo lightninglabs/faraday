@@ -58,6 +58,10 @@ type Queries interface {
 
 	PruneChannelEventsByAge(ctx context.Context, timestamp time.Time) (
 		int64, error)
+
+	GetUnobservedIntervals(ctx context.Context,
+		arg sqlc.GetUnobservedIntervalsParams) (
+		[]sqlc.GetUnobservedIntervalsRow, error)
 }
 
 // Store provides access to the db for channel events.
@@ -340,6 +344,58 @@ func (s *Store) GetLatestChannelUpdateBefore(ctx context.Context,
 	}
 
 	return marshalChannelEvent(dbEvent), nil
+}
+
+// UnobservedInterval is a time range in which faraday did not observe lnd. It
+// starts at the last live event before a sync batch and ends at the last
+// event of that batch.
+type UnobservedInterval struct {
+	Start time.Time
+	End   time.Time
+}
+
+// UnobservedIntervals returns the unobserved intervals that overlap [start,
+// end), clipped to that range, sorted and disjoint. An interval with no live
+// event before its sync batch starts at start. The method relies on ids and
+// timestamps growing together, which holds while writers leave Timestamp zero
+// so the store stamps clock.Now().
+func (s *Store) UnobservedIntervals(ctx context.Context, start,
+	end time.Time) ([]UnobservedInterval, error) {
+
+	start, end = start.UTC(), end.UTC()
+	rows, err := s.db.GetUnobservedIntervals(
+		ctx, sqlc.GetUnobservedIntervalsParams{
+			StartTime: start,
+			EndTime:   end,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get unobserved intervals: %w",
+			err)
+	}
+
+	intervals := make([]UnobservedInterval, 0, len(rows))
+	for _, row := range rows {
+		interval := UnobservedInterval{
+			Start: start,
+			End:   row.SyncTimestamp.UTC(),
+		}
+		if row.LiveTimestamp.Valid &&
+			row.LiveTimestamp.Time.After(start) {
+
+			interval.Start = row.LiveTimestamp.Time.UTC()
+		}
+		if interval.End.After(end) {
+			interval.End = end
+		}
+		if !interval.End.After(interval.Start) {
+			continue
+		}
+
+		intervals = append(intervals, interval)
+	}
+
+	return intervals, nil
 }
 
 // PruneEvents enforces the size and age storage limits independently,

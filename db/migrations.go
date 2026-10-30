@@ -10,11 +10,11 @@ const (
 	// daemon.
 	//
 	// NOTE: This MUST be updated when a new migration is added.
-	LatestMigrationVersion = 2
+	LatestMigrationVersion = 3
 )
 
 // MakeMigrationDescriptors returns the ordered migration descriptors for
-// faraday's SQL schema. Both migrations are schema-only, so neither carries a
+// faraday's SQL schema. All migrations are schema-only, so none carries a
 // programmatic migration step.
 func MakeMigrationDescriptors() []sqldb.MigrationDescriptor {
 	return []sqldb.MigrationDescriptor{
@@ -27,6 +27,11 @@ func MakeMigrationDescriptors() []sqldb.MigrationDescriptor {
 			Name:          "chanevents_ts_idx",
 			Version:       2,
 			SchemaVersion: 2,
+		},
+		{
+			Name:          "chanevents_sync_idx",
+			Version:       3,
+			SchemaVersion: 3,
 		},
 	}
 }

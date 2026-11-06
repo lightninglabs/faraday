@@ -473,3 +473,132 @@ func TestPagination(t *testing.T) {
 	require.Equal(t, btcutil.Amount(3), page2[0].LocalBalance.UnwrapOr(0))
 	require.Equal(t, btcutil.Amount(4), page2[1].LocalBalance.UnwrapOr(0))
 }
+
+// TestUnobservedIntervals verifies that every sync batch yields one interval
+// from the last live event of any channel before the batch to the last event of
+// the batch, clipped to the query range.
+func TestUnobservedIntervals(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	at := func(s int64) time.Time {
+		return testTime.Add(time.Duration(s) * time.Second).UTC()
+	}
+
+	// newStore returns a store with two channels on one peer.
+	newStore := func(t *testing.T) (*Store, int64, int64) {
+		store := NewTestDB(t, clock.NewTestClock(testTime))
+
+		peerID, err := store.AddPeer(ctx, testPubKey)
+		require.NoError(t, err)
+
+		chan1, err := store.AddChannel(
+			ctx, testChanPoint1, testShortChanID1, peerID,
+		)
+		require.NoError(t, err)
+
+		chan2, err := store.AddChannel(
+			ctx, testChanPoint2, testShortChanID2, peerID,
+		)
+		require.NoError(t, err)
+
+		return store, chan1, chan2
+	}
+
+	add := func(t *testing.T, store *Store, channelID, s int64,
+		isSync bool) {
+
+		err := store.AddChannelEvent(ctx, &ChannelEvent{
+			ChannelID: channelID,
+			EventType: EventTypeOnline,
+			Timestamp: at(s),
+			IsSync:    isSync,
+		})
+		require.NoError(t, err)
+	}
+
+	t.Run("batches", func(t *testing.T) {
+		t.Parallel()
+
+		store, chan1, chan2 := newStore(t)
+
+		// The first batch follows a live event on another channel, so
+		// the interval starts at the live event of any channel.
+		add(t, store, chan1, 0, false)
+		add(t, store, chan2, 10, false)
+		add(t, store, chan1, 100, true)
+		add(t, store, chan2, 101, true)
+
+		add(t, store, chan1, 200, false)
+		add(t, store, chan1, 300, true)
+		add(t, store, chan2, 301, true)
+
+		add(t, store, chan2, 350, false)
+		add(t, store, chan1, 400, true)
+
+		testCases := []struct {
+			name       string
+			start, end int64
+			expected   []UnobservedInterval
+		}{{
+			name:  "full range",
+			start: 0,
+			end:   1000,
+			expected: []UnobservedInterval{
+				{Start: at(10), End: at(101)},
+				{Start: at(200), End: at(301)},
+				{Start: at(350), End: at(400)},
+			},
+		}, {
+			// The second batch ends after the end, but it starts
+			// before it, so it is clipped and returned. The
+			// third batch starts after the end and is dropped.
+			name:  "clipped",
+			start: 50,
+			end:   250,
+			expected: []UnobservedInterval{
+				{Start: at(50), End: at(101)},
+				{Start: at(200), End: at(250)},
+			},
+		}, {
+			name:  "batch before start",
+			start: 150,
+			end:   1000,
+			expected: []UnobservedInterval{
+				{Start: at(200), End: at(301)},
+				{Start: at(350), End: at(400)},
+			},
+		}, {
+			name:     "no batch in range",
+			start:    401,
+			end:      1000,
+			expected: []UnobservedInterval{},
+		}}
+
+		for _, tc := range testCases {
+			intervals, err := store.UnobservedIntervals(
+				ctx, at(tc.start), at(tc.end),
+			)
+			require.NoError(t, err, tc.name)
+			require.Equal(t, tc.expected, intervals, tc.name)
+		}
+	})
+
+	t.Run("no live event before batch", func(t *testing.T) {
+		t.Parallel()
+
+		store, chan1, chan2 := newStore(t)
+		add(t, store, chan1, 100, true)
+		add(t, store, chan2, 101, true)
+		add(t, store, chan1, 200, false)
+
+		intervals, err := store.UnobservedIntervals(
+			ctx, at(20), at(1000),
+		)
+		require.NoError(t, err)
+		require.Equal(
+			t, []UnobservedInterval{{Start: at(20), End: at(101)}},
+			intervals,
+		)
+	})
+}

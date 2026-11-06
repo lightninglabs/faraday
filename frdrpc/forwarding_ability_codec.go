@@ -20,10 +20,11 @@ const maxPackedPeers = 1<<16 - 1
 // categories are left to the consumer.
 type ForwardingAbility struct {
 	// EffectiveUptimeS is the seconds the pair held at least the requested
-	// liquidity floor of directional forwardable liquidity over the window.
-	// The value is whole seconds: sub-second uptime floors to zero, so a
-	// pair that forwarded volume over a fleeting qualifying window can
-	// report a zero uptime alongside a non-zero ForwardedMsat.
+	// liquidity floor of directional forwardable liquidity over the
+	// observed window. The value is whole seconds: sub-second uptime
+	// floors to zero, so a pair that forwarded volume over a fleeting
+	// qualifying window can report a zero uptime alongside a non-zero
+	// ForwardedMsat.
 	EffectiveUptimeS uint64
 
 	// ForwardedMsat is the total successfully forwarded amount over the
@@ -104,6 +105,18 @@ func MinQualifyingUptime(threshold float64, windowSeconds int64) uint64 {
 	return v
 }
 
+// ObservedWindow returns the seconds of [startTime, endTime) in which faraday
+// observed lnd. It is zero when the unobserved time covers the whole window or
+// the window is empty.
+func ObservedWindow(startTime, endTime int64, unobservedS uint64) int64 {
+	window := endTime - startTime
+	if window <= 0 || unobservedS >= uint64(window) {
+		return 0
+	}
+
+	return window - int64(unobservedS)
+}
+
 // setBit sets the bit at the given index in a packed bitmask. The index is an
 // int64 because an n*n bitmask over the full peer set overflows a 32-bit int.
 func setBit(mask []byte, index int64) {
@@ -121,14 +134,16 @@ func getBit(mask []byte, index int64) bool {
 // into a memory-efficient sparse gRPC response over [startTime, endTime]. To
 // optimize payload size it tiers each pair: pairs that carried at least one
 // forward keep a full entry, pairs that were up at least uptimeThreshold of the
-// window but carried none collapse to a single bit in the up-but-idle bitmask,
-// and pairs below the threshold that carried none are omitted entirely. Public
-// keys are deduplicated and peer pairs packed into 32-bit indices.
+// observed window but carried none collapse to a single bit in the up-but-idle
+// bitmask, and pairs below the threshold that carried none are omitted
+// entirely. The observed window is the window minus unobservedS. Public keys
+// are deduplicated and peer pairs packed into 32-bit indices.
 func EncodeForwardingAbility(abilities map[string]map[string]ForwardingAbility,
-	startTime, endTime int64,
+	startTime, endTime int64, unobservedS uint64,
 	uptimeThreshold float64) (*ForwardingAbilityResponse, error) {
 
-	minUptimeS := MinQualifyingUptime(uptimeThreshold, endTime-startTime)
+	observedWindow := ObservedWindow(startTime, endTime, unobservedS)
+	minUptimeS := MinQualifyingUptime(uptimeThreshold, observedWindow)
 
 	// First, find all unique peers involved in pairs that warrant either an
 	// entry or a bit. Keys are normalized to lower-case hex so a peer that
@@ -265,15 +280,16 @@ func EncodeForwardingAbility(abilities map[string]map[string]ForwardingAbility,
 		EndTime:          endTime,
 		UpButIdleBitmask: bitmask,
 		UptimeThreshold:  uptimeThreshold,
+		UnobservedS:      unobservedS,
 	}, nil
 }
 
 // DecodeForwardingAbility reconstructs the nested map of peer forwarding
 // abilities from a sparse packed gRPC response. Forwarded pairs come back with
-// their exact facts; up-but-idle pairs flagged in the bitmask come back at full
-// window uptime with no forwards, and therefore no volume and no fees. It
-// validates packed indices and the bitmask length against the decoded peer list
-// to prevent out-of-bounds errors.
+// their exact facts; up-but-idle pairs flagged in the bitmask come back at
+// full observed window uptime with no forwards, and therefore no volume and no
+// fees. It validates packed indices and the bitmask length against the decoded
+// peer list to prevent out-of-bounds errors.
 func DecodeForwardingAbility(resp *ForwardingAbilityResponse) (
 	map[string]map[string]ForwardingAbility, error) {
 
@@ -342,19 +358,15 @@ func DecodeForwardingAbility(resp *ForwardingAbilityResponse) (
 			numPeers)
 	}
 
-	// Up-but-idle pairs were up the whole window by definition of the
-	// threshold bucket, so reconstruct them at full window uptime with no
+	// Up-but-idle pairs were up the whole observed window by definition of
+	// the threshold bucket, so reconstruct them at that uptime with no
 	// forwards, and therefore no volume and no fees. Iterate over the
 	// bitmask bytes directly, skipping zero bytes, so cost scales with the
 	// number of set bits rather than the O(n*n) pair space; padding bits
 	// beyond n*n are ignored.
-	// The window is a difference of signed unix timestamps, so an end
-	// before the start yields zero uptime rather than wrapping into a
-	// near-infinite one.
-	var windowSeconds uint64
-	if d := resp.EndTime - resp.StartTime; d > 0 {
-		windowSeconds = uint64(d)
-	}
+	windowSeconds := uint64(ObservedWindow(
+		resp.StartTime, resp.EndTime, resp.UnobservedS,
+	))
 	for i, b := range bitmask {
 		if b == 0 {
 			continue

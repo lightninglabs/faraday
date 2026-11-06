@@ -58,3 +58,32 @@ WHERE channel_events.id < COALESCE((
 -- timestamp predates the given cutoff.
 DELETE FROM channel_events
 WHERE channel_events.timestamp < $1;
+
+-- name: GetUnobservedIntervals :many
+-- GetUnobservedIntervals returns one row per sync batch whose last sync event
+-- lies at or after start_time. A batch is the set of sync events that share
+-- the same preceding live event. The row carries the timestamp of that live
+-- event (NULL if none exists) and the timestamp of the last sync event of the
+-- batch. Rows whose live event lies at or after end_time are left out. The
+-- query aggregates over ids, not timestamps, because SQLite cannot scan an
+-- aggregated timestamp back into a time value.
+WITH sync_events AS (
+    SELECT s.id, (
+        SELECT l.id FROM channel_events l
+        WHERE l.is_sync = FALSE AND l.id < s.id
+        ORDER BY l.id DESC
+        LIMIT 1
+    ) AS live_id
+    FROM channel_events s
+    WHERE s.is_sync = TRUE AND s.timestamp >= sqlc.arg(start_time)
+), batches AS (
+    SELECT live_id, MAX(id) AS last_sync_id
+    FROM sync_events
+    GROUP BY live_id
+)
+SELECT live.timestamp AS live_timestamp, sync.timestamp AS sync_timestamp
+FROM batches b
+JOIN channel_events sync ON sync.id = b.last_sync_id
+LEFT JOIN channel_events live ON live.id = b.live_id
+WHERE live.id IS NULL OR live.timestamp < sqlc.arg(end_time)
+ORDER BY sync.id ASC;

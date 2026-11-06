@@ -56,12 +56,13 @@ type RPCServer struct {
 }
 
 // ForwardingAnalyzer is the seam the RPC server uses to compute per-peer-pair
-// forwarding facts. It is an interface so the handler can be exercised against
-// a mock analyzer in tests.
+// forwarding facts and the unobserved time of the window. It is an interface
+// so the handler can be exercised against a mock analyzer in tests.
 type ForwardingAnalyzer interface {
 	EffectiveUptime(ctx context.Context, startTime, endTime time.Time,
 		liquidityFloor btcutil.Amount) (
-		map[chanevents.PeerPair]chanevents.ForwardingAbility, error)
+		map[chanevents.PeerPair]chanevents.ForwardingAbility,
+		time.Duration, error)
 }
 
 // Config provides closures and settings required to run the rpc server.

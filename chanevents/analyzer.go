@@ -52,6 +52,11 @@ type EventsSource interface {
 	// ScidToPeerMap returns the historically recorded scid→peer index,
 	// including closed channels.
 	ScidToPeerMap(ctx context.Context) (map[uint64]string, error)
+
+	// UnobservedIntervals returns the sorted, disjoint unobserved
+	// intervals that overlap [start, end), clipped to that range.
+	UnobservedIntervals(ctx context.Context, start,
+		end time.Time) ([]UnobservedInterval, error)
 }
 
 // ForwardingAnalyzer computes forwarding velocity and effective uptime for
@@ -72,7 +77,7 @@ type channelEventSeq = iter.Seq2[*ChannelEvent, error]
 // uptime) from EffectiveUptime and ForwardedMsat.
 type ForwardingAbility struct {
 	// EffectiveUptime is the time the pair held at least the liquidity floor
-	// of directional forwardable liquidity over the window.
+	// of directional forwardable liquidity over the observed window.
 	EffectiveUptime time.Duration
 
 	// ForwardedMsat is the total successfully forwarded amount over the
@@ -130,13 +135,16 @@ func NewForwardingAnalyzer(store EventsSource,
 }
 
 // EffectiveUptime returns a ForwardingAbility for every (peerIn, peerOut) pair
-// over [startTime, endTime). Closed channels are folded into the considered set
-// so survivorship bias does not skew the uptime denominator. A single
-// liquidityFloor is applied uniformly to every pair, so effective uptime is the
-// time each pair held at least that much directional forwardable liquidity.
+// over [startTime, endTime), and the unobserved time within that window.
+// Effective uptime only covers observed time, so a client divides it by the
+// window minus the unobserved time. Closed channels are folded into the
+// considered set so survivorship bias does not skew the uptime denominator. A
+// single liquidityFloor is applied uniformly to every pair, so effective uptime
+// is the time each pair held at least that much directional forwardable
+// liquidity.
 func (a *ForwardingAnalyzer) EffectiveUptime(ctx context.Context, startTime,
 	endTime time.Time, liquidityFloor btcutil.Amount) (
-	map[PeerPair]ForwardingAbility, error) {
+	map[PeerPair]ForwardingAbility, time.Duration, error) {
 
 	log.DebugS(
 		ctx, "Calculating effective uptime",
@@ -147,7 +155,7 @@ func (a *ForwardingAnalyzer) EffectiveUptime(ctx context.Context, startTime,
 
 	scidToPeer, err := a.store.ScidToPeerMap(ctx)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	log.DebugS(
 		ctx, "Found historical channels",
@@ -158,7 +166,7 @@ func (a *ForwardingAnalyzer) EffectiveUptime(ctx context.Context, startTime,
 		ctx, startTime, endTime, scidToPeer,
 	)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	log.DebugS(
 		ctx, "Found peer pairs with successful forwards",
@@ -167,24 +175,44 @@ func (a *ForwardingAnalyzer) EffectiveUptime(ctx context.Context, startTime,
 
 	err = a.addActiveChannels(ctx, channelPeersConsidered)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	peerChannels, initialStates, err := a.getPeerChannelData(
 		ctx, startTime, channelPeersConsidered,
 	)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	log.DebugS(
 		ctx, "Identified channels for peers",
 		slog.Int("count", len(peerChannels)),
 	)
 
-	return calculateAllPairsUptime(
-		ctx, a.store, startTime, endTime, liquidityFloor,
+	unobserved, err := a.store.UnobservedIntervals(ctx, startTime, endTime)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var unobservedTotal time.Duration
+	for _, interval := range unobserved {
+		unobservedTotal += interval.End.Sub(interval.Start)
+	}
+	log.DebugS(
+		ctx, "Found unobserved intervals",
+		slog.Int("count", len(unobserved)),
+		slog.Duration("total", unobservedTotal),
+	)
+
+	abilities, err := calculateAllPairsUptime(
+		ctx, a.store, startTime, endTime, unobserved, liquidityFloor,
 		successfulForwards, initialStates, peerChannels,
 	)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return abilities, unobservedTotal, nil
 }
 
 // getForwardingData queries lnd's forwarding history sequentially in paginated
@@ -456,7 +484,8 @@ func (a *ForwardingAnalyzer) getInitialChannelState(ctx context.Context,
 // calculateAllPairsUptime returns forwarding abilities for every peer pair,
 // computing both directions (A→B and B→A) in a single pass.
 func calculateAllPairsUptime(ctx context.Context, store EventsSource, startTime,
-	endTime time.Time, liquidityFloor btcutil.Amount,
+	endTime time.Time, unobserved []UnobservedInterval,
+	liquidityFloor btcutil.Amount,
 	successfulForwards map[PeerPair]*pairForwards,
 	initialStates map[string]map[int64]*channelState,
 	peerChannels map[string][]int64) (
@@ -554,7 +583,7 @@ func calculateAllPairsUptime(ctx context.Context, store EventsSource, startTime,
 			abilityAB, abilityBA, err :=
 				calculateBothDirectionsUptime(
 					ctx, startTime, endTime,
-					liquidityFloor,
+					unobserved, liquidityFloor,
 					statesA, statesB,
 					sumsA.remote, sumsA.local,
 					sumsB.remote, sumsB.local,
@@ -643,12 +672,14 @@ func pairForwardTotals(successfulForwards map[PeerPair]*pairForwards,
 // calculateBothDirectionsUptime computes the effective forwarding uptime for
 // both directions of a peer pair in a single chronological walk of the merged
 // event stream. Only the liquidity-direction roles differ between the two
-// accumulators, as both share the same uniform liquidityFloor. totalsAB and
+// accumulators, as both share the same uniform liquidityFloor. Time inside the
+// sorted, disjoint unobserved intervals does not count as uptime. totalsAB and
 // totalsBA carry each direction's forwarded volume, fees and count through to
 // the returned abilities. For self-pair calls both returned abilities are
 // equal.
 func calculateBothDirectionsUptime(ctx context.Context, startTime,
-	endTime time.Time, liquidityFloor btcutil.Amount, statesA,
+	endTime time.Time, unobserved []UnobservedInterval,
+	liquidityFloor btcutil.Amount, statesA,
 	statesB map[int64]*channelState, sumARemote, sumALocal, sumBRemote,
 	sumBLocal btcutil.Amount, mergedEvents channelEventSeq,
 	totalsAB, totalsBA pairForwards) (
@@ -703,8 +734,12 @@ func calculateBothDirectionsUptime(ctx context.Context, startTime,
 
 	var uptimeAB, uptimeBA time.Duration
 	lastTimestamp := startTime
+	var cursor int
 
-	accumulate := func(intervalDuration time.Duration) {
+	accumulate := func(from, to time.Time) {
+		intervalDuration := observedDuration(
+			from, to, unobserved, &cursor,
+		)
 		if intervalDuration <= 0 {
 			return
 		}
@@ -759,7 +794,7 @@ func calculateBothDirectionsUptime(ctx context.Context, startTime,
 		// event, based on the state of the channels during that
 		// interval. The events are ordered chronologically so the state
 		// is consistent with the entire interval.
-		accumulate(event.Timestamp.Sub(lastTimestamp))
+		accumulate(lastTimestamp, event.Timestamp)
 
 		// Update the state for each peer if the event affects one of
 		// their channels. Before applying the event, we remove the
@@ -767,7 +802,7 @@ func calculateBothDirectionsUptime(ctx context.Context, startTime,
 		// because the event may change the channel's online status or
 		// balances in a way that affects the sums.
 		if state, ok := statesA[event.ChannelID]; ok {
-			// We would have inlcuded the channel's balances in the
+			// We would have included the channel's balances in the
 			// sums if it was online, so we need to remove them
 			// before applying the event.
 			if state.online {
@@ -806,7 +841,7 @@ func calculateBothDirectionsUptime(ctx context.Context, startTime,
 
 	// Account for the final interval between the last event and the end
 	// time.
-	accumulate(endTime.Sub(lastTimestamp))
+	accumulate(lastTimestamp, endTime)
 
 	if traceOn {
 		log.TraceS(
@@ -823,6 +858,41 @@ func calculateBothDirectionsUptime(ctx context.Context, startTime,
 	abilityBA := makeAbility(uptimeBA, totalsBA)
 
 	return abilityAB, abilityBA, nil
+}
+
+// observedDuration returns the part of [from, to) that lies outside every
+// unobserved interval. The intervals must be sorted and disjoint, and the
+// caller must pass a non-decreasing from on each call, because cursor skips the
+// intervals that end at or before from.
+func observedDuration(from, to time.Time, unobserved []UnobservedInterval,
+	cursor *int) time.Duration {
+
+	observed := to.Sub(from)
+	if observed <= 0 {
+		return 0
+	}
+
+	for *cursor < len(unobserved) && !unobserved[*cursor].End.After(from) {
+		*cursor++
+	}
+
+	for _, interval := range unobserved[*cursor:] {
+		if !interval.Start.Before(to) {
+			break
+		}
+
+		overlapStart := interval.Start
+		if overlapStart.Before(from) {
+			overlapStart = from
+		}
+		overlapEnd := interval.End
+		if overlapEnd.After(to) {
+			overlapEnd = to
+		}
+		observed -= overlapEnd.Sub(overlapStart)
+	}
+
+	return observed
 }
 
 // mergeEventSlices interleaves two sorted event streams into a single

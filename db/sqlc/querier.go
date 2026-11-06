@@ -16,6 +16,14 @@ type Querier interface {
 	GetChannels(ctx context.Context) ([]GetChannelsRow, error)
 	GetLatestChannelEventBefore(ctx context.Context, arg GetLatestChannelEventBeforeParams) (ChannelEvent, error)
 	GetPeerByPubKey(ctx context.Context, pubkey string) (Peer, error)
+	// GetUnobservedIntervals returns one row per sync batch whose last sync event
+	// lies at or after start_time. A batch is the set of sync events that share
+	// the same preceding live event. The row carries the timestamp of that live
+	// event (NULL if none exists) and the timestamp of the last sync event of the
+	// batch. Rows whose live event lies at or after end_time are left out. The
+	// query aggregates over ids, not timestamps, because SQLite cannot scan an
+	// aggregated timestamp back into a time value.
+	GetUnobservedIntervals(ctx context.Context, arg GetUnobservedIntervalsParams) ([]GetUnobservedIntervalsRow, error)
 	InsertChannel(ctx context.Context, arg InsertChannelParams) (int64, error)
 	InsertChannelEvent(ctx context.Context, arg InsertChannelEventParams) error
 	InsertPeer(ctx context.Context, pubkey string) (int64, error)

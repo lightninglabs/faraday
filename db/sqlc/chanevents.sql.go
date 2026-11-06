@@ -172,6 +172,69 @@ func (q *Queries) GetPeerByPubKey(ctx context.Context, pubkey string) (Peer, err
 	return i, err
 }
 
+const getUnobservedIntervals = `-- name: GetUnobservedIntervals :many
+WITH sync_events AS (
+    SELECT s.id, (
+        SELECT l.id FROM channel_events l
+        WHERE l.is_sync = FALSE AND l.id < s.id
+        ORDER BY l.id DESC
+        LIMIT 1
+    ) AS live_id
+    FROM channel_events s
+    WHERE s.is_sync = TRUE AND s.timestamp >= $2
+), batches AS (
+    SELECT live_id, MAX(id) AS last_sync_id
+    FROM sync_events
+    GROUP BY live_id
+)
+SELECT live.timestamp AS live_timestamp, sync.timestamp AS sync_timestamp
+FROM batches b
+JOIN channel_events sync ON sync.id = b.last_sync_id
+LEFT JOIN channel_events live ON live.id = b.live_id
+WHERE live.id IS NULL OR live.timestamp < $1
+ORDER BY sync.id ASC
+`
+
+type GetUnobservedIntervalsParams struct {
+	EndTime   time.Time
+	StartTime time.Time
+}
+
+type GetUnobservedIntervalsRow struct {
+	LiveTimestamp sql.NullTime
+	SyncTimestamp time.Time
+}
+
+// GetUnobservedIntervals returns one row per sync batch whose last sync event
+// lies at or after start_time. A batch is the set of sync events that share
+// the same preceding live event. The row carries the timestamp of that live
+// event (NULL if none exists) and the timestamp of the last sync event of the
+// batch. Rows whose live event lies at or after end_time are left out. The
+// query aggregates over ids, not timestamps, because SQLite cannot scan an
+// aggregated timestamp back into a time value.
+func (q *Queries) GetUnobservedIntervals(ctx context.Context, arg GetUnobservedIntervalsParams) ([]GetUnobservedIntervalsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUnobservedIntervals, arg.EndTime, arg.StartTime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUnobservedIntervalsRow
+	for rows.Next() {
+		var i GetUnobservedIntervalsRow
+		if err := rows.Scan(&i.LiveTimestamp, &i.SyncTimestamp); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertChannel = `-- name: InsertChannel :one
 INSERT INTO channels (channel_point, short_channel_id, peer_id) VALUES ($1, $2, $3) RETURNING id
 `

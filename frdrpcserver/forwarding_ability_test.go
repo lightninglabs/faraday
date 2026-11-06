@@ -17,12 +17,14 @@ import (
 type mockForwardingAnalyzer struct {
 	effectiveUptimeFunc func(ctx context.Context, startTime, endTime time.Time,
 		liquidityFloor btcutil.Amount) (
-		map[chanevents.PeerPair]chanevents.ForwardingAbility, error)
+		map[chanevents.PeerPair]chanevents.ForwardingAbility,
+		time.Duration, error)
 }
 
 func (m *mockForwardingAnalyzer) EffectiveUptime(ctx context.Context, startTime,
 	endTime time.Time, liquidityFloor btcutil.Amount) (
-	map[chanevents.PeerPair]chanevents.ForwardingAbility, error) {
+	map[chanevents.PeerPair]chanevents.ForwardingAbility, time.Duration,
+	error) {
 
 	return m.effectiveUptimeFunc(ctx, startTime, endTime, liquidityFloor)
 }
@@ -44,6 +46,9 @@ func TestForwardingAbility(t *testing.T) {
 		name     string
 		analyzer analyzerResult
 		req      *frdrpc.ForwardingAbilityRequest
+
+		// unobserved is the unobserved time the analyzer reports.
+		unobserved time.Duration
 
 		// wantCode is the expected gRPC status; codes.OK denotes
 		// success.
@@ -213,6 +218,39 @@ func TestForwardingAbility(t *testing.T) {
 			},
 		},
 		{
+			// The pair was up for the whole observed window. The
+			// unobserved time rounds up to 60s, leaving an observed
+			// window of 40s. The uptime rounds down to 40s, so the
+			// pair clears a threshold of 1.
+			name:       "unobserved time shrinks guard window",
+			unobserved: 59500 * time.Millisecond,
+			analyzer: func() (
+				map[chanevents.PeerPair]chanevents.ForwardingAbility,
+				error) {
+
+				return map[chanevents.PeerPair]chanevents.ForwardingAbility{
+					{PeerIn: peerIn, PeerOut: peerOut}: {
+						EffectiveUptime: 40500 *
+							time.Millisecond,
+					},
+				}, nil
+			},
+			req: &frdrpc.ForwardingAbilityRequest{
+				StartTime:       100,
+				EndTime:         200,
+				UptimeThreshold: 1,
+			},
+			wantCode: codes.OK,
+			check: func(t *testing.T,
+				resp *frdrpc.ForwardingAbilityResponse,
+				_ btcutil.Amount) {
+
+				require.EqualValues(t, 60, resp.UnobservedS)
+				require.Empty(t, resp.Entries)
+				require.NotEmpty(t, resp.UpButIdleBitmask)
+			},
+		},
+		{
 			name: "out of range threshold is rejected",
 			analyzer: func() (
 				map[chanevents.PeerPair]chanevents.ForwardingAbility,
@@ -275,11 +313,14 @@ func TestForwardingAbility(t *testing.T) {
 							_ time.Time,
 							floor btcutil.Amount) (
 							map[chanevents.PeerPair]chanevents.ForwardingAbility,
-							error) {
+							time.Duration, error) {
 
 							gotFloor = floor
+							abilities, err :=
+								tc.analyzer()
 
-							return tc.analyzer()
+							return abilities,
+								tc.unobserved, err
 						},
 					}
 				}
